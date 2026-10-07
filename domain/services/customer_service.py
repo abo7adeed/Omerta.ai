@@ -87,29 +87,27 @@ class CustomerService:
         if existing_username:
             raise ValueError(f"A user with username '{clean_username}' already exists. Please choose a different username.")
 
-        # 4. Check existing customer by registered phone number
+        # 4. Check existing customer by National ID if provided
+        if clean_nat_id:
+            existing_nat_id = await self.session.scalar(
+                select(Customer).where(Customer.national_id_number == clean_nat_id).limit(1)
+            )
+            if existing_nat_id:
+                raise ValueError(f"A customer with National ID / Passport '{clean_nat_id}' is already registered.")
+
+        # 5. Check existing customer by registered exact phone number
         if clean_phone:
             import re
             clean_digits = re.sub(r"[^\d+]", "", clean_phone)
-            pure_digits = re.sub(r"\D", "", clean_phone)
             phone_conds = [Customer.phone == clean_phone]
             if clean_digits:
                 phone_conds.append(Customer.phone == clean_digits)
-            if pure_digits and len(pure_digits) >= 6:
-                phone_conds.append(and_(Customer.phone != "", Customer.phone.ilike(f"%{pure_digits[-8:]}%")))
 
             existing_phone = await self.session.scalar(
                 select(Customer).where(or_(*phone_conds)).limit(1)
             )
             if existing_phone:
                 raise ValueError(f"A customer profile with mobile phone '{clean_phone}' is already registered.")
-
-        # 5. Check existing customer by full legal name
-        existing_name = await self.session.scalar(
-            select(Customer).where(func.lower(Customer.name) == clean_name.lower()).limit(1)
-        )
-        if existing_name:
-            raise ValueError(f"A customer profile with the legal name '{clean_name}' already exists in the system.")
 
         # Ensure unique user number
         for _ in range(10):
@@ -544,7 +542,9 @@ class CustomerService:
         await self.session.commit()
 
         return {
+            "id": acc.id,
             "account_id": acc.external_id,
+            "account_number": acc.external_id,
             "account_type": acc.account_type,
             "currency": acc.currency,
             "balance": float(acc.balance),
@@ -800,13 +800,20 @@ class CustomerService:
         """Record login telemetry, enforce single active session constraint, and detect multi-accounts on device."""
         now = datetime.now(UTC)
 
-        # 1. Supersede and revoke prior active sessions strictly for THIS user
+        # 1. Enforce Single-Session Constraint: Check if an active session already exists for THIS user
         active_stmt = (
             select(Session)
             .where(and_(Session.user_id == user.id, Session.is_active.is_(True)))
             .order_by(Session.started_at.desc())
         )
         active_sessions = (await self.session.scalars(active_stmt)).all()
+
+        if active_sessions and not force_login:
+            return (
+                False,
+                f"Active Session Detected: Account '{user.username}' is currently logged in on another device or browser. You cannot sign in from another place until you log out from the other session.",
+                {"active_sessions_count": len(active_sessions)},
+            )
 
         for s in active_sessions:
             s.is_active = False

@@ -5,11 +5,17 @@ import {
   ArrowDownLeft,
   Search,
   FileText,
-  X,
 } from 'lucide-react';
 import { api } from '../../api/client';
 import type { CustomerTransaction } from '../../types';
-import { StatusBadge } from '../../components/common/StatusBadge';
+import {
+  Card,
+  Button,
+  Input,
+  Select,
+  StatusBadge,
+  Modal,
+} from '../../components/ui';
 
 export const CustomerTransactionsPage: React.FC = () => {
   const [transactions, setTransactions] = useState<CustomerTransaction[]>([]);
@@ -55,126 +61,130 @@ export const CustomerTransactionsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[#F4F7FC] flex items-center gap-2">
-          <ArrowLeftRight className="h-6 w-6 text-[#3978F6]" />
+      <Card className="p-6 md:p-8">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--color-sapphire)] flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-[var(--color-sapphire)] text-[var(--color-gold)] shadow-sm">
+            <ArrowLeftRight className="h-6 w-6 stroke-[2.2]" />
+          </div>
           <span>My Transactions</span>
         </h1>
-        <p className="text-xs text-[#A7B4C8] mt-1">
+        <p className="text-xs text-[var(--color-text-secondary)] mt-2 font-medium">
           Historical record of all incoming and outgoing transfers scoped to your accounts
         </p>
-      </div>
+      </Card>
 
       {/* Filter Bar */}
-      <div className="p-4 omerta-card space-y-3">
-        <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <input
-              type="text"
+      <Card className="p-5">
+        <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-3 items-center">
+          <div className="flex-1 w-full">
+            <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search reference, counterparty..."
-              className="w-full pl-9 pr-4 py-2 bg-[#101A2B] border border-[#25344A] rounded-lg text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6]"
+              icon={<Search className="h-4 w-4 text-[var(--color-sapphire)]" />}
             />
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#71819A]" />
           </div>
 
-          <div className="flex items-center gap-2">
-            <select
+          <div className="flex items-center gap-2.5 flex-wrap w-full sm:w-auto">
+            <Select
               value={direction}
               onChange={(e) => {
                 setDirection(e.target.value);
                 setPage(1);
               }}
-              className="px-3 py-2 bg-[#101A2B] border border-[#25344A] rounded-lg text-xs text-[#F4F7FC] focus:outline-none focus:border-[#3978F6]"
-            >
-              <option value="ALL">All Directions</option>
-              <option value="INCOMING">Incoming Transfers</option>
-              <option value="OUTGOING">Outgoing Transfers</option>
-            </select>
+              options={[
+                { value: 'ALL', label: 'All Directions' },
+                { value: 'INCOMING', label: 'Incoming Transfers' },
+                { value: 'OUTGOING', label: 'Outgoing Transfers' },
+              ]}
+            />
 
-            <select
+            <Select
               value={status}
               onChange={(e) => {
                 setStatus(e.target.value);
                 setPage(1);
               }}
-              className="px-3 py-2 bg-[#101A2B] border border-[#25344A] rounded-lg text-xs text-[#F4F7FC] focus:outline-none focus:border-[#3978F6]"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="PENDING">Pending</option>
-              <option value="REJECTED">Rejected</option>
-            </select>
+              options={[
+                { value: 'ALL', label: 'All Statuses' },
+                { value: 'COMPLETED', label: 'Completed' },
+                { value: 'PENDING', label: 'Pending' },
+                { value: 'REJECTED', label: 'Rejected' },
+              ]}
+            />
 
-            <button
+            <Button
               type="submit"
-              className="px-4 py-2 rounded-lg bg-[#3978F6] hover:bg-[#3978F6]/90 text-xs font-bold text-[#F4F7FC]"
+              variant="primary"
+              size="sm"
             >
               Filter
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
+      </Card>
 
       {/* Table */}
-      <div className="omerta-card overflow-hidden">
+      <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="text-left text-xs">
-            <thead className="bg-[#101A2B] text-[#A7B4C8] uppercase tracking-wider font-bold">
-              <tr>
-                <th className="p-3.5">Direction</th>
-                <th className="p-3.5">Reference</th>
-                <th className="p-3.5">Counterparty</th>
-                <th className="p-3.5">Amount</th>
-                <th className="p-3.5">Status</th>
-                <th className="p-3.5">Timestamp</th>
-                <th className="p-3.5 text-right">Receipt</th>
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-[var(--color-secondary-surface)] border-b border-[var(--color-border)] text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                <th className="p-4">Direction</th>
+                <th className="p-4">Reference</th>
+                <th className="p-4">Counterparty</th>
+                <th className="p-4">Amount</th>
+                <th className="p-4">Status</th>
+                <th className="p-4">Timestamp</th>
+                <th className="p-4 text-right">Receipt</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#25344A]">
+            <tbody className="divide-y divide-[var(--color-border)]">
               {transactions.length > 0 ? (
                 transactions.map((t) => (
-                  <tr key={t.transaction_id} className="hover:bg-[#1B2B43]/50 transition-colors">
-                    <td className="p-3.5">
+                  <tr key={t.transaction_id} className="hover:bg-[var(--color-hover-surface)] transition-colors">
+                    <td className="p-4">
                       {t.direction === 'INCOMING' ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#27C58B]/15 text-[#27C58B] font-bold text-[10px] border border-[#27C58B]/30">
-                          <ArrowDownLeft className="h-3 w-3" /> Incoming
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 font-bold text-[11px] border border-emerald-200">
+                          <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-600" /> Incoming
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#3978F6]/15 text-[#29C5D9] font-bold text-[10px] border border-[#3978F6]/30">
-                          <ArrowUpRight className="h-3 w-3" /> Outgoing
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-[var(--color-sapphire)] font-bold text-[11px] border border-blue-200">
+                          <ArrowUpRight className="h-3.5 w-3.5 text-[var(--color-royal-blue)]" /> Outgoing
                         </span>
                       )}
                     </td>
-                    <td className="p-3.5 font-mono text-[#A7B4C8] font-bold">{t.transaction_id}</td>
-                    <td className="p-3.5 font-semibold text-[#F4F7FC]">{t.counterparty}</td>
-                    <td className="p-3.5 font-mono font-bold font-tabular text-[#F4F7FC]">
+                    <td className="p-4 font-mono font-bold text-[var(--color-text-secondary)]">{t.transaction_id}</td>
+                    <td className="p-4 font-semibold text-[var(--color-text-primary)]">{t.counterparty}</td>
+                    <td className="p-4 font-mono font-bold font-tabular text-[var(--color-sapphire)]">
                       {t.direction === 'INCOMING' ? '+' : '-'}
                       {t.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {t.currency}
                     </td>
-                    <td className="p-3.5">
+                    <td className="p-4">
                       <StatusBadge status={t.status} />
                     </td>
-                    <td className="p-3.5 text-[#71819A] whitespace-nowrap">
+                    <td className="p-4 text-[var(--color-text-secondary)] font-medium whitespace-nowrap">
                       {new Date(t.timestamp).toLocaleDateString()} {new Date(t.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </td>
-                    <td className="p-3.5 text-right">
-                      <button
+                    <td className="p-4 text-right">
+                      <Button
+                        size="sm"
+                        variant="secondary"
                         onClick={() => setSelectedTxn(t)}
-                        className="p-1.5 text-[#3978F6] hover:text-[#29C5D9] hover:bg-[#101A2B] rounded transition-colors"
                         title="View Customer Receipt"
+                        aria-label="View Receipt"
+                        className="px-2.5 min-h-[36px]"
                       >
-                        <FileText className="h-4 w-4" />
-                      </button>
+                        <FileText className="h-4 w-4 text-[var(--color-sapphire)]" />
+                      </Button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-[#71819A]">
+                  <td colSpan={7} className="p-10 text-center text-[var(--color-text-secondary)] font-medium">
                     {isLoading ? 'Loading transaction history...' : 'No transactions matching your criteria.'}
                   </td>
                 </tr>
@@ -185,86 +195,79 @@ export const CustomerTransactionsPage: React.FC = () => {
 
         {/* Pagination */}
         {total > pageSize && (
-          <div className="p-3 border-t border-[#25344A] flex items-center justify-between text-xs text-[#71819A]">
+          <div className="p-4 border-t border-[var(--color-border)] flex items-center justify-between text-xs text-[var(--color-text-secondary)] font-semibold">
             <span>Showing {transactions.length} of {total} entries</span>
             <div className="flex gap-2">
-              <button
+              <Button
+                size="sm"
+                variant="secondary"
                 disabled={page <= 1}
                 onClick={() => setPage(page - 1)}
-                className="px-3 py-1 rounded bg-[#101A2B] border border-[#25344A] text-[#F4F7FC] disabled:opacity-50"
               >
                 Previous
-              </button>
-              <button
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
                 disabled={page * pageSize >= total}
                 onClick={() => setPage(page + 1)}
-                className="px-3 py-1 rounded bg-[#101A2B] border border-[#25344A] text-[#F4F7FC] disabled:opacity-50"
               >
                 Next
-              </button>
+              </Button>
             </div>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Customer Receipt Modal */}
       {selectedTxn && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md p-6 omerta-card bg-[#152238] border-[#25344A] space-y-4">
-            <div className="flex items-center justify-between border-b border-[#25344A] pb-3">
-              <h3 className="text-base font-bold text-[#F4F7FC] flex items-center gap-2">
-                <FileText className="h-5 w-5 text-[#3978F6]" />
-                <span>Transfer Receipt</span>
-              </h3>
-              <button
-                onClick={() => setSelectedTxn(null)}
-                className="p-1 text-[#A7B4C8] hover:text-[#F4F7FC] rounded"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="p-4 rounded-lg bg-[#101A2B] border border-[#25344A] space-y-3 text-xs">
-              <div className="flex justify-between">
-                <span className="text-[#71819A]">Transaction Ref</span>
-                <span className="font-mono font-bold text-[#F4F7FC]">{selectedTxn.transaction_id}</span>
+        <Modal
+          isOpen={Boolean(selectedTxn)}
+          onClose={() => setSelectedTxn(null)}
+          title="Transfer Receipt"
+          subtitle="Verified transaction ledger entry"
+          maxWidth="md"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="p-4 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)] space-y-3">
+              <div className="flex justify-between items-center pb-2 border-b border-[var(--color-border)]">
+                <span className="text-[var(--color-text-muted)] font-bold">Transaction Ref</span>
+                <span className="font-mono font-extrabold text-[var(--color-sapphire)]">{selectedTxn.transaction_id}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-[#71819A]">Direction</span>
-                <span className="font-bold text-[#F4F7FC]">{selectedTxn.direction}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--color-text-muted)] font-bold">Direction</span>
+                <span className="font-bold text-[var(--color-text-primary)]">{selectedTxn.direction}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-[#71819A]">Counterparty</span>
-                <span className="font-semibold text-[#F4F7FC]">{selectedTxn.counterparty}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--color-text-muted)] font-bold">Counterparty</span>
+                <span className="font-semibold text-[var(--color-text-primary)]">{selectedTxn.counterparty}</span>
               </div>
-              <div className="flex justify-between border-t border-[#25344A] pt-2">
-                <span className="text-[#71819A]">Amount</span>
-                <span className="font-mono font-bold text-sm text-[#27C58B]">
+              <div className="flex justify-between items-center border-t border-[var(--color-border)] pt-2">
+                <span className="text-[var(--color-text-muted)] font-bold">Amount</span>
+                <span className="font-mono font-extrabold text-base text-emerald-700 font-tabular">
                   {selectedTxn.amount.toLocaleString()} {selectedTxn.currency}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-[#71819A]">Status</span>
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--color-text-muted)] font-bold">Status</span>
                 <StatusBadge status={selectedTxn.status} />
               </div>
-              <div className="flex justify-between">
-                <span className="text-[#71819A]">Date &amp; Time</span>
-                <span className="text-[#A7B4C8]">{new Date(selectedTxn.timestamp).toLocaleString()}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--color-text-muted)] font-bold">Date &amp; Time</span>
+                <span className="text-[var(--color-text-secondary)] font-medium">{new Date(selectedTxn.timestamp).toLocaleString()}</span>
               </div>
             </div>
 
-            <p className="text-[10px] text-[#71819A] text-center">
-              Simulated demo transfer for testing and compliance demonstration.
-            </p>
-
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               onClick={() => setSelectedTxn(null)}
-              className="w-full py-2.5 rounded-lg bg-[#3978F6] hover:bg-[#3978F6]/90 text-xs font-bold text-[#F4F7FC]"
+              className="w-full"
             >
               Close Receipt
-            </button>
+            </Button>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

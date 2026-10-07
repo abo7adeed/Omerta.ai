@@ -8,10 +8,12 @@ import {
   FolderSearch,
   Users,
   Wallet,
-  Gauge,
   ArrowUpRight,
   TrendingUp,
   RefreshCw,
+  Activity,
+  CheckCircle2,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -23,10 +25,16 @@ import {
   PieChart,
   Pie,
   Cell,
+  BarChart,
+  Bar,
 } from 'recharts';
 import { api } from '../api/client';
-import { StatCard } from '../components/common/StatCard';
-import { RiskBadge } from '../components/common/RiskBadge';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { StatCard } from '../components/ui/StatCard';
+import { RiskBadge } from '../components/ui/RiskBadge';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { TableContainer, Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '../components/ui/Table';
 
 export const DashboardPage: React.FC = () => {
   const [summary, setSummary] = useState<any>(null);
@@ -58,59 +66,69 @@ export const DashboardPage: React.FC = () => {
   }, []);
 
   const RISK_COLORS: Record<string, string> = {
-    LOW: '#10b981',
-    MODERATE: '#f59e0b',
-    REQUIRES_REVIEW: '#f97316',
-    HIGH: '#ef4444',
-    CRITICAL: '#dc2626',
+    LOW: '#10B981',
+    MODERATE: '#1E88E5',
+    REQUIRES_REVIEW: '#F9A825',
+    HIGH: '#F59E0B',
+    CRITICAL: '#DC2626',
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Top Welcome / Header Card */}
+      <Card className="p-6 sm:p-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
-            Financial Crime Intelligence Dashboard
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#F9A825] mb-1">
+            <span className="h-2 w-2 rounded-full bg-[#10B981] animate-pulse" />
+            Omerta Financial Crime Intelligence
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#002D72]">
+            Executive Intelligence Dashboard
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-[#64748B] mt-1 font-medium">
             Real-time transaction monitoring, multi-signal risk assessments, and human review queues.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
+        <div className="flex items-center gap-3 shrink-0">
+          <Button
             onClick={loadDashboardData}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm"
+            variant="secondary"
+            size="sm"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-sky-500 dark:text-cyan-400' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin text-[#002D72]' : ''}`} />
             <span>Refresh</span>
-          </button>
-          <button
-            onClick={() => navigate('/risk-monitoring')}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-cyan-500 text-slate-950 text-xs font-bold hover:brightness-110 transition-all shadow-md shadow-cyan-500/15"
+          </Button>
+          <Button
+            onClick={() => navigate('/admin/risk-monitoring')}
+            variant="primary"
+            size="sm"
           >
             <ShieldAlert className="h-4 w-4" />
             <span>Review Queue ({summary?.transactions_requiring_review ?? '…'})</span>
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
-      {/* 8 Primary KPI Summary Cards */}
+      {/* 4 Primary Executive KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Transactions"
-          value={summary ? summary.total_transactions.toLocaleString() : '10,000'}
+          value={
+            summary?.total_transactions !== undefined
+              ? Number(summary.total_transactions).toLocaleString()
+              : '10,000'
+          }
           subtitle="Monitored in system of record"
           change="+14.2% vs last period"
           isPositive={true}
           icon={ArrowLeftRight}
-          variant="cyan"
+          variant="sapphire"
         />
         <StatCard
           title="Total Volume"
           value={
-            summary
-              ? `${(summary.total_volume / 1000000).toFixed(1)}M EGP`
+            summary?.total_volume !== undefined
+              ? `${(Number(summary.total_volume) / 1000000).toFixed(1)}M EGP`
               : '156.5M EGP'
           }
           subtitle="Cumulative gross volume"
@@ -120,278 +138,322 @@ export const DashboardPage: React.FC = () => {
           variant="emerald"
         />
         <StatCard
-          title="Requires Human Review"
-          value={summary ? summary.transactions_requiring_review : '315'}
+          title="Under Human Review"
+          value={summary?.transactions_requiring_review ?? '315'}
           subtitle="Strict rule: risk_score > 40%"
-          change="Pending analyst review"
+          change="Action required"
           isPositive={false}
           icon={ShieldAlert}
-          variant="alert"
+          variant="gold"
+          onClick={() => navigate('/admin/risk-monitoring')}
         />
         <StatCard
           title="High-Risk Transactions"
-          value={summary ? summary.high_risk_transactions : '10'}
+          value={summary?.high_risk_transactions ?? '10'}
           subtitle="Score >= 70% or critical flags"
           change="Priority escalated"
           isPositive={false}
           icon={AlertTriangle}
-          variant="alert"
+          variant="rose"
+          onClick={() => navigate('/admin/risk-monitoring')}
         />
+      </div>
+
+      {/* Secondary Metric Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Open Investigations"
-          value={summary ? summary.open_investigations : '67'}
+          value={summary?.open_investigations ?? '67'}
           subtitle="Active analyst cases"
-          change="Active compliance pipeline"
-          isPositive={true}
           icon={FolderSearch}
-          variant="default"
+          variant="sapphire"
+          onClick={() => navigate('/admin/investigations')}
         />
         <StatCard
-          title="Customers Monitored"
-          value={summary ? summary.customers_monitored.toLocaleString() : '1,000'}
-          subtitle="Individuals, SMEs & Corporates"
-          change="Full KYC coverage"
-          isPositive={true}
-          icon={Users}
-          variant="default"
+          title="Blocked Transactions"
+          value={summary?.blocked_transactions ?? '12'}
+          subtitle="Prevented fraudulent dispatch"
+          icon={ShieldCheck}
+          variant="amber"
         />
         <StatCard
-          title="Accounts Monitored"
-          value={summary ? summary.accounts_monitored.toLocaleString() : '1,515'}
-          subtitle="Active multi-currency accounts"
-          change="EGP, USD, EUR, GBP"
-          isPositive={true}
+          title="Total Accounts"
+          value={
+            (summary?.accounts_monitored ?? summary?.total_accounts) !== undefined
+              ? Number(summary.accounts_monitored ?? summary.total_accounts).toLocaleString()
+              : '1,500'
+          }
+          subtitle="Protected banking ledgers"
           icon={Wallet}
-          variant="default"
+          variant="sapphire"
+          onClick={() => navigate('/admin/accounts')}
         />
         <StatCard
-          title="Average Risk Score"
-          value={summary ? `${summary.average_risk_score.toFixed(1)}%` : '13.2%'}
-          subtitle="Baseline platform risk profile"
-          change="Low baseline variance"
-          isPositive={true}
-          icon={Gauge}
-          variant="cyan"
+          title="Verified Customers"
+          value={
+            (summary?.customers_monitored ?? summary?.total_customers) !== undefined
+              ? Number(summary.customers_monitored ?? summary.total_customers).toLocaleString()
+              : '1,200'
+          }
+          subtitle="KYC complete & active"
+          icon={Users}
+          variant="emerald"
+          onClick={() => navigate('/admin/customers')}
         />
       </div>
 
-      {/* Primary Visualizations Row */}
+      {/* Bento Grid: Analytics & Chart Intelligence */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Transaction Volume Timeseries (2 cols) */}
-        <div className="lg:col-span-2 omerta-card p-6 flex flex-col justify-between">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+        {/* Real-time Volume / Trend Area Chart */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-sky-600 dark:text-cyan-400" />
-                Transaction Volume & Review Activity Over Time
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Daily transaction gross volume with corresponding flagged human reviews
-              </p>
+              <CardTitle className="text-base">Transaction Throughput &amp; Risk Volume</CardTitle>
+              <CardDescription>
+                Chronological transaction volume (EGP) and flagged suspicious velocity
+              </CardDescription>
             </div>
-            <span className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-mono font-semibold text-sky-700 dark:text-cyan-300 border border-slate-300 dark:border-slate-700">
-              15-Day Window
-            </span>
-          </div>
-
-          <div className="h-72 w-full mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={charts?.volume_trend || []}>
-                <defs>
-                  <linearGradient id="volGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00d2ff" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#00d2ff" stopOpacity={0.0} />
-                  </linearGradient>
-                  <linearGradient id="reviewGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" stroke="#64748b" fontSize={11} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#0f172a',
-                    borderColor: '#334155',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    color: '#ffffff',
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="volume"
-                  name="Volume (EGP)"
-                  stroke="#0284c7"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#volGradient)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="reviews"
-                  name="Flagged Reviews"
-                  stroke="#ea580c"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#reviewGradient)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Risk Level Distribution Donut (1 col) */}
-        <div className="omerta-card p-6 flex flex-col justify-between">
-          <div className="pb-4 border-b border-slate-200 dark:border-slate-800">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
-              Risk Level Breakdown
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Total population across severity tiers</p>
-          </div>
-
-          <div className="h-56 w-full mt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={charts?.risk_distribution || []}
-                  dataKey="count"
-                  nameKey="level"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={80}
-                  paddingAngle={3}
+            <div className="flex items-center gap-3 text-xs font-semibold">
+              <span className="flex items-center gap-1.5 text-[#002D72]">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#002D72]" /> Volume
+              </span>
+              <span className="flex items-center gap-1.5 text-[#F9A825]">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#F9A825]" /> High Risk
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent className="h-72">
+            {charts?.volume_trend || charts?.time_series ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={charts.volume_trend || charts.time_series}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
                 >
-                  {(charts?.risk_distribution || []).map((entry: any) => (
-                    <Cell
-                      key={entry.level}
-                      fill={RISK_COLORS[entry.level] || '#38bdf8'}
-                      stroke="#ffffff"
-                      strokeWidth={1.5}
-                    />
+                  <defs>
+                    <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#002D72" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#002D72" stopOpacity={0.0} />
+                    </linearGradient>
+                    <linearGradient id="colorRisk" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#F9A825" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#F9A825" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="date"
+                    stroke="#94A3B8"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={{ stroke: '#E0DDD6' }}
+                  />
+                  <YAxis
+                    stroke="#94A3B8"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={{ stroke: '#E0DDD6' }}
+                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: '10px',
+                      border: '1px solid #E0DDD6',
+                      boxShadow: '0 4px 12px rgba(0, 45, 114, 0.08)',
+                      fontSize: '12px',
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="volume"
+                    name="Gross Volume"
+                    stroke="#002D72"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorVolume)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="reviews"
+                    name="Reviews / High Risk"
+                    stroke="#F9A825"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorRisk)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-xs text-[#64748B]">
+                {loading ? 'Synthesizing time-series telemetry...' : 'No telemetry data available'}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Risk Distribution Breakdown */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Risk Tier Distribution</CardTitle>
+            <CardDescription>
+              Breakdown across current monitored volume
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="h-72 flex flex-col justify-between">
+            {charts?.risk_distribution && charts.risk_distribution.length > 0 ? (
+              <>
+                <div className="h-44">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={charts.risk_distribution}
+                        dataKey="count"
+                        nameKey="level"
+                        innerRadius={45}
+                        outerRadius={70}
+                        paddingAngle={3}
+                      >
+                        {charts.risk_distribution.map((entry: any) => (
+                          <Cell
+                            key={entry.level}
+                            fill={RISK_COLORS[entry.level] || '#002D72'}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#FFFFFF',
+                          borderRadius: '10px',
+                          border: '1px solid #E0DDD6',
+                          fontSize: '12px',
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#E0DDD6]">
+                  {charts.risk_distribution.map((item: any) => (
+                    <div key={item.level} className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1.5 text-[#475569] font-medium">
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: RISK_COLORS[item.level] || '#002D72' }}
+                        />
+                        {item.level.replace(/_/g, ' ')}
+                      </span>
+                      <span className="font-mono font-bold text-[#002D72]">{item.count}</span>
+                    </div>
                   ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#0f172a',
-                    borderColor: '#334155',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    color: '#ffffff',
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Legend */}
-          <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-200 dark:border-slate-800/80">
-            {(charts?.risk_distribution || []).map((item: any) => (
-              <div key={item.level} className="flex items-center gap-2">
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: RISK_COLORS[item.level] || '#38bdf8' }}
-                />
-                <span className="truncate text-slate-600 dark:text-slate-400 font-medium">{item.level}:</span>
-                <span className="font-bold text-slate-900 dark:text-white font-mono">{item.count}</span>
+                </div>
+              </>
+            ) : (
+              <div className="h-full flex items-center justify-center text-xs text-[#64748B]">
+                {loading ? 'Calculating risk distribution...' : 'No distribution metrics'}
               </div>
-            ))}
-          </div>
-        </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Secondary Analytics Row: Top Risk Signals & Recent Flagged Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Detected Risk Signals */}
-        <div className="omerta-card p-6">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
-                Top Detected Risk Signals
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Most frequent behavioral & structural triggers</p>
-            </div>
-            <button
-              onClick={() => navigate('/analytics')}
-              className="text-xs text-sky-600 dark:text-cyan-400 hover:text-sky-700 dark:hover:text-cyan-300 flex items-center gap-1 font-bold"
-            >
-              <span>View details</span>
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </button>
+      {/* Recent Monitored Transactions Table */}
+      <Card>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">Recent High-Risk &amp; Monitored Activity</CardTitle>
+            <CardDescription>
+              Real-time audit feed of transactions requiring compliance attention
+            </CardDescription>
           </div>
-
-          <div className="mt-4 space-y-3">
-            {(charts?.top_risk_signals || []).map((sig: any, idx: number) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400 w-4">
-                    #{idx + 1}
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-900 dark:text-white">{sig.signal}</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Severity: {sig.severity}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-sky-100 dark:bg-sky-500/10 text-sky-800 dark:text-cyan-300 border border-sky-300 dark:border-sky-500/20">
-                    {sig.count} detections
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Priority Review Alerts Stream */}
-        <div className="omerta-card p-6">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
-                Priority Review Stream
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">High-severity alerts awaiting compliance review</p>
-            </div>
-            <button
-              onClick={() => navigate('/risk-monitoring')}
-              className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 flex items-center gap-1 font-bold"
-            >
-              <span>Go to review queue</span>
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            {(recent?.priority_alerts || []).map((al: any) => (
-              <div
-                key={al.id}
-                onClick={() => navigate(`/transactions/${al.transaction_id}`)}
-                className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 hover:border-amber-400 dark:hover:border-amber-500/40 hover:bg-amber-50/40 dark:hover:bg-slate-800 cursor-pointer transition-all"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-900 dark:text-white font-mono">
-                      {al.external_id}
-                    </span>
-                    <RiskBadge level={al.risk_level} score={al.risk_score} size="sm" />
-                  </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                    Type: {al.alert_type.replace(/_/g, ' ')}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-bold text-sky-600 dark:text-cyan-400 flex items-center gap-1">
-                    Investigate <ArrowUpRight className="h-3.5 w-3.5" />
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+          <Button
+            onClick={() => navigate('/admin/transactions')}
+            variant="tertiary"
+            size="sm"
+            rightIcon={<ArrowUpRight className="h-4 w-4" />}
+          >
+            View All Transactions
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0">
+          <TableContainer className="border-0 rounded-none rounded-b-[16px] shadow-none">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Transaction ID</TableHead>
+                  <TableHead>Customer / Sender</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Risk Score</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Time</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(() => {
+                  const txList = recent?.recent_transactions || recent?.items || [];
+                  if (txList.length > 0) {
+                    return txList.map((txn: any) => {
+                      const timeStr = txn.timestamp || txn.created_at;
+                      return (
+                        <TableRow
+                          key={txn.external_id || txn.id}
+                          onClick={() => navigate(`/admin/transactions/${txn.external_id || txn.id}`)}
+                          className="cursor-pointer"
+                        >
+                          <TableCell className="font-mono font-bold text-[#002D72]">
+                            {txn.external_id || txn.id}
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-semibold text-[#0F172A]">
+                              {txn.sender_name || txn.customer_name || 'Account Holder'}
+                            </div>
+                            <div className="text-[11px] text-[#64748B] font-mono">
+                              {txn.sender_account_number || txn.account_number || 'ACC-Monitored'}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-mono font-bold text-[#002D72]">
+                            {txn.amount !== undefined ? `${Number(txn.amount).toLocaleString()} ${txn.currency || 'EGP'}` : '0 EGP'}
+                          </TableCell>
+                          <TableCell>
+                            <RiskBadge
+                              level={txn.risk_level || (txn.risk_score >= 70 ? 'HIGH' : txn.risk_score >= 40 ? 'REQUIRES_REVIEW' : 'LOW')}
+                              score={txn.risk_score}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={txn.status || 'COMPLETED'} />
+                          </TableCell>
+                          <TableCell className="text-xs text-[#64748B] font-mono">
+                            {timeStr ? new Date(timeStr).toLocaleTimeString() : 'Just now'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/admin/transactions/${txn.external_id || txn.id}`);
+                              }}
+                              variant="ghost"
+                              size="sm"
+                            >
+                              <span>Investigate</span>
+                              <ArrowUpRight className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    });
+                  }
+                  return (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-xs text-[#64748B]">
+                        {loading ? 'Fetching recent transaction telemetry...' : 'No transactions requiring immediate review'}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })()}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
     </div>
   );
 };

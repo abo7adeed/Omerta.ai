@@ -6,15 +6,18 @@ import {
   Mail,
   ArrowRight,
   AlertCircle,
-  Building,
+  Building2,
   Eye,
   EyeOff,
   ShieldCheck,
 } from 'lucide-react';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, sessionError } = useAuth();
 
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -65,155 +68,188 @@ export const LoginPage: React.FC = () => {
     doLogin(true);
   };
 
-  return (
-    <div className="min-h-screen w-full bg-[#080D19] text-[#F4F7FC] flex flex-col justify-between relative overflow-hidden font-sans">
-      {/* Subtle Background Glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(57,120,246,0.12),rgba(0,0,0,0))] pointer-events-none" />
+  const effectiveError = error || sessionError;
 
+  return (
+    <div className="min-h-screen bg-[#FFF8E1] flex flex-col justify-between p-4 sm:p-8">
       {/* Header Branding */}
-      <header className="px-6 sm:px-8 py-6 flex items-center justify-between relative z-10">
+      <header className="max-w-6xl w-full mx-auto flex items-center justify-between py-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#3978F6] to-[#29C5D9] flex items-center justify-center text-slate-950 font-black shadow-lg shadow-cyan-500/20">
-            <Building className="w-5 h-5 stroke-[2.5]" />
+          <div className="w-10 h-10 rounded-[10px] bg-[#002D72] text-[#F9A825] flex items-center justify-center shadow-xs">
+            <Building2 className="w-5 h-5 stroke-[2.2]" />
           </div>
           <div>
-            <div className="text-xl font-bold tracking-tight text-[#F4F7FC] flex items-center gap-1.5">
-              Omerta<span className="text-[#29C5D9]">.ai</span>
+            <div className="text-xl font-bold tracking-tight text-[#002D72]">
+              OMERTA<span className="text-[#F9A825]">.AI</span>
             </div>
-            <div className="text-[10px] text-[#A7B4C8] tracking-wider uppercase font-semibold">
-              Digital Banking Intelligence
+            <div className="text-[10px] text-[#64748B] tracking-wider uppercase font-bold">
+              Financial Crime Intelligence Platform
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#27C58B] animate-pulse" />
-          <span className="text-xs font-mono text-[#A7B4C8]">System Active</span>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-[8px] bg-white border border-[#E0DDD6] shadow-xs">
+          <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
+          <span className="text-xs font-semibold text-[#002D72]">System Protected</span>
         </div>
       </header>
 
-      {/* Main Form Center */}
-      <main className="flex-1 flex items-center justify-center px-4 py-8 relative z-10">
-        <div className="w-full max-w-md bg-[#101A2B] border border-[#25344A] rounded-2xl p-6 sm:p-8 space-y-6 shadow-2xl">
-          {/* Header */}
-          <div className="text-center space-y-1.5">
-            <div className="mx-auto w-12 h-12 rounded-2xl bg-[#152238] border border-[#25344A] flex items-center justify-center mb-2">
-              <Lock className="w-6 h-6 text-[#3978F6]" />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#F4F7FC]">
-              Sign in to your account
+      {/* Main Login Card */}
+      <main className="flex-1 flex items-center justify-center py-8">
+        <Card className="w-full max-w-md p-6 sm:p-8 space-y-6 shadow-md">
+          <div className="text-center space-y-1">
+            <h1 className="text-2xl font-bold text-[#002D72] tracking-tight">
+              Sign In to Your Account
             </h1>
-            <p className="text-xs text-[#A7B4C8]">
-              Enter your verified credentials to access your portal
+            <p className="text-xs text-[#64748B] font-medium">
+              Access your corporate banking ledger &amp; intelligence portal
             </p>
           </div>
 
-          {error && (
-            <div className="p-4 rounded-xl bg-[#F06470]/10 border border-[#F06470]/30 text-xs text-[#F06470] space-y-2">
-              <div className="flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span className="leading-relaxed">{error}</span>
+          {effectiveError && (
+            <div className="p-3.5 rounded-[10px] bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B] text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 text-[#DC2626] mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-semibold">{effectiveError}</span>
+                {hasActiveSessionConflict && (
+                  <p className="text-[11px] text-[#991B1B]">
+                    Another session is active. You can terminate it and proceed below.
+                  </p>
+                )}
               </div>
-              {hasActiveSessionConflict && (
-                <button
-                  type="button"
-                  onClick={handleForceLogin}
-                  disabled={loading}
-                  className="w-full mt-2 py-2 px-3 rounded-lg bg-[#F06470]/20 hover:bg-[#F06470]/30 text-[#F4F7FC] font-semibold text-xs border border-[#F06470]/40 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <ShieldCheck className="w-4 h-4 text-[#29C5D9]" />
-                  <span>Terminate Other Session &amp; Sign In Here</span>
-                </button>
-              )}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-[#A7B4C8] uppercase tracking-wider block">
-                Email or Username
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="name@example.com or username"
-                  className="w-full pl-10 pr-4 py-3 bg-[#080D19] border border-[#25344A] rounded-xl text-sm text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6] transition-colors"
-                  autoFocus
-                />
-                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-[#71819A]" />
-              </div>
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            <Input
+              label="Email or Username"
+              type="text"
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="e.g. user@omerta.ai"
+              leftIcon={<Mail className="w-4 h-4 text-[#64748B]" />}
+            />
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-[#A7B4C8] uppercase tracking-wider">
-                  Password
-                </label>
-                <Link
-                  to="/forgot-password"
-                  className="text-xs font-semibold text-[#29C5D9] hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter account password"
-                  className="w-full pl-10 pr-10 py-3 bg-[#080D19] border border-[#25344A] rounded-xl text-sm text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6] transition-colors"
-                />
-                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-[#71819A]" />
+            <Input
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••••••"
+              leftIcon={<Lock className="w-4 h-4 text-[#64748B]" />}
+              rightIcon={
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-3.5 text-[#71819A] hover:text-[#F4F7FC] cursor-pointer"
+                  className="p-1 text-[#64748B] hover:text-[#002D72] cursor-pointer"
+                  title={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
-              </div>
+              }
+            />
+
+            <div className="flex items-center justify-between pt-1">
+              <Link
+                to="/forgot-password"
+                className="text-xs font-semibold text-[#1E88E5] hover:text-[#1976D2] hover:underline"
+              >
+                Forgot Password?
+              </Link>
             </div>
 
-            <button
+            <Button
               type="submit"
-              disabled={loading}
-              className="w-full py-3.5 rounded-xl bg-[#3978F6] hover:bg-[#3978F6]/90 disabled:opacity-50 text-sm font-bold text-[#F4F7FC] transition-all shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 cursor-pointer mt-2"
+              variant="primary"
+              size="md"
+              isLoading={loading}
+              className="w-full mt-2"
             >
-              {loading ? (
-                <span>Authenticating...</span>
-              ) : (
-                <>
-                  <span>Sign In</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
+              <span>Sign In</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+
+            {hasActiveSessionConflict && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                onClick={handleForceLogin}
+                isLoading={loading}
+                className="w-full border-amber-600 text-amber-800 hover:bg-amber-50"
+              >
+                <span>Terminate Other Sessions &amp; Force Login</span>
+              </Button>
+            )}
           </form>
 
-          <div className="pt-4 border-t border-[#25344A] text-center space-y-3">
-            <p className="text-xs text-[#A7B4C8]">
-              Don't have an account yet?{' '}
-              <Link to="/register" className="text-[#3978F6] hover:underline font-bold">
-                Open New Account
-              </Link>
+          <div className="pt-4 border-t border-[#E0DDD6] space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] text-center">
+              Quick Demo Access
             </p>
-
-            <div className="flex items-center justify-center gap-1.5 text-[11px] text-[#71819A]">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#27C58B]" />
-              <span>256-Bit Encrypted Banking Portal</span>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername('admin@omerta.ai');
+                  setPassword('AdminPass123!');
+                }}
+                className="px-2.5 py-1.5 rounded-[8px] bg-[#F4F1EC] hover:bg-[#EBF3FC] text-[#002D72] border border-[#E0DDD6] hover:border-[#BFDBFE] text-xs font-semibold text-center transition-all cursor-pointer"
+              >
+                Admin (Executive)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername('analyst@omerta.ai');
+                  setPassword('AnalystPass123!');
+                }}
+                className="px-2.5 py-1.5 rounded-[8px] bg-[#F4F1EC] hover:bg-[#EBF3FC] text-[#002D72] border border-[#E0DDD6] hover:border-[#BFDBFE] text-xs font-semibold text-center transition-all cursor-pointer"
+              >
+                Fraud Analyst
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername('investigator@omerta.ai');
+                  setPassword('InvestigatorPass123!');
+                }}
+                className="px-2.5 py-1.5 rounded-[8px] bg-[#F4F1EC] hover:bg-[#EBF3FC] text-[#002D72] border border-[#E0DDD6] hover:border-[#BFDBFE] text-xs font-semibold text-center transition-all cursor-pointer"
+              >
+                Lead Investigator
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername('ziad@omerta.ai');
+                  setPassword('Customer@2026!');
+                }}
+                className="px-2.5 py-1.5 rounded-[8px] bg-[#F4F1EC] hover:bg-[#FFF9E6] text-[#002D72] border border-[#E0DDD6] hover:border-[#FFE082] text-xs font-semibold text-center transition-all cursor-pointer"
+              >
+                Customer Portal
+              </button>
             </div>
           </div>
-        </div>
+
+          <div className="pt-2 border-t border-[#E0DDD6] text-center">
+            <p className="text-xs text-[#64748B]">
+              Don&apos;t have an account?{' '}
+              <Link
+                to="/register"
+                className="font-bold text-[#002D72] hover:text-[#1E88E5] hover:underline"
+              >
+                Register Corporate Account
+              </Link>
+            </p>
+          </div>
+        </Card>
       </main>
 
       {/* Footer */}
-      <footer className="px-6 py-4 text-center text-xs text-[#71819A] border-t border-[#1E2D4A] relative z-10">
-        Omerta.ai • Digital Banking &amp; Financial Crime Intelligence Platform
+      <footer className="max-w-6xl w-full mx-auto text-center py-2 text-[11px] text-[#64748B]">
+        Omerta.ai Financial Crime &amp; Banking Operations © 2026. All rights reserved.
       </footer>
     </div>
   );

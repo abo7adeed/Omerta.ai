@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Send,
-  Search,
   CheckCircle2,
   AlertCircle,
   ArrowRight,
@@ -24,7 +23,14 @@ import {
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { collectNetworkTelemetry } from '../../utils/telemetry';
-import { Modal } from '../../components/common/Modal';
+import {
+  Card,
+  Button,
+  Input,
+  Select,
+  Modal,
+  Alert,
+} from '../../components/ui';
 import type { CustomerAccount, RecipientLookupResult, TransferReceipt } from '../../types';
 
 interface CountryOption {
@@ -58,13 +64,12 @@ export const SendMoneyPage: React.FC = () => {
   const { customer, refreshCustomerProfile } = useAuth();
   const navigate = useNavigate();
 
-
   // Multi-step transfer state: 1 = Recipient, 2 = Amount & Account, 3 = Confirm, 4 = Receipt
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
   // Form states
   const [inputMode, setInputMode] = useState<'phone' | 'omerta_number'>('phone');
-  const [selectedCountry, setSelectedCountry] = useState<CountryOption>(COUNTRY_OPTIONS[0]); // Default Egypt
+  const [selectedCountry, setSelectedCountry] = useState<CountryOption>(COUNTRY_OPTIONS[0]);
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
 
@@ -96,7 +101,7 @@ export const SendMoneyPage: React.FC = () => {
   const [transferBlockedMessage, setTransferBlockedMessage] = useState<string>('');
   const [isTransferBlocked, setIsTransferBlocked] = useState<boolean>(false);
 
-  // Restore & Set New Transfer Password Modal (Post-Restoration)
+  // Restore & Set New Transfer Password Modal
   const [passwordChangeModalOpen, setPasswordChangeModalOpen] = useState(false);
   const [newTransferPassword, setNewTransferPassword] = useState('');
   const [confirmTransferPassword, setConfirmTransferPassword] = useState('');
@@ -257,7 +262,6 @@ export const SendMoneyPage: React.FC = () => {
         setVpnModalOpen(false);
         setVpnDetails(null);
         setSubmitError(null);
-        // Automatically retry transfer execution
         handleExecuteTransfer();
       } else {
         setVpnDetails({
@@ -284,10 +288,8 @@ export const SendMoneyPage: React.FC = () => {
     setSubmitError(null);
 
     try {
-      // Gather real network telemetry to detect VPN / Proxy anonymizers
       const telemetry = await collectNetworkTelemetry('EG');
 
-      // Intercept active VPN and display popup modal
       if (telemetry.is_vpn) {
         setVpnDetails({
           isp: telemetry.isp,
@@ -319,7 +321,6 @@ export const SendMoneyPage: React.FC = () => {
       setReceipt(res);
       setStep(4);
     } catch (err: any) {
-      // Check for 3-failed transfer password attempt security hold (NO LOGOUT)
       if (
         (err?.status === 403 || err?.status === 401) &&
         (err?.message?.includes('BLOCKED') ||
@@ -378,127 +379,135 @@ export const SendMoneyPage: React.FC = () => {
   );
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-200">
+    <div className="max-w-2xl mx-auto space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <Card className="p-6 md:p-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#F4F7FC] flex items-center gap-2">
-            <Send className="h-6 w-6 text-[#3978F6]" />
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--color-sapphire)] flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-[var(--color-sapphire)] text-[var(--color-gold)] shadow-sm">
+              <Send className="h-6 w-6 stroke-[2.2]" />
+            </div>
             <span>Send Money</span>
           </h1>
-          <p className="text-xs text-[#A7B4C8] mt-1">
-            Simulated peer-to-peer transfer by National Flag &amp; Mobile Number or Omerta User #
+          <p className="text-xs text-[var(--color-text-secondary)] mt-2 font-medium">
+            Simulated peer-to-peer transfer by Mobile Number or Omerta User #
           </p>
         </div>
 
         {/* Step Indicator */}
-        <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-[#A7B4C8]">
-          <span className={`px-2.5 py-1 rounded-full ${step >= 1 ? 'bg-[#3978F6] text-[#F4F7FC]' : 'bg-[#152238] text-[#71819A]'}`}>1</span>
-          <span className="text-[#25344A]">―</span>
-          <span className={`px-2.5 py-1 rounded-full ${step >= 2 ? 'bg-[#3978F6] text-[#F4F7FC]' : 'bg-[#152238] text-[#71819A]'}`}>2</span>
-          <span className="text-[#25344A]">―</span>
-          <span className={`px-2.5 py-1 rounded-full ${step >= 3 ? 'bg-[#3978F6] text-[#F4F7FC]' : 'bg-[#152238] text-[#71819A]'}`}>3</span>
+        <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-[var(--color-text-secondary)]">
+          <span className={`px-3 py-1 rounded-full font-bold ${step >= 1 ? 'bg-[var(--color-gold)] text-[var(--color-sapphire)]' : 'bg-[var(--color-secondary-surface)] text-[var(--color-text-muted)]'}`}>1</span>
+          <span className="text-[var(--color-border)]">―</span>
+          <span className={`px-3 py-1 rounded-full font-bold ${step >= 2 ? 'bg-[var(--color-gold)] text-[var(--color-sapphire)]' : 'bg-[var(--color-secondary-surface)] text-[var(--color-text-muted)]'}`}>2</span>
+          <span className="text-[var(--color-border)]">―</span>
+          <span className={`px-3 py-1 rounded-full font-bold ${step >= 3 ? 'bg-[var(--color-gold)] text-[var(--color-sapphire)]' : 'bg-[var(--color-secondary-surface)] text-[var(--color-text-muted)]'}`}>3</span>
         </div>
-      </div>
+      </Card>
 
       {/* Transfer Blocked Alert Card */}
       {isTransferBlocked && (
-        <div className="p-5 rounded-2xl bg-[#F06470]/10 border border-[#F06470]/40 space-y-3">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-[#F06470] shrink-0 mt-0.5" />
+        <Card className="p-6 bg-rose-50/90 border-rose-300 space-y-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-2.5 rounded-xl bg-rose-100 text-rose-700 shrink-0 mt-0.5">
+              <AlertTriangle className="h-6 w-6 stroke-[2.2]" />
+            </div>
             <div className="space-y-1">
-              <h3 className="text-sm font-bold text-[#F4F7FC]">
+              <h3 className="text-sm font-bold text-rose-950">
                 Transfer Capabilities Suspended (Security Hold)
               </h3>
-              <p className="text-xs text-[#F4F7FC]/80 leading-relaxed">
-                Money transfers are temporarily disabled following 3 failed transfer password attempts. Your login session is secure, and you can still view balances, transactions, and download receipts.
+              <p className="text-xs text-rose-900 leading-relaxed font-medium">
+                Money transfers are temporarily disabled following 3 failed transfer password attempts. Your login session is secure, and you can still view balances, transactions, and statements.
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3 pt-1">
-            <button
+            <Button
               type="button"
+              variant="danger"
+              size="sm"
               onClick={() => navigate('/customer/support?reason=TRANSFER_BLOCKED')}
-              className="px-4 py-2 rounded-xl bg-[#F06470] hover:bg-[#F06470]/90 text-[#F4F7FC] text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5"
             >
-              <span>Contact Support &amp; Verify Identity</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-            <button
+              <span>Contact Support &amp; Verify ID</span>
+              <ArrowRight className="h-4 w-4 ml-1.5" />
+            </Button>
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => navigate('/customer/dashboard')}
-              className="px-3.5 py-2 rounded-xl bg-[#152238] hover:bg-[#1B2B43] text-xs font-semibold text-[#A7B4C8] hover:text-[#F4F7FC] transition-colors"
             >
               Back to Dashboard
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Transfer Privileges Restored - Password Update Required Alert Card */}
       {isPasswordChangeRequired && !isTransferBlocked && (
-        <div className="p-5 rounded-2xl bg-gradient-to-r from-cyan-950/80 via-[#101A2B] to-emerald-950/80 border border-cyan-500/50 space-y-3 shadow-lg">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-500/40">
-              <KeyRound className="w-4 h-4" />
+        <Card className="p-6 bg-amber-50/90 border-amber-300 space-y-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-2.5 rounded-xl bg-amber-100 text-amber-800 shrink-0 mt-0.5">
+              <KeyRound className="w-6 h-6 stroke-[2.2]" />
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-[#F4F7FC]">
+                <h3 className="text-sm font-bold text-amber-950">
                   Action Required: Set New Transfer Password
                 </h3>
-                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/40">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
                   Send Money Disabled
                 </span>
               </div>
-              <p className="text-xs text-[#F4F7FC]/80 leading-relaxed">
-                Compliance has verified your identity and restored transfer privileges. Sending money remains strictly disabled until you set your new transfer password.
+              <p className="text-xs text-amber-900 leading-relaxed font-medium">
+                Compliance has verified your identity and restored transfer privileges. Sending money remains disabled until you set your new transfer password.
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3 pt-1">
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
               onClick={() => {
                 setPasswordModalError(null);
                 setPasswordChangeModalOpen(true);
               }}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-90 text-slate-950 text-xs font-black transition-all shadow-md cursor-pointer flex items-center gap-1.5"
             >
-              <Lock className="h-3.5 w-3.5 stroke-[2.5]" />
+              <Lock className="h-4 w-4 mr-1.5" />
               <span>Set New Transfer Password Now</span>
-              <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
-            </button>
-            <button
+              <ArrowRight className="h-4 w-4 ml-1.5" />
+            </Button>
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => navigate('/customer/dashboard')}
-              className="px-3.5 py-2 rounded-xl bg-[#152238] hover:bg-[#1B2B43] text-xs font-semibold text-[#A7B4C8] hover:text-[#F4F7FC] transition-colors"
             >
               Back to Dashboard
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* STEP 1: Enter Recipient with Flag Selector or Omerta ID */}
+      {/* STEP 1: Enter Recipient */}
       {step === 1 && (
-        <div className="p-6 omerta-card bg-[#101A2B] border-[#25344A] space-y-6 shadow-xl">
-          {/* Mode Tabs: Mobile with Flag vs Omerta Number */}
-          <div className="flex items-center gap-2 p-1 rounded-xl bg-[#080D19] border border-[#25344A]">
+        <Card className="p-6 md:p-8 space-y-6">
+          {/* Mode Tabs */}
+          <div className="flex items-center gap-2 p-1.5 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)]">
             <button
               type="button"
               onClick={() => {
                 setInputMode('phone');
                 setLookupError(null);
               }}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 inputMode === 'phone'
-                  ? 'bg-[#3978F6] text-[#F4F7FC] shadow-sm'
-                  : 'text-[#A7B4C8] hover:text-[#F4F7FC]'
+                  ? 'bg-[var(--color-sapphire)] text-white shadow-xs'
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-sapphire)]'
               }`}
             >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>Mobile Phone (Flag Picker)</span>
+              <Smartphone className="w-4 h-4" />
+              <span>Mobile Phone</span>
             </button>
 
             <button
@@ -507,47 +516,43 @@ export const SendMoneyPage: React.FC = () => {
                 setInputMode('omerta_number');
                 setLookupError(null);
               }}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 inputMode === 'omerta_number'
-                  ? 'bg-[#3978F6] text-[#F4F7FC] shadow-sm'
-                  : 'text-[#A7B4C8] hover:text-[#F4F7FC]'
+                  ? 'bg-[var(--color-sapphire)] text-white shadow-xs'
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-sapphire)]'
               }`}
             >
-              <Hash className="w-3.5 h-3.5" />
+              <Hash className="w-4 h-4" />
               <span>Omerta User Number</span>
             </button>
           </div>
 
-          {/* Phone Mode with National Flag Picker */}
+          {/* Phone Mode */}
           {inputMode === 'phone' ? (
-            <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#A7B4C8]">
-                Select Recipient National Flag &amp; Enter Mobile Number
+            <div className="space-y-2.5">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                Recipient Country &amp; Mobile Phone
               </label>
 
-              <div className="flex gap-2 items-center">
-                {/* Flag / Country Dropdown Button */}
+              <div className="flex gap-2.5 items-center">
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setCountryDropdownOpen(!countryDropdownOpen)}
-                    className="flex items-center gap-2 px-3.5 py-3 bg-[#080D19] hover:bg-[#152238] border border-[#25344A] rounded-xl text-xs font-bold text-[#F4F7FC] transition-colors cursor-pointer shrink-0"
+                    className="flex items-center gap-2 px-3.5 py-2.5 bg-white hover:bg-[var(--color-secondary-surface)] border border-[var(--color-border)] rounded-lg text-xs font-bold text-[var(--color-text-primary)] cursor-pointer shrink-0 min-h-[44px]"
                   >
                     <span className="text-xl leading-none">{selectedCountry.flag}</span>
-                    <span className="font-mono text-[#29C5D9]">{selectedCountry.dialCode}</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-[#71819A]" />
+                    <span className="font-mono text-[var(--color-sapphire)] font-bold">{selectedCountry.dialCode}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
                   </button>
 
-                  {/* Flag Picker Modal Dropdown */}
                   {countryDropdownOpen && (
-                    <div className="absolute left-0 top-full mt-2 w-72 max-h-64 overflow-y-auto bg-[#101A2B] border border-[#25344A] rounded-xl shadow-2xl z-50 p-2 space-y-1">
-                      <div className="p-1 sticky top-0 bg-[#101A2B] z-10">
-                        <input
-                          type="text"
-                          placeholder="Search country or code..."
+                    <div className="absolute left-0 top-full mt-2 w-72 max-h-64 overflow-y-auto bg-white border border-[var(--color-border)] rounded-xl shadow-lg z-50 p-2 space-y-1">
+                      <div className="p-1 sticky top-0 bg-white z-10">
+                        <Input
+                          placeholder="Search country..."
                           value={countrySearch}
                           onChange={(e) => setCountrySearch(e.target.value)}
-                          className="w-full px-2.5 py-1.5 bg-[#080D19] border border-[#25344A] rounded-lg text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6]"
                           autoFocus
                         />
                       </div>
@@ -560,26 +565,25 @@ export const SendMoneyPage: React.FC = () => {
                             setCountryDropdownOpen(false);
                             setCountrySearch('');
                           }}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer ${
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                             selectedCountry.code === c.code
-                              ? 'bg-[#3978F6]/20 text-[#29C5D9] font-bold'
-                              : 'text-[#F4F7FC] hover:bg-[#152238]'
+                              ? 'bg-blue-50 text-[var(--color-sapphire)] font-bold'
+                              : 'text-[var(--color-text-primary)] hover:bg-[var(--color-secondary-surface)]'
                           }`}
                         >
                           <div className="flex items-center gap-2">
                             <span className="text-base">{c.flag}</span>
                             <span>{c.name}</span>
                           </div>
-                          <span className="font-mono text-[11px] text-[#A7B4C8]">{c.dialCode}</span>
+                          <span className="font-mono text-[11px] text-[var(--color-text-muted)]">{c.dialCode}</span>
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
 
-                {/* Mobile Phone Input */}
                 <div className="relative flex-1">
-                  <input
+                  <Input
                     type="tel"
                     value={phoneInput}
                     onChange={(e) => {
@@ -592,131 +596,110 @@ export const SendMoneyPage: React.FC = () => {
                         handleLookup();
                       }
                     }}
-                    placeholder="e.g. 10 2222 3333 or 10 1111 2222"
-                    className="w-full pl-4 pr-12 py-3 bg-[#080D19] border border-[#25344A] rounded-xl text-sm text-[#F4F7FC] placeholder-[#71819A] font-mono tracking-wider focus:outline-none focus:border-[#3978F6] transition-colors"
+                    placeholder="e.g. 10 2222 3333"
                     autoFocus
                   />
-                  <button
-                    type="button"
-                    onClick={() => handleLookup()}
-                    className="absolute right-3 top-3 p-1 rounded-lg bg-[#152238] hover:bg-[#1B2B43] text-[#3978F6] cursor-pointer"
-                  >
-                    <Search className="h-4 w-4" />
-                  </button>
                 </div>
               </div>
 
-              <p className="text-[11px] text-[#71819A]">
-                Selected destination: <span className="text-[#29C5D9] font-semibold">{selectedCountry.flag} {selectedCountry.name} ({selectedCountry.dialCode})</span>. You do not need to type the country code manually.
+              <p className="text-[11px] text-[var(--color-text-secondary)] font-medium">
+                Destination: <span className="text-[var(--color-sapphire)] font-bold">{selectedCountry.flag} {selectedCountry.name} ({selectedCountry.dialCode})</span>.
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#A7B4C8]">
-                Recipient Omerta User Number
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={omertaNumberInput}
-                  onChange={(e) => {
-                    setOmertaNumberInput(e.target.value);
-                    setLookupError(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleLookup();
-                    }
-                  }}
-                  placeholder="e.g. OMR-3847-1920 or OMR-7193-8402"
-                  className="w-full pl-4 pr-12 py-3 bg-[#080D19] border border-[#25344A] rounded-xl text-sm text-[#F4F7FC] placeholder-[#71819A] font-mono tracking-wider uppercase focus:outline-none focus:border-[#3978F6] transition-colors"
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => handleLookup()}
-                  className="absolute right-3 top-3 p-1 rounded-lg bg-[#152238] hover:bg-[#1B2B43] text-[#3978F6] cursor-pointer"
-                >
-                  <Search className="h-4 w-4" />
-                </button>
-              </div>
-              <p className="text-[11px] text-[#71819A]">
-                Enter unique Omerta User Number (e.g. <span className="text-[#29C5D9] font-mono">OMR-3847-1920</span> for Layla Hassan).
+            <div className="space-y-2.5">
+              <Input
+                label="Recipient Omerta User Number"
+                type="text"
+                value={omertaNumberInput}
+                onChange={(e) => {
+                  setOmertaNumberInput(e.target.value);
+                  setLookupError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleLookup();
+                  }
+                }}
+                placeholder="e.g. OMR-3847-1920"
+                autoFocus
+              />
+              <p className="text-[11px] text-[var(--color-text-secondary)] font-medium">
+                Enter unique Omerta User Number (e.g. <span className="text-[var(--color-sapphire)] font-mono font-bold">OMR-3847-1920</span>).
               </p>
             </div>
           )}
 
-          {/* Direct Verification Info Box */}
-          <div className="p-4 rounded-xl bg-[#080D19] border border-[#25344A] space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-[#29C5D9]">
-              <ShieldCheck className="h-4 w-4" />
-              <span>Direct Real-Time Banking Verification</span>
+          <div className="p-4 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)] space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-[var(--color-sapphire)]">
+              <ShieldCheck className="h-4 w-4 text-[var(--color-sapphire)]" />
+              <span>Real-Time Ledger Verification</span>
             </div>
-            <p className="text-[11px] text-[#A7B4C8] leading-relaxed">
-              Recipients are verified automatically against the Omerta PostgreSQL Ledger. Double-entry funds transfer will credit the recipient instantly upon confirmation.
+            <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed font-medium">
+              Recipients are verified automatically against the database ledger. Double-entry funds transfer will credit the recipient instantly upon confirmation.
             </p>
           </div>
 
           {lookupError && (
-            <div className="p-3.5 rounded-xl bg-[#F06470]/10 border border-[#F06470]/30 text-xs text-[#F06470] flex items-center gap-2.5">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{lookupError}</span>
-            </div>
+            <Alert
+              variant="danger"
+              icon={<AlertCircle className="h-4 w-4" />}
+              message={lookupError}
+            />
           )}
 
           {isPasswordChangeRequired ? (
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="default"
               onClick={() => {
                 setPasswordModalError(null);
                 setPasswordChangeModalOpen(true);
               }}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 text-slate-950 text-sm font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 cursor-pointer"
+              className="w-full"
             >
-              <Lock className="h-4 w-4 stroke-[2.5]" />
-              <span>Set Transfer Password to Enable Send Money</span>
-              <ArrowRight className="h-4 w-4 stroke-[2.5]" />
-            </button>
+              <Lock className="h-4 w-4 mr-1.5" />
+              <span>Set Transfer Password to Enable Transfers</span>
+              <ArrowRight className="h-4 w-4 ml-1.5" />
+            </Button>
           ) : (
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="default"
               onClick={() => handleLookup()}
-              disabled={isLookingUp || (inputMode === 'phone' ? !phoneInput.trim() : !omertaNumberInput.trim())}
-              className="w-full py-3.5 rounded-xl bg-[#3978F6] hover:bg-[#3978F6]/90 disabled:opacity-50 text-[#F4F7FC] text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 cursor-pointer"
+              isLoading={isLookingUp}
+              disabled={inputMode === 'phone' ? !phoneInput.trim() : !omertaNumberInput.trim()}
+              className="w-full"
             >
-              {isLookingUp ? (
-                <span>Verifying Recipient Profile...</span>
-              ) : (
-                <>
-                  <span>Verify Recipient &amp; Continue</span>
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </button>
+              <span>Verify Recipient &amp; Continue</span>
+              <ArrowRight className="h-4 w-4 ml-1.5" />
+            </Button>
           )}
-        </div>
+        </Card>
       )}
 
       {/* STEP 2: Amount & Account Selection */}
       {step === 2 && lookupResult && (
-        <div className="p-6 omerta-card bg-[#101A2B] border-[#25344A] space-y-6 shadow-xl">
+        <Card className="p-6 md:p-8 space-y-6">
           {/* Verified Recipient Banner */}
-          <div className="p-4 rounded-xl bg-[#080D19] border border-[#27C58B]/40 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-[#27C58B]/15 text-[#27C58B] border border-[#27C58B]/30">
-                <CheckCircle2 className="h-5 w-5" />
+          <div className="flex items-center justify-between p-4 rounded-xl bg-emerald-50/80 border border-emerald-300/80">
+            <div className="flex items-center gap-3.5">
+              <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
+                <CheckCircle2 className="h-6 w-6 stroke-[2.2]" />
               </div>
               <div>
-                <span className="text-xs font-bold text-[#F4F7FC] block">
-                  Verified Recipient: {lookupResult.display_name}
+                <span className="text-sm font-bold text-[var(--color-sapphire)] block">
+                  Verified: {lookupResult.display_name}
                 </span>
-                <div className="flex items-center gap-2 text-[11px] text-[#A7B4C8] mt-0.5">
-                  <span className="font-mono text-[#29C5D9]">{lookupResult.omerta_user_number}</span>
+                <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)] mt-0.5 font-medium">
+                  <span className="font-mono text-[var(--color-sapphire)] font-bold">{lookupResult.omerta_user_number}</span>
                   {lookupResult.phone_masked && (
                     <>
                       <span>•</span>
-                      <span className="font-mono text-[#27C58B]">{lookupResult.phone_masked}</span>
+                      <span className="font-mono text-emerald-700 font-bold">{lookupResult.phone_masked}</span>
                     </>
                   )}
                   <span>•</span>
@@ -725,296 +708,279 @@ export const SendMoneyPage: React.FC = () => {
               </div>
             </div>
 
-            <button
+            <Button
+              size="sm"
+              variant="ghost"
               onClick={() => setStep(1)}
-              className="text-xs text-[#3978F6] hover:underline font-semibold cursor-pointer"
             >
               Change
-            </button>
+            </Button>
           </div>
 
           {/* Source Account Selection */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#A7B4C8]">
-              From Account
-            </label>
-            <select
-              value={selectedAccount?.account_id}
-              onChange={(e) => {
-                const acc = accounts.find((a) => a.account_id === e.target.value);
-                if (acc) setSelectedAccount(acc);
-              }}
-              className="w-full px-3.5 py-3 bg-[#080D19] border border-[#25344A] rounded-xl text-sm text-[#F4F7FC] focus:outline-none focus:border-[#3978F6] cursor-pointer"
-            >
-              {accounts.map((acc) => (
-                <option key={acc.account_id} value={acc.account_id} className="bg-[#101A2B] text-[#F4F7FC]">
-                  {acc.account_type} ({acc.account_id}) — Available: {acc.balance.toLocaleString()} {acc.currency}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label="From Account"
+            value={selectedAccount?.account_id}
+            onChange={(e) => {
+              const acc = accounts.find((a) => a.account_id === e.target.value);
+              if (acc) setSelectedAccount(acc);
+            }}
+            options={accounts.map((acc) => ({
+              value: acc.account_id,
+              label: `${acc.account_type} (${acc.account_id}) — Available: ${acc.balance.toLocaleString()} ${acc.currency}`,
+            }))}
+          />
 
           {/* Amount Input */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <label className="font-bold uppercase tracking-wider text-[#A7B4C8]">Transfer Amount</label>
-              <span className="text-[#A7B4C8]">
-                Available: <strong className="text-[#F4F7FC] font-mono">{selectedAccount?.balance.toLocaleString()} {selectedAccount?.currency}</strong>
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <label className="uppercase tracking-wider text-[var(--color-text-muted)]">Transfer Amount</label>
+              <span className="text-[var(--color-text-secondary)]">
+                Available: <strong className="text-[var(--color-sapphire)] font-mono">{selectedAccount?.balance.toLocaleString()} {selectedAccount?.currency}</strong>
               </span>
             </div>
 
-            <div className="relative">
-              <input
-                type="number"
-                step="0.01"
-                min="1"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full pl-4 pr-16 py-3 bg-[#080D19] border border-[#25344A] rounded-xl text-xl text-[#F4F7FC] font-mono font-bold focus:outline-none focus:border-[#3978F6]"
-                autoFocus
-              />
-              <span className="absolute right-4 top-3.5 text-sm font-bold text-[#29C5D9]">
-                {selectedAccount?.currency}
-              </span>
-            </div>
+            <Input
+              type="number"
+              step="0.01"
+              min="1"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              icon={<span className="font-bold text-xs text-[var(--color-sapphire)]">{selectedAccount?.currency}</span>}
+              autoFocus
+            />
 
             {/* Preset Amount Chips */}
             <div className="grid grid-cols-4 gap-2 pt-1">
-              <button
+              <Button
                 type="button"
+                size="sm"
+                variant="secondary"
                 onClick={() => handlePresetAmount(0.1)}
-                className="py-1.5 rounded-lg bg-[#080D19] hover:bg-[#152238] border border-[#25344A] text-xs font-semibold text-[#A7B4C8] transition-colors cursor-pointer"
               >
                 10%
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                size="sm"
+                variant="secondary"
                 onClick={() => handlePresetAmount(0.25)}
-                className="py-1.5 rounded-lg bg-[#080D19] hover:bg-[#152238] border border-[#25344A] text-xs font-semibold text-[#A7B4C8] transition-colors cursor-pointer"
               >
                 25%
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                size="sm"
+                variant="secondary"
                 onClick={() => handlePresetAmount(0.5)}
-                className="py-1.5 rounded-lg bg-[#080D19] hover:bg-[#152238] border border-[#25344A] text-xs font-semibold text-[#A7B4C8] transition-colors cursor-pointer"
               >
                 50%
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                size="sm"
+                variant="secondary"
                 onClick={() => handlePresetAmount(1.0)}
-                className="py-1.5 rounded-lg bg-[#080D19] hover:bg-[#152238] border border-[#3978F6]/40 text-xs font-bold text-[#3978F6] transition-colors cursor-pointer"
               >
                 Max Balance
-              </button>
+              </Button>
             </div>
           </div>
 
           {/* Optional Note */}
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#A7B4C8]">
-              Transfer Reference / Note (Optional)
-            </label>
-            <input
-              type="text"
-              maxLength={100}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Shared expenses, invoice payment, gift..."
-              className="w-full px-3.5 py-2.5 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6]"
-            />
-          </div>
+          <Input
+            label="Transfer Reference / Note (Optional)"
+            type="text"
+            maxLength={100}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g. Shared expenses, invoice payment, gift..."
+          />
 
           {submitError && (
-            <div className="p-3.5 rounded-xl bg-[#F06470]/10 border border-[#F06470]/30 text-xs text-[#F06470] flex items-center gap-2.5">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{submitError}</span>
-            </div>
+            <Alert
+              variant="danger"
+              icon={<AlertCircle className="h-4 w-4" />}
+              message={submitError}
+            />
           )}
 
           <div className="flex items-center gap-3 pt-2">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="default"
               onClick={() => setStep(1)}
-              className="px-4 py-3 rounded-xl bg-[#152238] hover:bg-[#1B2B43] border border-[#25344A] text-xs font-semibold text-[#F4F7FC] flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <ArrowLeft className="h-4 w-4" /> Back
-            </button>
+              <ArrowLeft className="h-4 w-4 mr-1.5" /> Back
+            </Button>
 
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="default"
               onClick={() => setStep(3)}
               disabled={Boolean(!amount || parseFloat(amount) <= 0 || (selectedAccount && parseFloat(amount) > selectedAccount.balance))}
-              className="flex-1 py-3.5 rounded-xl bg-[#3978F6] hover:bg-[#3978F6]/90 disabled:opacity-50 text-[#F4F7FC] text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 cursor-pointer"
+              className="flex-1"
             >
               <span>Review Details</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
+              <ArrowRight className="h-4 w-4 ml-1.5" />
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* STEP 3: Review & Explicit Confirmation */}
       {step === 3 && lookupResult && selectedAccount && (
-        <div className="p-6 omerta-card bg-[#101A2B] border-[#25344A] space-y-6 shadow-xl">
+        <Card className="p-6 md:p-8 space-y-6">
           <div className="text-center py-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#A7B4C8]">Total Transfer Amount</span>
-            <div className="text-3xl font-black text-[#F4F7FC] font-mono my-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Total Transfer Amount</span>
+            <div className="text-4xl font-extrabold text-[var(--color-sapphire)] font-mono my-2 font-tabular">
               {parseFloat(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedAccount.currency}
             </div>
-            <span className="text-[11px] text-[#27C58B] font-semibold">Simulated Demo Transfer Fee: $0.00</span>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+              Fee: $0.00 (Zero Fee Demo)
+            </span>
           </div>
 
           {/* Transfer Summary Table */}
-          <div className="divide-y divide-[#25344A] border border-[#25344A] rounded-xl bg-[#080D19] text-xs">
-            <div className="p-3.5 flex justify-between items-center">
-              <span className="text-[#A7B4C8]">Recipient Name</span>
-              <span className="font-bold text-[#F4F7FC]">{lookupResult.display_name}</span>
+          <div className="rounded-xl border border-[var(--color-border)] divide-y divide-[var(--color-border)] text-xs overflow-hidden bg-[var(--color-secondary-surface)]">
+            <div className="p-3.5 flex justify-between items-center font-medium">
+              <span className="text-[var(--color-text-muted)] font-bold">Recipient Name</span>
+              <span className="font-bold text-[var(--color-sapphire)]">{lookupResult.display_name}</span>
             </div>
-            <div className="p-3.5 flex justify-between items-center">
-              <span className="text-[#A7B4C8]">Recipient Identifier</span>
-              <span className="font-mono font-bold text-[#29C5D9]">{lookupResult.omerta_user_number}</span>
+            <div className="p-3.5 flex justify-between items-center font-medium">
+              <span className="text-[var(--color-text-muted)] font-bold">Recipient Identifier</span>
+              <span className="font-mono font-bold text-[var(--color-sapphire)]">{lookupResult.omerta_user_number}</span>
             </div>
             {lookupResult.phone_masked && (
-              <div className="p-3.5 flex justify-between items-center">
-                <span className="text-[#A7B4C8]">Recipient Phone</span>
-                <span className="font-mono font-bold text-[#27C58B]">{lookupResult.phone_masked}</span>
+              <div className="p-3.5 flex justify-between items-center font-medium">
+                <span className="text-[var(--color-text-muted)] font-bold">Recipient Phone</span>
+                <span className="font-mono font-bold text-emerald-700">{lookupResult.phone_masked}</span>
               </div>
             )}
-            <div className="p-3.5 flex justify-between items-center">
-              <span className="text-[#A7B4C8]">From Account</span>
-              <span className="font-mono text-[#F4F7FC]">{selectedAccount.account_id}</span>
+            <div className="p-3.5 flex justify-between items-center font-medium">
+              <span className="text-[var(--color-text-muted)] font-bold">From Account</span>
+              <span className="font-mono font-bold text-[var(--color-text-primary)]">{selectedAccount.account_id}</span>
             </div>
             {note && (
-              <div className="p-3.5 flex justify-between items-center">
-                <span className="text-[#A7B4C8]">Note</span>
-                <span className="text-[#F4F7FC] italic">{note}</span>
+              <div className="p-3.5 flex justify-between items-center font-medium">
+                <span className="text-[var(--color-text-muted)] font-bold">Note</span>
+                <span className="text-[var(--color-text-primary)] italic">{note}</span>
               </div>
             )}
-            <div className="p-3.5 flex justify-between items-center">
-              <span className="text-[#A7B4C8]">Ledger Integrity</span>
-              <span className="text-[#27C58B] font-semibold flex items-center gap-1.5">
+            <div className="p-3.5 flex justify-between items-center font-medium">
+              <span className="text-[var(--color-text-muted)] font-bold">Ledger Integrity</span>
+              <span className="text-emerald-700 font-bold flex items-center gap-1.5">
                 <ShieldCheck className="h-4 w-4" /> Atomic Double-Entry Commit
               </span>
             </div>
           </div>
 
           {/* Security Authorization: Password Confirmation */}
-          <div className="p-4 rounded-xl bg-[#080D19] border border-[#25344A] space-y-2 text-left">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-[#A7B4C8] uppercase tracking-wider flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-[#29C5D9]" />
-                <span>Security Authorization — Enter Transfer Password</span>
-              </label>
-              <span className="text-[10px] text-[#29C5D9] font-semibold">Required</span>
-            </div>
-            <div className="relative">
-              <input
-                type={showAuthPassword ? 'text' : 'password'}
-                required
-                value={authPassword}
-                onChange={(e) => setAuthPassword(e.target.value)}
-                placeholder="Enter your dedicated transfer password"
-                className="w-full pl-3.5 pr-10 py-2.5 bg-[#101A2B] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#27C58B]"
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={() => setShowAuthPassword(!showAuthPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71819A] hover:text-[#F4F7FC] cursor-pointer"
-              >
-                {showAuthPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-[#A7B4C8]" />}
-              </button>
-            </div>
-            <p className="text-[10px] text-[#71819A]">
-              Notice: 3 consecutive incorrect attempts will place transfers on security hold. You will remain logged in, but must contact Support to restore transfer capabilities.
-            </p>
+          <div className="space-y-2 text-left">
+            <Input
+              label="Security Authorization — Enter Transfer Password"
+              type={showAuthPassword ? 'text' : 'password'}
+              required
+              value={authPassword}
+              onChange={(e) => setAuthPassword(e.target.value)}
+              placeholder="Enter your dedicated transfer password"
+              icon={
+                <button
+                  type="button"
+                  onClick={() => setShowAuthPassword(!showAuthPassword)}
+                  className="p-1 hover:text-[var(--color-sapphire)] cursor-pointer"
+                >
+                  {showAuthPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              }
+              helperText="Notice: 3 consecutive incorrect attempts will place transfers on security hold."
+              autoFocus
+            />
           </div>
 
           {submitError && (
-            <div className="p-3.5 rounded-xl bg-[#F06470]/10 border border-[#F06470]/30 text-xs text-[#F06470] flex items-center gap-2.5">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{submitError}</span>
-            </div>
+            <Alert
+              variant="danger"
+              icon={<AlertCircle className="h-4 w-4" />}
+              message={submitError}
+            />
           )}
 
           <div className="flex items-center gap-3">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="default"
               onClick={() => setStep(2)}
-              className="px-4 py-3 rounded-xl bg-[#152238] hover:bg-[#1B2B43] border border-[#25344A] text-xs font-semibold text-[#F4F7FC] flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <ArrowLeft className="h-4 w-4" /> Back
-            </button>
+              <ArrowLeft className="h-4 w-4 mr-1.5" /> Back
+            </Button>
 
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="default"
               onClick={handleExecuteTransfer}
-              disabled={isSubmitting}
-              className="flex-1 py-3.5 rounded-xl bg-[#27C58B] hover:bg-[#27C58B]/90 disabled:opacity-50 text-slate-950 text-sm font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 cursor-pointer"
+              isLoading={isSubmitting}
+              className="flex-1"
             >
-              {isSubmitting ? (
-                <span>Committing Double-Entry Ledger...</span>
-              ) : (
-                <>
-                  <Check className="h-4 w-4 stroke-[3]" />
-                  <span>Authorize &amp; Send Money</span>
-                </>
-              )}
-            </button>
+              <Check className="h-4 w-4 mr-1.5 stroke-[3]" />
+              <span>Authorize &amp; Send Money</span>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* STEP 4: Transfer Success Receipt */}
       {step === 4 && receipt && (
-        <div className="p-6 omerta-card bg-[#101A2B] border-[#25344A] space-y-6 text-center animate-in zoom-in-95 duration-200 shadow-xl">
-          <div className="mx-auto h-12 w-12 rounded-full bg-[#27C58B]/20 border border-[#27C58B]/40 flex items-center justify-center text-[#27C58B]">
-            <Check className="h-6 w-6 stroke-[3]" />
+        <Card className="p-6 md:p-8 space-y-6 text-center">
+          <div className="mx-auto h-16 w-16 rounded-2xl bg-emerald-50 border border-emerald-300 flex items-center justify-center text-emerald-700 shadow-sm">
+            <Check className="h-8 w-8 stroke-[3]" />
           </div>
 
           <div>
-            <h2 className="text-xl font-bold text-[#F4F7FC]">Transfer Executed Successfully</h2>
-            <p className="text-xs text-[#A7B4C8] mt-0.5">
+            <h2 className="text-2xl font-extrabold text-[var(--color-sapphire)]">Transfer Executed Successfully</h2>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-1 font-medium">
               Funds debited from sender and credited to recipient in PostgreSQL ledger.
             </p>
           </div>
 
           {/* Detailed Receipt Card */}
-          <div className="p-5 rounded-xl bg-[#080D19] border border-[#25344A] text-left space-y-3.5">
-            <div className="flex items-center justify-between border-b border-[#25344A] pb-3">
-              <span className="text-xs text-[#A7B4C8]">Transfer Reference</span>
-              <span className="font-mono font-bold text-xs text-[#F4F7FC]">{receipt.transfer_id}</span>
+          <div className="p-5 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)] text-left space-y-3.5">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+              <span className="text-xs font-bold text-[var(--color-text-muted)]">Transfer Reference</span>
+              <span className="font-mono font-extrabold text-xs text-[var(--color-sapphire)]">{receipt.transfer_id}</span>
             </div>
 
-            <div className="flex items-center justify-between border-b border-[#25344A] pb-3">
-              <span className="text-xs text-[#A7B4C8]">Amount Transferred</span>
-              <span className="font-mono font-bold text-base text-[#27C58B]">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+              <span className="text-xs font-bold text-[var(--color-text-muted)]">Amount Transferred</span>
+              <span className="font-mono font-extrabold text-lg text-emerald-700 font-tabular">
                 {receipt.formatted_amount}
               </span>
             </div>
 
-            <div className="flex items-center justify-between border-b border-[#25344A] pb-3">
-              <span className="text-xs text-[#A7B4C8]">Recipient</span>
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+              <span className="text-xs font-bold text-[var(--color-text-muted)]">Recipient</span>
               <div className="text-right">
-                <span className="font-bold text-xs text-[#F4F7FC] block">{receipt.recipient.name}</span>
-                <span className="font-mono text-[11px] text-[#29C5D9]">{receipt.recipient.omerta_user_number}</span>
+                <span className="font-bold text-xs text-[var(--color-text-primary)] block">{receipt.recipient.name}</span>
+                <span className="font-mono text-[11px] font-bold text-[var(--color-sapphire)]">{receipt.recipient.omerta_user_number}</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-b border-[#25344A] pb-3">
-              <span className="text-xs text-[#A7B4C8]">Sender</span>
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+              <span className="text-xs font-bold text-[var(--color-text-muted)]">Sender</span>
               <div className="text-right">
-                <span className="font-bold text-xs text-[#F4F7FC] block">{receipt.sender.name}</span>
-                <span className="font-mono text-[11px] text-[#A7B4C8]">{receipt.sender.omerta_user_number}</span>
+                <span className="font-bold text-xs text-[var(--color-text-primary)] block">{receipt.sender.name}</span>
+                <span className="font-mono text-[11px] font-bold text-[var(--color-text-muted)]">{receipt.sender.omerta_user_number}</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-[#A7B4C8]">Timestamp</span>
-              <span className="text-xs font-mono text-[#F4F7FC]">
+              <span className="text-xs font-bold text-[var(--color-text-muted)]">Timestamp</span>
+              <span className="text-xs font-mono font-bold text-[var(--color-text-secondary)]">
                 {new Date(receipt.created_at).toLocaleString()}
               </span>
             </div>
@@ -1022,30 +988,33 @@ export const SendMoneyPage: React.FC = () => {
 
           {/* Action buttons */}
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <button
+            <Button
+              variant="secondary"
+              size="default"
               onClick={handleCopyReceipt}
-              className="px-4 py-2.5 rounded-xl bg-[#152238] hover:bg-[#1B2B43] border border-[#25344A] text-xs font-semibold text-[#F4F7FC] flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              {copiedReceipt ? <Check className="h-3.5 w-3.5 text-[#27C58B]" /> : <Copy className="h-3.5 w-3.5 text-[#3978F6]" />}
-              <span>{copiedReceipt ? 'Copied' : 'Copy Receipt'}</span>
-            </button>
+              {copiedReceipt ? <Check className="h-4 w-4 text-emerald-600 mr-1.5" /> : <Copy className="h-4 w-4 text-[var(--color-sapphire)] mr-1.5" />}
+              <span>{copiedReceipt ? 'Copied Receipt' : 'Copy Receipt'}</span>
+            </Button>
 
-            <button
+            <Button
+              variant="primary"
+              size="default"
               onClick={resetForm}
-              className="px-4 py-2.5 rounded-xl bg-[#3978F6] hover:bg-[#3978F6]/90 text-xs font-bold text-[#F4F7FC] flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <RotateCcw className="h-3.5 w-3.5" />
+              <RotateCcw className="h-4 w-4 mr-1.5" />
               <span>Send Another</span>
-            </button>
+            </Button>
 
-            <button
+            <Button
+              variant="ghost"
+              size="default"
               onClick={() => navigate('/customer/dashboard')}
-              className="px-4 py-2.5 rounded-xl bg-[#152238] hover:bg-[#1B2B43] border border-[#25344A] text-xs font-semibold text-[#F4F7FC] transition-colors cursor-pointer"
             >
               Back to Dashboard
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* MODAL 1: VPN / PROXY CONNECTION ACTIVE POPUP */}
@@ -1053,66 +1022,63 @@ export const SendMoneyPage: React.FC = () => {
         <Modal
           isOpen={vpnModalOpen}
           onClose={() => setVpnModalOpen(false)}
-          title="VPN / Proxy Connection Detected"
+          title="VPN / Proxy Detected"
           subtitle="Compliance & Risk Policy Violation"
           maxWidth="md"
         >
           <div className="space-y-4 text-xs">
-            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
               <div className="space-y-1">
-                <p className="font-bold text-white text-sm">Please Close Your VPN First</p>
-                <p className="text-amber-200/90 leading-relaxed">
-                  For banking compliance, AML identity verification, and anti-fraud safeguards, transfers cannot be executed through commercial VPNs, proxies, or datacenter tunnel gateways.
+                <p className="font-bold text-amber-950 text-sm">Please Disconnect Your VPN</p>
+                <p className="text-amber-900 leading-relaxed font-medium">
+                  For banking compliance and anti-fraud safeguards, transfers cannot be executed through commercial VPNs or proxy tunnels.
                 </p>
               </div>
             </div>
 
-            {/* Observed Telemetry */}
-            <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2 text-slate-300">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Detected Network Telemetry</span>
-              <div className="flex justify-between items-center py-1 border-b border-slate-800">
-                <span className="text-slate-400">Exit Country</span>
-                <span className="font-mono text-cyan-400 font-bold">{vpnDetails?.country || 'External Exit'}</span>
+            <div className="p-4 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)] space-y-2">
+              <span className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase">Observed Telemetry</span>
+              <div className="flex justify-between items-center py-1 border-b border-[var(--color-border)]">
+                <span className="text-[var(--color-text-muted)] font-medium">Exit Country</span>
+                <span className="font-mono text-[var(--color-sapphire)] font-bold">{vpnDetails?.country || 'External'}</span>
               </div>
-              <div className="flex justify-between items-center py-1 border-b border-slate-800">
-                <span className="text-slate-400">ISP / Gateway</span>
-                <span className="text-white font-semibold">{vpnDetails?.isp || 'Encrypted Hosting Node'}</span>
+              <div className="flex justify-between items-center py-1 border-b border-[var(--color-border)]">
+                <span className="text-[var(--color-text-muted)] font-medium">ISP / Gateway</span>
+                <span className="font-bold text-[var(--color-text-primary)]">{vpnDetails?.isp || 'Hosting Gateway'}</span>
               </div>
               {vpnDetails?.reason && (
-                <div className="text-[11px] text-amber-400/90 pt-1">
+                <div className="text-[11px] text-amber-800 pt-1 font-medium">
                   Reason: {vpnDetails.reason}
                 </div>
               )}
             </div>
 
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              Disconnect or disable your VPN in your operating system or browser, then click below to re-verify your connection.
-            </p>
-
             <div className="flex items-center justify-end gap-3 pt-2">
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => setVpnModalOpen(false)}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="primary"
+                size="sm"
                 onClick={handleRecheckVpnConnection}
-                disabled={isRecheckingVpn}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold shadow-lg shadow-blue-500/25 cursor-pointer"
+                isLoading={isRecheckingVpn}
               >
-                <RefreshCw className={`w-4 h-4 ${isRecheckingVpn ? 'animate-spin' : ''}`} />
-                <span>{isRecheckingVpn ? 'Re-Checking...' : 'Check Connection Again'}</span>
-              </button>
+                <RefreshCw className="w-4 h-4 mr-1.5" />
+                <span>Check Connection Again</span>
+              </Button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* MODAL 2: 3-WRONG TRANSFER PASSWORD SECURITY HOLD MODAL (NON-LOGOUT) */}
+      {/* MODAL 2: 3-WRONG TRANSFER PASSWORD SECURITY HOLD MODAL */}
       {transferBlockedModalOpen && (
         <Modal
           isOpen={transferBlockedModalOpen}
@@ -1122,44 +1088,46 @@ export const SendMoneyPage: React.FC = () => {
           maxWidth="md"
         >
           <div className="space-y-4 text-xs">
-            <div className="p-4 rounded-xl bg-[#F06470]/10 border border-[#F06470]/30 text-[#F06470] flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 shrink-0 text-[#F06470] mt-0.5" />
+            <div className="p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-950 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 shrink-0 text-rose-600 mt-0.5" />
               <div className="space-y-1">
-                <p className="font-bold text-white text-sm">Money Transfers Restricted</p>
-                <p className="text-[#F06470]/90 leading-relaxed">
+                <p className="font-bold text-rose-950 text-sm">Money Transfers Restricted</p>
+                <p className="text-rose-900 leading-relaxed font-medium">
                   {transferBlockedMessage || 'You have entered your transfer password incorrectly 3 times. Transfers have been placed on security hold for your protection. You remain logged in.'}
                 </p>
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2 text-slate-300">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">How to Restore Transfer Privileges</span>
-              <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-[11px]">
+            <div className="p-4 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)] space-y-2">
+              <span className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase">How to Restore Privileges</span>
+              <ul className="list-disc pl-4 space-y-1.5 text-xs text-[var(--color-text-secondary)] font-medium">
                 <li>Open a support ticket and upload a picture of your National ID or Passport.</li>
-                <li>Compliance and audit staff will review and verify your identity in the Helpdesk queue.</li>
-                <li>Upon verification, you will be prompted to set a new transfer password.</li>
+                <li>Compliance staff will verify your identity in the Helpdesk queue.</li>
+                <li>Upon verification, you will set a new transfer password.</li>
               </ul>
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-2">
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => setTransferBlockedModalOpen(false)}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer"
               >
                 Dismiss
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="danger"
+                size="sm"
                 onClick={() => {
                   setTransferBlockedModalOpen(false);
                   navigate('/customer/support?reason=TRANSFER_BLOCKED');
                 }}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#3978F6] hover:bg-[#3978F6]/90 text-white font-bold shadow-lg shadow-blue-500/25 cursor-pointer"
               >
                 <span>Open Support Ticket</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+                <ArrowRight className="w-4 h-4 ml-1.5" />
+              </Button>
             </div>
           </div>
         </Modal>
@@ -1176,11 +1144,11 @@ export const SendMoneyPage: React.FC = () => {
         >
           <form onSubmit={handleChangeTransferPassword} className="space-y-4 text-xs">
             {passwordModalSuccess ? (
-              <div className="p-4 rounded-xl bg-[#27C58B]/10 border border-[#27C58B]/30 text-[#27C58B] flex items-center gap-3">
-                <Check className="w-5 h-5 shrink-0 stroke-[3]" />
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 flex items-center gap-3">
+                <Check className="w-6 h-6 shrink-0 text-emerald-600 stroke-[3]" />
                 <div className="space-y-0.5">
-                  <p className="font-bold text-white text-sm">Transfer Password Updated Successfully!</p>
-                  <p className="text-xs text-[#27C58B]/90">
+                  <p className="font-bold text-emerald-950 text-sm">Transfer Password Updated Successfully!</p>
+                  <p className="text-xs text-emerald-800 font-medium">
                     Your transfer access is now ACTIVE. You can make money transfers freely.
                   </p>
                 </div>
@@ -1188,71 +1156,57 @@ export const SendMoneyPage: React.FC = () => {
             ) : (
               <>
                 {passwordModalError && (
-                  <div className="p-3 rounded-xl bg-[#F06470]/10 border border-[#F06470]/30 text-xs text-[#F06470] flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{passwordModalError}</span>
-                  </div>
+                  <Alert
+                    variant="danger"
+                    icon={<AlertCircle className="h-4 w-4" />}
+                    message={passwordModalError}
+                  />
                 )}
 
-                <div className="p-3 rounded-xl bg-[#29C5D9]/10 border border-[#29C5D9]/30 text-[#29C5D9] flex items-start gap-2.5">
-                  <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
-                  <p className="text-[11px] leading-relaxed text-[#F4F7FC]">
+                <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-[var(--color-sapphire)] flex items-start gap-3">
+                  <ShieldCheck className="w-5 h-5 text-[var(--color-sapphire)] shrink-0 mt-0.5" />
+                  <p className="text-xs leading-relaxed text-[var(--color-text-secondary)] font-medium">
                     Your account ownership was verified by Compliance. Set your new dedicated transfer password below to authorize transfers.
                   </p>
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-1">
-                    New Transfer Password (Min 8 Characters)
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showNewPasswordText ? 'text' : 'password'}
-                      required
-                      value={newTransferPassword}
-                      onChange={(e) => setNewTransferPassword(e.target.value)}
-                      placeholder="Enter new transfer password"
-                      className="w-full pl-3 pr-9 py-2 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#29C5D9]"
-                    />
+                <Input
+                  label="New Transfer Password (Min 8 Characters)"
+                  type={showNewPasswordText ? 'text' : 'password'}
+                  required
+                  value={newTransferPassword}
+                  onChange={(e) => setNewTransferPassword(e.target.value)}
+                  placeholder="Enter new transfer password"
+                  icon={
                     <button
                       type="button"
                       onClick={() => setShowNewPasswordText(!showNewPasswordText)}
-                      className="absolute right-2.5 top-2.5 text-[#71819A] hover:text-[#F4F7FC]"
+                      className="p-1 hover:text-[var(--color-sapphire)] cursor-pointer"
                     >
-                      {showNewPasswordText ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5 text-[#A7B4C8]" />}
+                      {showNewPasswordText ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
-                  </div>
-                </div>
+                  }
+                />
 
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-1">
-                    Confirm New Transfer Password
-                  </label>
-                  <input
-                    type={showNewPasswordText ? 'text' : 'password'}
-                    required
-                    value={confirmTransferPassword}
-                    onChange={(e) => setConfirmTransferPassword(e.target.value)}
-                    placeholder="Repeat new transfer password"
-                    className="w-full px-3 py-2 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#29C5D9]"
-                  />
-                </div>
+                <Input
+                  label="Confirm New Transfer Password"
+                  type={showNewPasswordText ? 'text' : 'password'}
+                  required
+                  value={confirmTransferPassword}
+                  onChange={(e) => setConfirmTransferPassword(e.target.value)}
+                  placeholder="Repeat new transfer password"
+                />
 
                 <div className="flex items-center justify-end gap-3 pt-3">
-                  <button
+                  <Button
                     type="submit"
-                    disabled={passwordModalLoading}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#3978F6] hover:bg-[#3978F6]/90 disabled:opacity-50 text-white font-bold shadow-lg shadow-blue-500/25 cursor-pointer text-xs"
+                    variant="primary"
+                    size="sm"
+                    isLoading={passwordModalLoading}
                   >
-                    {passwordModalLoading ? (
-                      <span>Saving Password...</span>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-4 h-4 text-[#29C5D9]" />
-                        <span>Save &amp; Reactivate Transfers</span>
-                      </>
-                    )}
-                  </button>
+                    <ShieldCheck className="w-4 h-4 mr-1.5" />
+                    <span>Save &amp; Reactivate Transfers</span>
+                  </Button>
                 </div>
               </>
             )}

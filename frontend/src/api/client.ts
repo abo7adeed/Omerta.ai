@@ -43,10 +43,24 @@ export async function apiRequest<T = any>(
     } catch {
       errorData = { message: response.statusText };
     }
-    const message =
-      typeof errorData.detail === 'string'
-        ? errorData.detail
-        : errorData.detail?.message || errorData.message || 'API Request Failed';
+    let message = 'API Request Failed';
+    if (typeof errorData.detail === 'string') {
+      message = errorData.detail;
+    } else if (Array.isArray(errorData.detail)) {
+      message = errorData.detail
+        .map((e: any) => {
+          const field = e.loc ? e.loc[e.loc.length - 1] : '';
+          const msg = e.msg || e.message || JSON.stringify(e);
+          return field ? `${field}: ${msg}` : msg;
+        })
+        .join(' · ');
+    } else if (errorData.detail?.message) {
+      message = errorData.detail.message;
+    } else if (errorData.message) {
+      message = errorData.message;
+    } else if (errorData.error) {
+      message = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
+    }
 
     const errorDetail = errorData.detail;
     const isTransferPasswordError =
@@ -109,6 +123,10 @@ export const api = {
     apiRequest<{ success: boolean; message: string }>('/auth/reset-password', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+  logout: () =>
+    apiRequest<{ success: boolean; message: string }>('/auth/logout', {
+      method: 'POST',
     }),
   getMe: () => apiRequest('/auth/me'),
 

@@ -6,13 +6,19 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  ArrowLeftRight,
+  ArrowUpRight,
   Smartphone,
   Globe,
 } from 'lucide-react';
 import { api } from '../api/client';
 import type { TransactionItem } from '../types';
-import { RiskBadge } from '../components/common/RiskBadge';
-import { StatusBadge } from '../components/common/StatusBadge';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { RiskBadge } from '../components/ui/RiskBadge';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { TableContainer, Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '../components/ui/Table';
 
 export const TransactionsPage: React.FC = () => {
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
@@ -26,7 +32,7 @@ export const TransactionsPage: React.FC = () => {
   // Filters state
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [currency, setCurrency] = useState('');
-  const [transactionType, setTransactionType] = useState('');
+  const [transactionType] = useState('');
   const [riskLevel, setRiskLevel] = useState('');
   const [reviewStatus, setReviewStatus] = useState('');
   const [page, setPage] = useState(1);
@@ -75,253 +81,283 @@ export const TransactionsPage: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <Card className="p-6 sm:p-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-            Transaction Ledger & Monitoring
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#F9A825] mb-1">
+            <ArrowLeftRight className="w-4 h-4" />
+            Banking Transaction Ledger
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#002D72]">
+            Transaction Directory &amp; Risk Intelligence
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Search, filter, and inspect banking transactions across accounts with multi-signal risk scoring.
+          <p className="text-xs text-[#64748B] mt-1 font-medium">
+            Inspect transactions across all customer accounts with multi-signal risk assessments and velocity signals.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
+        <div className="flex items-center gap-2.5 shrink-0">
+          <Button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm"
+            variant="secondary"
+            size="sm"
+            leftIcon={<Download className="h-4 w-4 text-[#002D72]" />}
           >
-            <Download className="h-3.5 w-3.5" />
-            <span>Export CSV</span>
-          </button>
-          <button
+            Export CSV
+          </Button>
+          <Button
             onClick={fetchTransactions}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm"
+            variant="primary"
+            size="sm"
+            leftIcon={<RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />}
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-sky-500 dark:text-cyan-400' : ''}`} />
-            <span>Refresh</span>
-          </button>
+            Refresh
+          </Button>
         </div>
-      </div>
+      </Card>
 
-      {/* Search & Filter Toolbar */}
-      <div className="omerta-card p-4 space-y-3">
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          <form onSubmit={handleSearchSubmit} className="relative flex-1 w-full">
-            <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
-            <input
-              type="text"
+      {/* Filter Control Bar */}
+      <Card className="p-5">
+        <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          <div className="lg:col-span-2">
+            <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by Transaction ID, Account ID, or Customer name..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900/90 border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-sky-500 dark:focus:border-cyan-400"
+              placeholder="Search TXN-ID, account #, sender or receiver..."
+              leftIcon={<Search className="h-4 w-4 text-[#64748B]" />}
+              className="h-10 text-xs"
             />
-          </form>
+          </div>
 
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div>
             <select
               value={riskLevel}
               onChange={(e) => {
                 setRiskLevel(e.target.value);
                 setPage(1);
               }}
-              className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:border-sky-500 dark:focus:border-cyan-400"
+              className="w-full h-10 bg-white border border-[#E0DDD6] rounded-[10px] px-3 text-xs text-[#0F172A] font-medium outline-none focus:border-[#1E88E5] cursor-pointer"
             >
-              <option value="">All Risk Levels</option>
+              <option value="">All Risk Tiers</option>
               <option value="LOW">Low Risk</option>
-              <option value="MODERATE">Moderate</option>
+              <option value="MODERATE">Moderate Risk</option>
               <option value="REQUIRES_REVIEW">Requires Review</option>
               <option value="HIGH">High Risk</option>
               <option value="CRITICAL">Critical</option>
             </select>
+          </div>
 
+          <div>
             <select
               value={reviewStatus}
               onChange={(e) => {
                 setReviewStatus(e.target.value);
                 setPage(1);
               }}
-              className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:border-sky-500 dark:focus:border-cyan-400"
+              className="w-full h-10 bg-white border border-[#E0DDD6] rounded-[10px] px-3 text-xs text-[#0F172A] font-medium outline-none focus:border-[#1E88E5] cursor-pointer"
             >
-              <option value="">All Review Statuses</option>
-              <option value="REQUIRES_REVIEW">Requires Review (&gt;40%)</option>
-              <option value="NOT_REQUIRED">Routine Monitoring</option>
+              <option value="">All Statuses</option>
               <option value="COMPLETED">Completed</option>
+              <option value="REQUIRES_REVIEW">Requires Review</option>
+              <option value="UNDER_INVESTIGATION">Under Investigation</option>
+              <option value="BLOCKED">Blocked</option>
             </select>
-
-            <select
-              value={currency}
-              onChange={(e) => {
-                setCurrency(e.target.value);
-                setPage(1);
-              }}
-              className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:border-sky-500 dark:focus:border-cyan-400"
-            >
-              <option value="">All Currencies</option>
-              <option value="EGP">EGP</option>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-            </select>
-
-            <select
-              value={transactionType}
-              onChange={(e) => {
-                setTransactionType(e.target.value);
-                setPage(1);
-              }}
-              className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:border-sky-500 dark:focus:border-cyan-400"
-            >
-              <option value="">All Types</option>
-              <option value="TRANSFER">TRANSFER</option>
-              <option value="DEPOSIT">DEPOSIT</option>
-              <option value="WITHDRAWAL">WITHDRAWAL</option>
-              <option value="PAYMENT">PAYMENT</option>
-              <option value="FX_CONVERSION">FX CONVERSION</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Transactions Data Table */}
-      <div className="omerta-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-100 dark:bg-slate-900/90 text-slate-700 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 uppercase text-[10px] tracking-wider font-bold">
-              <tr>
-                <th className="py-3.5 px-4">Transaction ID</th>
-                <th className="py-3.5 px-4">Timestamp</th>
-                <th className="py-3.5 px-4">Source Account</th>
-                <th className="py-3.5 px-4">Customer</th>
-                <th className="py-3.5 px-4">Recipient</th>
-                <th className="py-3.5 px-4">Amount</th>
-                <th className="py-3.5 px-4">Type</th>
-                <th className="py-3.5 px-4">Hardware / IP</th>
-                <th className="py-3.5 px-4">Risk Score</th>
-                <th className="py-3.5 px-4">Review Status</th>
-                <th className="py-3.5 px-4 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60 text-slate-800 dark:text-slate-300">
-              {loading ? (
-                <tr>
-                  <td colSpan={11} className="py-12 text-center text-slate-500 dark:text-slate-400">
-                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-sky-500 dark:text-cyan-400" />
-                    <span>Loading transactions ledger...</span>
-                  </td>
-                </tr>
-              ) : transactions.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="py-12 text-center text-slate-500 dark:text-slate-400">
-                    No transactions match the selected filter criteria.
-                  </td>
-                </tr>
-              ) : (
-                transactions.map((t) => (
-                  <tr
-                    key={t.id}
-                    onClick={() => navigate(`/transactions/${t.external_id}`)}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                  >
-                    <td className="py-3 px-4 font-mono font-bold text-sky-700 dark:text-cyan-300 group-hover:underline">
-                      {t.external_id}
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                      {new Date(t.timestamp).toLocaleDateString()}{' '}
-                      <span className="text-[10px] text-slate-500">
-                        {new Date(t.timestamp).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-mono font-medium text-slate-800 dark:text-slate-300">
-                      {t.source_account}
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white truncate max-w-[140px]">
-                      {t.customer_name}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-slate-600 dark:text-slate-400">
-                      {t.recipient_account}
-                    </td>
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
-                      {t.amount.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}{' '}
-                      <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-                        {t.currency}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
-                        {t.transaction_type}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-[11px] text-slate-600 dark:text-slate-400">
-                      <div className="flex items-center gap-1.5">
-                        <Smartphone className="h-3 w-3 text-slate-400" />
-                        <span className="font-mono truncate max-w-[70px]">{t.device}</span>
-                        <Globe className="h-3 w-3 text-slate-400 ml-1" />
-                        <span>{t.ip_country}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <RiskBadge
-                        level={t.risk_level}
-                        score={t.risk_score}
-                        size="sm"
-                      />
-                    </td>
-                    <td className="py-3 px-4">
-                      <StatusBadge status={t.review_status} />
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/transactions/${t.external_id}`);
-                        }}
-                        className="px-2.5 py-1 text-xs font-bold rounded bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-cyan-400 hover:bg-sky-100 dark:hover:bg-sky-500/20 border border-sky-300 dark:border-sky-500/30 transition-colors shadow-xs"
-                      >
-                        Inspect
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Bar */}
-        <div className="flex items-center justify-between px-4 py-3 bg-slate-100 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
-          <div>
-            Showing <span className="text-slate-900 dark:text-white font-bold">{transactions.length}</span> of{' '}
-            <span className="text-slate-900 dark:text-white font-bold">{total.toLocaleString()}</span> records
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              disabled={page <= 1 || loading}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs"
+            <Button
+              type="submit"
+              variant="sapphire"
+              size="sm"
+              className="h-10 flex-1 text-xs"
             >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <span>
-              Page <strong className="text-slate-900 dark:text-white">{page}</strong> of{' '}
-              <strong className="text-slate-900 dark:text-white">{totalPages}</strong>
-            </span>
-            <button
-              disabled={page >= totalPages || loading}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
+              Filter
+            </Button>
+            {(search || currency || riskLevel || reviewStatus) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-10 px-3 text-xs text-[#64748B]"
+                onClick={() => {
+                  setSearch('');
+                  setCurrency('');
+                  setRiskLevel('');
+                  setReviewStatus('');
+                  setPage(1);
+                }}
+              >
+                Reset
+              </Button>
+            )}
           </div>
-        </div>
-      </div>
+        </form>
+      </Card>
+
+      {/* Main Transactions Table */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <div>
+            <CardTitle className="text-base">Ledger Entries</CardTitle>
+            <CardDescription>
+              Showing <span className="font-bold text-[#002D72]">{transactions.length}</span> of{' '}
+              <span className="font-bold text-[#002D72]">{total.toLocaleString()}</span> records
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <TableContainer className="border-0 rounded-none rounded-b-[16px] shadow-none">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Transaction ID</TableHead>
+                  <TableHead>Sender &amp; Account</TableHead>
+                  <TableHead>Recipient</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Risk Score</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Timestamp</TableHead>
+                  <TableHead className="text-right">Dossier</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transactions.length > 0 ? (
+                  transactions.map((txn: any) => {
+                    const devId = txn.device || txn.device_id || 'WEB-CLIENT';
+                    const sAccount = txn.source_account || txn.sender_account_number || txn.account_number || 'ACC-Monitored';
+                    const sName = txn.customer_name || txn.sender_name || 'Account Holder';
+                    const rAccount = txn.recipient_account || txn.receiver_account_number || 'Beneficiary Account';
+                    const rName = txn.receiver_name || 'Beneficiary';
+                    const txTime = txn.timestamp || txn.created_at;
+
+                    return (
+                      <TableRow
+                        key={txn.external_id || txn.id}
+                        onClick={() => navigate(`/admin/transactions/${txn.external_id || txn.id}`)}
+                        className="cursor-pointer"
+                      >
+                        <TableCell>
+                          <div className="font-mono font-bold text-[#002D72]">
+                            {txn.external_id || txn.id}
+                          </div>
+                          <div className="text-[11px] text-[#64748B] flex items-center gap-1 mt-0.5">
+                            {devId ? (
+                              <span className="flex items-center gap-1" title={devId}>
+                                <Smartphone className="h-3 w-3 text-[#1E88E5]" />
+                                <span className="truncate max-w-[80px] font-mono">{devId}</span>
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1">
+                                <Globe className="h-3 w-3 text-[#64748B]" />
+                                <span>ONLINE</span>
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="font-bold text-[#0F172A] truncate max-w-[150px]">
+                            {sName}
+                          </div>
+                          <div className="text-[11px] font-mono text-[#64748B]">
+                            {sAccount}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="font-medium text-[#0F172A] truncate max-w-[150px]">
+                            {rName}
+                          </div>
+                          <div className="text-[11px] font-mono text-[#64748B]">
+                            {rAccount}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="font-mono font-bold text-[#002D72]">
+                            {txn.amount ? `${Number(txn.amount).toLocaleString()} ${txn.currency || 'EGP'}` : '0 EGP'}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <RiskBadge
+                            level={
+                              txn.risk_level ||
+                              (txn.risk_score >= 70
+                                ? 'HIGH'
+                                : txn.risk_score >= 40
+                                ? 'REQUIRES_REVIEW'
+                                : 'LOW')
+                            }
+                            score={txn.risk_score}
+                          />
+                        </TableCell>
+
+                        <TableCell>
+                          <StatusBadge status={txn.status || 'COMPLETED'} />
+                        </TableCell>
+
+                        <TableCell className="text-xs font-mono text-[#64748B]">
+                          {txTime ? new Date(txTime).toLocaleString() : 'Recent'}
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/admin/transactions/${txn.external_id || txn.id}`);
+                            }}
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-[#002D72]"
+                          >
+                            <ArrowUpRight className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={8} className="p-12 text-center text-[#64748B]">
+                      {loading ? 'Querying transaction database...' : 'No transactions matched your search criteria.'}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="p-4 border-t border-[#E0DDD6] flex items-center justify-between text-xs text-[#64748B]">
+              <span>
+                Page <strong className="text-[#002D72]">{page}</strong> of{' '}
+                <strong className="text-[#002D72]">{totalPages}</strong>
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={<ChevronLeft className="h-4 w-4" />}
+                >
+                  Previous
+                </Button>
+                <Button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  variant="secondary"
+                  size="sm"
+                  rightIcon={<ChevronRight className="h-4 w-4" />}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

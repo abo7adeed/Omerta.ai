@@ -14,6 +14,10 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
+import {
+  Card,
+  Button,
+} from '../../components/ui';
 import type { CustomerProfile } from '../../types';
 
 const COUNTRY_NAMES: Record<string, { label: string; flag: string }> = {
@@ -65,152 +69,154 @@ export const CustomerProfilePage: React.FC = () => {
 
   if (isLoading && !currentProfile) {
     return (
-      <div className="py-20 flex flex-col items-center justify-center text-[#A7B4C8]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#29C5D9] mb-3" />
-        <p className="text-xs font-semibold">Loading verified customer profile...</p>
+      <div className="py-24 flex flex-col items-center justify-center text-[var(--color-text-secondary)]">
+        <Loader2 className="h-10 w-10 animate-spin text-[var(--color-sapphire)] mb-4" />
+        <p className="text-sm font-semibold text-[var(--color-sapphire)]">Loading customer profile...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in duration-200">
+    <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[#F4F7FC] flex items-center gap-2">
-          <UserCheck className="h-6 w-6 text-[#3978F6]" />
+      <Card className="p-6 md:p-8">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--color-sapphire)] flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-[var(--color-sapphire)] text-[var(--color-gold)] shadow-sm">
+            <UserCheck className="h-6 w-6 stroke-[2.2]" />
+          </div>
           <span>Customer Profile</span>
         </h1>
-        <p className="text-xs text-[#A7B4C8] mt-1">
+        <p className="text-xs text-[var(--color-text-secondary)] mt-2 font-medium">
           Your verified banking identity, phone credentials, and unique Omerta transfer identifier
         </p>
-      </div>
+      </Card>
 
       {/* Main Profile Card */}
-      <div className="p-6 omerta-card bg-[#101A2B] border-[#25344A] space-y-6 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#25344A]">
+      <Card className="p-6 md:p-8 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[var(--color-border)]">
           <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-tr from-[#3978F6] to-[#29C5D9] text-slate-950 font-black flex items-center justify-center text-xl shadow-lg shadow-cyan-500/20">
+            <div className="h-16 w-16 rounded-2xl bg-[var(--color-sapphire)] text-[var(--color-gold)] font-extrabold flex items-center justify-center text-2xl shadow-sm">
               {currentProfile?.name?.charAt(0) || user?.full_name?.charAt(0) || 'C'}
             </div>
             <div>
-              <h2 className="text-lg font-bold text-[#F4F7FC]">{currentProfile?.name || user?.full_name}</h2>
-              <p className="text-xs text-[#71819A] flex items-center gap-1.5 mt-0.5">
-                <Mail className="h-3.5 w-3.5 text-[#3978F6]" />
-                <span className="text-[#A7B4C8]">{currentProfile?.email || user?.email}</span>
+              <h2 className="text-xl font-bold text-[var(--color-sapphire)]">{currentProfile?.name || user?.full_name}</h2>
+              <p className="text-xs text-[var(--color-text-secondary)] flex items-center gap-1.5 mt-1 font-medium">
+                <Mail className="h-4 w-4 text-[var(--color-royal-blue)]" />
+                <span>{currentProfile?.email || user?.email}</span>
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full bg-[#27C58B]/15 text-[#27C58B] border border-[#27C58B]/30 text-xs font-bold uppercase flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>{currentProfile?.status || 'ACTIVE'}</span>
-            </span>
-          </div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            {currentProfile?.status || 'ACTIVE'}
+          </span>
         </div>
 
         {/* Unique Omerta User Number Box */}
-        <div className="p-4 rounded-xl bg-[#080D19] border border-[#25344A] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-1">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)]">
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#A7B4C8]">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
                 Unique Omerta User Number
               </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#3978F6]/20 text-[#3978F6] border border-[#3978F6]/40">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-[var(--color-sapphire)] border border-blue-200">
                 P2P Transfer ID
               </span>
             </div>
-            <p className="font-mono text-lg font-black text-[#29C5D9] tracking-wider">
+            <p className="font-mono text-xl font-extrabold text-[var(--color-sapphire)] tracking-wider">
               {currentProfile?.omerta_user_number || 'OMR-1092-4821'}
             </p>
-            <p className="text-[11px] text-[#71819A]">
+            <p className="text-xs text-[var(--color-text-secondary)] font-medium">
               Share this identifier or your registered mobile phone with other users to receive transfers.
             </p>
           </div>
 
-          <button
+          <Button
+            size="sm"
+            variant="secondary"
             onClick={handleCopyUserNumber}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#152238] hover:bg-[#1B2B43] border border-[#25344A] text-xs text-[#F4F7FC] font-semibold transition-colors shrink-0 shadow-sm"
+            className="shrink-0"
           >
             {copied ? (
               <>
-                <Check className="h-3.5 w-3.5 text-[#27C58B]" />
-                <span className="text-[#27C58B]">Copied!</span>
+                <Check className="h-4 w-4 text-emerald-600 mr-1.5" />
+                <span className="text-emerald-700 font-bold">Copied!</span>
               </>
             ) : (
               <>
-                <Copy className="h-3.5 w-3.5 text-[#3978F6]" />
+                <Copy className="h-4 w-4 text-[var(--color-sapphire)] mr-1.5" />
                 <span>Copy Number</span>
               </>
             )}
-          </button>
+          </Button>
         </div>
 
         {/* Profile Attributes */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Registered Mobile Phone */}
-          <div className="p-4 rounded-xl bg-[#080D19] border border-[#25344A] space-y-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#71819A] flex items-center gap-1.5">
-              <Phone className="h-3.5 w-3.5 text-[#29C5D9]" /> Registered Mobile Phone
+          <div className="p-4 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)] space-y-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-1.5">
+              <Phone className="h-4 w-4 text-[var(--color-sapphire)]" /> Registered Mobile Phone
             </span>
-            <p className="text-sm font-bold font-mono text-[#F4F7FC] flex items-center gap-2">
+            <p className="text-sm font-bold font-mono text-[var(--color-sapphire)] flex items-center gap-2">
               <span>{countryInfo.flag}</span>
               <span>{currentProfile?.phone || '+20 10 1111 2222'}</span>
             </p>
-            <p className="text-[10px] text-[#71819A]">
-              Verified mobile identifier for direct phone-to-phone transfers.
+            <p className="text-[11px] text-[var(--color-text-secondary)] font-medium">
+              Verified mobile identifier for direct phone transfers.
             </p>
           </div>
 
           {/* Account Verification Tier */}
-          <div className="p-4 rounded-xl bg-[#080D19] border border-[#25344A] space-y-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#71819A] flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-[#27C58B]" /> Verification Status
+          <div className="p-4 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)] space-y-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4 text-emerald-600" /> Verification Status
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-[#27C58B]">Tier 1 Verified</span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#27C58B]/10 text-[#27C58B] border border-[#27C58B]/30">
-                Full Demo Access
+              <span className="text-sm font-bold text-emerald-700">Tier 1 Verified</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                Full Access
               </span>
             </div>
-            <p className="text-[10px] text-[#71819A]">
-              Standard banking tier with peer-to-peer sending & receiving limits.
+            <p className="text-[11px] text-[var(--color-text-secondary)] font-medium">
+              Standard banking tier with peer-to-peer sending &amp; receiving.
             </p>
           </div>
 
           {/* Declared Country */}
-          <div className="p-4 rounded-xl bg-[#080D19] border border-[#25344A] space-y-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#71819A] flex items-center gap-1.5">
-              <Globe className="h-3.5 w-3.5 text-[#3978F6]" /> Declared Country
+          <div className="p-4 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)] space-y-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-1.5">
+              <Globe className="h-4 w-4 text-[var(--color-royal-blue)]" /> Declared Country
             </span>
-            <p className="text-sm font-bold text-[#F4F7FC] flex items-center gap-2">
+            <p className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
               <span>{countryInfo.flag}</span>
               <span>{countryInfo.label}</span>
             </p>
-            <p className="text-[10px] text-[#71819A]">
-              Primary banking jurisdiction for simulated regional clearing.
+            <p className="text-[11px] text-[var(--color-text-secondary)] font-medium">
+              Primary banking jurisdiction for regional clearing.
             </p>
           </div>
 
           {/* Preferred Currency */}
-          <div className="p-4 rounded-xl bg-[#080D19] border border-[#25344A] space-y-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#71819A] flex items-center gap-1.5">
-              <Wallet className="h-3.5 w-3.5 text-[#29C5D9]" /> Preferred Currency
+          <div className="p-4 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)] space-y-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-1.5">
+              <Wallet className="h-4 w-4 text-[var(--color-gold)]" /> Preferred Currency
             </span>
-            <p className="text-sm font-bold text-[#F4F7FC]">
+            <p className="text-sm font-bold text-[var(--color-sapphire)]">
               {currentProfile?.preferred_currency || 'EGP'}
             </p>
-            <p className="text-[10px] text-[#71819A]">
-              Default denom for new accounts and transfer calculations.
+            <p className="text-[11px] text-[var(--color-text-secondary)] font-medium">
+              Default denomination for new accounts and transfers.
             </p>
           </div>
 
           {/* Member Since */}
-          <div className="p-4 rounded-xl bg-[#080D19] border border-[#25344A] space-y-1.5 sm:col-span-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#71819A] flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5 text-[#A7B4C8]" /> Member Since
+          <div className="p-4 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)] space-y-1.5 sm:col-span-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-1.5">
+              <Calendar className="h-4 w-4 text-[var(--color-sapphire)]" /> Member Since
             </span>
-            <p className="text-sm font-bold text-[#F4F7FC]">
+            <p className="text-sm font-bold text-[var(--color-text-primary)]">
               {currentProfile?.member_since
                 ? new Date(currentProfile.member_since).toLocaleDateString(undefined, {
                     year: 'numeric',
@@ -221,7 +227,7 @@ export const CustomerProfilePage: React.FC = () => {
             </p>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

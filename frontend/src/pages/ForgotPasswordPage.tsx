@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, ArrowRight, ShieldCheck, ArrowLeft, CheckCircle2, AlertCircle, Copy, Check } from 'lucide-react';
+import { Mail, ArrowRight, ShieldCheck, ArrowLeft, CheckCircle2, AlertCircle, Copy, Check, Building2 } from 'lucide-react';
 import { api } from '../api/client';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 
 export const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -34,132 +37,121 @@ export const ForgotPasswordPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#080D19] flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
-        {/* Brand Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-gradient-to-tr from-[#3978F6] to-[#29C5D9] text-slate-950 font-black shadow-lg shadow-cyan-500/20 mb-2">
-            <ShieldCheck className="h-7 w-7 stroke-[2.5]" />
+    <div className="min-h-screen bg-[#FFF8E1] flex flex-col justify-between p-4 sm:p-8">
+      {/* Header Branding */}
+      <header className="max-w-md w-full mx-auto flex items-center justify-between py-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-[10px] bg-[#002D72] text-[#F9A825] flex items-center justify-center shadow-xs">
+            <Building2 className="w-4.5 h-4.5 stroke-[2.2]" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#F4F7FC]">
-            Reset Your Password
-          </h1>
-          <p className="text-xs text-[#A7B4C8]">
-            Enter your account email or username to receive a secure password reset link.
-          </p>
+          <div className="text-lg font-bold text-[#002D72]">
+            OMERTA<span className="text-[#F9A825]">.AI</span>
+          </div>
         </div>
+      </header>
 
-        {/* Card */}
-        <div className="p-6 omerta-card bg-[#101A2B] border-[#25344A] rounded-2xl shadow-2xl space-y-5">
+      {/* Main Card */}
+      <main className="flex-1 flex items-center justify-center py-8">
+        <Card className="w-full max-w-md p-6 sm:p-8 space-y-6 shadow-md">
+          <div className="text-center space-y-1">
+            <h1 className="text-2xl font-bold text-[#002D72] tracking-tight">
+              Reset Account Password
+            </h1>
+            <p className="text-xs text-[#64748B] font-medium">
+              Enter your account email or username to receive a secure recovery token.
+            </p>
+          </div>
+
           {!successData ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               {error && (
-                <div className="p-3.5 rounded-xl bg-[#F06470]/10 border border-[#F06470]/30 text-xs text-[#F06470] flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{error}</span>
+                <div className="p-3.5 rounded-[10px] bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B] flex items-center gap-2.5">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-[#DC2626]" />
+                  <span className="font-semibold">{error}</span>
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#A7B4C8]">
-                  Account Email Address or Username
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#71819A]" />
-                  <input
-                    type="text"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e.g. user@gmail.com, ziad@omerta.ai, or ziad_k"
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6]"
-                  />
-                </div>
-              </div>
+              <Input
+                label="Account Email Address or Username"
+                type="text"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="e.g. user@omerta.ai"
+                leftIcon={<Mail className="h-4 w-4 text-[#64748B]" />}
+                autoFocus
+              />
 
-              <button
+              <Button
                 type="submit"
-                disabled={loading || !email.trim()}
-                className="w-full py-3 rounded-xl bg-[#3978F6] hover:bg-[#3978F6]/90 disabled:opacity-50 text-[#F4F7FC] text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 cursor-pointer"
+                variant="primary"
+                size="md"
+                isLoading={loading}
+                disabled={!email.trim()}
+                className="w-full mt-2"
               >
-                {loading ? (
-                  <span>Dispatching Email via Security Relay...</span>
-                ) : (
-                  <>
-                    <span>Send Password Reset Email</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </button>
+                <span>Send Password Reset Email</span>
+                <ArrowRight className="h-4 w-4" />
+              </Button>
             </form>
           ) : (
             <div className="space-y-4 text-center">
-              <div className="mx-auto w-12 h-12 rounded-full bg-[#27C58B]/20 border border-[#27C58B]/40 flex items-center justify-center text-[#27C58B]">
+              <div className="mx-auto w-12 h-12 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] flex items-center justify-center text-[#10B981]">
                 <CheckCircle2 className="h-6 w-6 stroke-[2.5]" />
               </div>
 
               <div>
-                <h3 className="text-sm font-bold text-[#F4F7FC]">
-                  Password Reset Email Dispatched
+                <h3 className="text-base font-bold text-[#002D72]">
+                  Recovery Token Dispatched
                 </h3>
-                <p className="text-xs text-[#A7B4C8] mt-1">
-                  {successData.message}
+                <p className="text-xs text-[#64748B] mt-1 font-medium">
+                  If an account matches <span className="font-bold text-[#0F172A]">{email}</span>, a secure recovery email has been sent.
                 </p>
               </div>
 
-              {successData.simulated_email && (
-                <div className="p-4 rounded-xl bg-[#080D19] border border-[#25344A] text-left space-y-3">
-                  <div className="flex items-center justify-between text-[11px] border-b border-[#25344A] pb-2">
-                    <span className="font-bold text-[#29C5D9]">✉️ Real Email Transmission</span>
-                    <span className="text-[#27C58B] font-mono font-bold">Valid for 15 mins</span>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs">
-                    <div className="text-[#A7B4C8]">
-                      <span className="font-semibold text-[#F4F7FC]">From:</span>{' '}
-                      <span className="text-[#29C5D9] font-mono font-bold">abdomostafa13571234@gmail.com</span>
-                    </div>
-                    <div className="text-[#A7B4C8]">
-                      <span className="font-semibold text-[#F4F7FC]">To:</span>{' '}
-                      <span className="text-emerald-400 font-mono font-bold">{successData.simulated_email.to}</span>
-                    </div>
-                    <div className="text-[#A7B4C8]">
-                      <span className="font-semibold text-[#F4F7FC]">Subject:</span> {successData.simulated_email.subject}
-                    </div>
-                  </div>
-
-                  <div className="pt-2 flex flex-col gap-2">
-                    <a
-                      href={successData.simulated_email.reset_url}
-                      className="w-full py-2.5 rounded-lg bg-[#27C58B] hover:bg-[#27C58B]/90 text-slate-950 text-xs font-bold text-center transition-colors block shadow-md shadow-emerald-500/20"
-                    >
-                      🔑 Open Password Reset Form &rarr;
-                    </a>
-
+              {successData.reset_url && (
+                <div className="p-3.5 rounded-[10px] bg-[#F4F1EC] border border-[#E0DDD6] text-left space-y-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#002D72]">
+                    Local Demo Recovery Shortcut:
+                  </span>
+                  <div className="flex items-center justify-between gap-2 bg-white p-2 rounded-[8px] border border-[#E0DDD6]">
+                    <span className="font-mono text-[11px] text-[#002D72] truncate">
+                      {successData.reset_url}
+                    </span>
                     <button
                       type="button"
-                      onClick={() => handleCopy(successData.simulated_email.reset_url)}
-                      className="py-1.5 px-3 rounded-lg bg-[#152238] hover:bg-[#1B2B43] text-[11px] text-[#A7B4C8] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      onClick={() => handleCopy(successData.reset_url)}
+                      className="p-1 text-[#64748B] hover:text-[#002D72] cursor-pointer shrink-0"
                     >
-                      {copiedLink ? <Check className="h-3.5 w-3.5 text-[#27C58B]" /> : <Copy className="h-3.5 w-3.5" />}
-                      <span>{copiedLink ? 'Copied Reset URL!' : 'Copy Verification Reset URL'}</span>
+                      {copiedLink ? <Check className="w-4 h-4 text-[#10B981]" /> : <Copy className="w-4 h-4" />}
                     </button>
                   </div>
+                  <Link
+                    to={successData.reset_url.replace(/^https?:\/\/[^/]+/, '')}
+                    className="w-full py-2 bg-[#002D72] text-white text-xs font-bold text-center rounded-[8px] block hover:bg-[#001F52] transition-colors"
+                  >
+                    Open Reset Password Form
+                  </Link>
                 </div>
               )}
             </div>
           )}
 
-          <div className="pt-2 border-t border-[#25344A] text-center">
+          <div className="pt-4 border-t border-[#E0DDD6] text-center">
             <Link
               to="/login"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#29C5D9] hover:underline"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#002D72] hover:text-[#1E88E5] hover:underline"
             >
-              <ArrowLeft className="h-3.5 w-3.5" /> Back to Sign In
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Back to Sign In</span>
             </Link>
           </div>
-        </div>
-      </div>
+        </Card>
+      </main>
+
+      <footer className="max-w-md w-full mx-auto text-center py-2 text-[11px] text-[#64748B]">
+        Omerta.ai Financial Crime &amp; Banking Operations © 2026.
+      </footer>
     </div>
   );
 };

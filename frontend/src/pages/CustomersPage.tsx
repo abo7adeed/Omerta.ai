@@ -1,35 +1,31 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   Search,
-  RefreshCw,
-  ChevronLeft,
-  ChevronRight,
   UserPlus,
-  ShieldCheck,
   CheckCircle2,
   Mail,
-  Shield,
   Key,
-  AlertCircle,
-  FileCheck,
-  DollarSign,
-  ScrollText,
   PhoneCall,
   Unlock,
-  AlertTriangle,
   Trash2,
-  Sparkles,
-  Bot,
   ShieldAlert,
-  MessageSquare,
   ArrowUpRight,
+  Wallet,
+  Bot,
 } from 'lucide-react';
 import { api } from '../api/client';
 import type { CustomerItem } from '../types';
-import { RiskBadge } from '../components/common/RiskBadge';
-import { Modal } from '../components/common/Modal';
+import { Card, CardContent } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Select } from '../components/ui/Select';
+import { RiskBadge } from '../components/ui/RiskBadge';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { Modal } from '../components/ui/Modal';
+import { Tabs } from '../components/ui/Tabs';
+import { TableContainer, Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '../components/ui/Table';
 
 interface StaffUser {
   id: string;
@@ -45,35 +41,29 @@ interface StaffUser {
   created_at: string | null;
 }
 
-const PRIVILEGE_DEFINITIONS: Record<string, { label: string; icon: any; desc: string }> = {
+const PRIVILEGE_DEFINITIONS: Record<string, { label: string; desc: string }> = {
   manage_users: {
     label: 'User Management',
-    icon: Users,
     desc: 'Activate, suspend, and manage customer profiles',
   },
   review_flagged_transactions: {
     label: 'Flagged Reviews',
-    icon: ShieldCheck,
     desc: 'Review transactions exceeding risk threshold (> 40.00)',
   },
   adjust_balances: {
     label: 'Balance Adjustments',
-    icon: DollarSign,
-    desc: 'Execute ledger-backed demo balance adjustments',
+    desc: 'Execute ledger-backed balance adjustments',
   },
   view_audit_logs: {
     label: 'Audit & Telemetry',
-    icon: ScrollText,
     desc: 'Inspect security sessions and immutable audit events',
   },
   export_reports: {
     label: 'Compliance Reports',
-    icon: FileCheck,
     desc: 'Generate & export regulatory SAR / AML reports',
   },
   manage_staff: {
     label: 'Staff Administration',
-    icon: Key,
     desc: 'Create and assign privileges to sub-admin accounts',
   },
 };
@@ -111,6 +101,8 @@ export const CustomersPage: React.FC = () => {
   const [staffError, setStaffError] = useState<string | null>(null);
   const [isSubmittingStaff, setIsSubmittingStaff] = useState(false);
 
+  const navigate = useNavigate();
+
   // New staff form data
   const [newStaff, setNewStaff] = useState({
     full_name: '',
@@ -118,7 +110,14 @@ export const CustomersPage: React.FC = () => {
     username: '',
     password: '',
     role: 'ADMINISTRATOR',
-    privileges: ['manage_users', 'review_flagged_transactions', 'adjust_balances', 'view_audit_logs', 'export_reports', 'manage_staff'],
+    privileges: [
+      'manage_users',
+      'review_flagged_transactions',
+      'adjust_balances',
+      'view_audit_logs',
+      'export_reports',
+      'manage_staff',
+    ],
   });
 
   const fetchCustomers = async () => {
@@ -169,7 +168,14 @@ export const CustomersPage: React.FC = () => {
           is_active: true,
           is_super_admin: true,
           can_delete: false,
-          privileges: ['manage_users', 'review_flagged_transactions', 'adjust_balances', 'view_audit_logs', 'export_reports', 'manage_staff'],
+          privileges: [
+            'manage_users',
+            'review_flagged_transactions',
+            'adjust_balances',
+            'view_audit_logs',
+            'export_reports',
+            'manage_staff',
+          ],
           created_at: new Date().toISOString(),
         },
         {
@@ -183,19 +189,6 @@ export const CustomersPage: React.FC = () => {
           is_super_admin: false,
           can_delete: true,
           privileges: ['review_flagged_transactions', 'view_audit_logs', 'export_reports'],
-          created_at: new Date().toISOString(),
-        },
-        {
-          id: 'USR-INVESTIGATOR',
-          user_id: 3,
-          full_name: 'Laila El-Kady',
-          email: 'investigator@omerta.ai',
-          username: 'investigator@omerta.ai',
-          role: 'SENIOR_INVESTIGATOR',
-          is_active: true,
-          is_super_admin: false,
-          can_delete: true,
-          privileges: ['manage_users', 'review_flagged_transactions', 'view_audit_logs', 'export_reports'],
           created_at: new Date().toISOString(),
         },
       ]);
@@ -230,11 +223,18 @@ export const CustomersPage: React.FC = () => {
   };
 
   const handleResolveRisk = async (customerId: string, name: string) => {
-    if (!confirm(`Are you sure you want to resolve risk and unlock account for customer ${name}? This will reset risk to LOW, clear password failures, and reactivate banking access.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to resolve risk and unlock account for customer ${name}? This will reset risk to LOW, clear password failures, and reactivate banking access.`
+      )
+    ) {
       return;
     }
     try {
-      await api.resolveCustomerRisk(customerId, 'Identity confirmed via analyst direct verification. Account risk cleared.');
+      await api.resolveCustomerRisk(
+        customerId,
+        'Identity confirmed via analyst direct verification. Account risk cleared.'
+      );
       setStaffSuccess(`Risk successfully cleared for ${name}. Account restored to LOW risk.`);
       fetchProblemCustomers();
     } catch (err: any) {
@@ -318,7 +318,11 @@ export const CustomersPage: React.FC = () => {
   };
 
   const handleDeleteStaff = async (userId: string, fullName: string) => {
-    if (!confirm(`Are you sure you want to revoke and delete staff account for ${fullName}? This will immediately terminate all active sessions.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to revoke and delete staff account for ${fullName}? This will immediately terminate all active sessions.`
+      )
+    ) {
       return;
     }
     try {
@@ -365,7 +369,14 @@ export const CustomersPage: React.FC = () => {
         username: '',
         password: '',
         role: 'ADMINISTRATOR',
-        privileges: ['manage_users', 'review_flagged_transactions', 'adjust_balances', 'view_audit_logs', 'export_reports', 'manage_staff'],
+        privileges: [
+          'manage_users',
+          'review_flagged_transactions',
+          'adjust_balances',
+          'view_audit_logs',
+          'export_reports',
+          'manage_staff',
+        ],
       });
       fetchStaff();
     } catch (err: any) {
@@ -385,981 +396,741 @@ export const CustomersPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Tab Switcher Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Banner / Tab header */}
+      <Card className="p-6 sm:p-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#F4F7FC] flex items-center gap-2">
-            <Users className="h-6 w-6 text-[#3978F6]" />
-            <span>Platform User &amp; Staff Administration</span>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#F9A825] mb-1">
+            <Users className="w-4 h-4" />
+            Identity &amp; Entity Directory
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#002D72]">
+            Customer &amp; Staff Administration
           </h1>
-          <p className="text-xs text-[#A7B4C8] mt-1">
-            Super Administrator controls: Manage monitored customers, problem account lockouts, and provision Admin/Investigator/Analyst/Auditor staff
+          <p className="text-xs text-[#64748B] mt-1 font-medium">
+            Manage monitored banking customers, security hold clearances, and provision institutional staff RBAC.
           </p>
         </div>
 
-        {/* Tab Buttons */}
-        <div className="flex items-center gap-2 p-1 rounded-xl bg-[#101A2B] border border-[#25344A]">
-          <button
-            onClick={() => setActiveTab('customers')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'customers'
-                ? 'bg-[#3978F6] text-[#F4F7FC] shadow-sm'
-                : 'text-[#A7B4C8] hover:text-[#F4F7FC]'
-            }`}
+        {activeTab === 'staff' && (
+          <Button
+            onClick={() => {
+              setStaffError(null);
+              setCreateStaffOpen(true);
+            }}
+            variant="primary"
+            size="sm"
+            leftIcon={<UserPlus className="h-4 w-4" />}
           >
-            Customer Accounts ({total})
-          </button>
+            Provision New Staff
+          </Button>
+        )}
+      </Card>
 
-          <button
-            onClick={() => setActiveTab('problem_customers')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'problem_customers'
-                ? 'bg-[#F4B942] text-slate-950 shadow-sm'
-                : 'text-[#A7B4C8] hover:text-[#F4F7FC]'
-            }`}
-          >
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-            <span>Problem Accounts ({problemCustomers.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('staff')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'staff'
-                ? 'bg-[#3978F6] text-[#F4F7FC] shadow-sm'
-                : 'text-[#A7B4C8] hover:text-[#F4F7FC]'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Staff &amp; Admins ({staffList.length})</span>
-          </button>
-        </div>
-      </div>
-
-      {/* SUCCESS TOAST */}
+      {/* Success Notification */}
       {staffSuccess && (
-        <div className="p-4 rounded-xl bg-[#27C58B]/15 border border-[#27C58B]/40 text-xs text-[#27C58B] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span className="font-semibold">{staffSuccess}</span>
+        <div className="p-4 rounded-[12px] bg-[#ECFDF5] border border-[#A7F3D0] text-[#065F46] flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="h-5 w-5 text-[#10B981] stroke-[2.5]" />
+            <span className="text-xs font-bold">{staffSuccess}</span>
           </div>
-          <button onClick={() => setStaffSuccess(null)} className="text-xs hover:underline font-bold cursor-pointer">
+          <button
+            onClick={() => setStaffSuccess(null)}
+            className="text-xs font-bold text-[#065F46] hover:underline cursor-pointer"
+          >
             Dismiss
           </button>
         </div>
       )}
 
-      {/* TAB 1: CUSTOMER DIRECTORY */}
-      {activeTab === 'customers' && (
-        <div className="space-y-4">
-          {/* Search & Filters Toolbar */}
-          <div className="p-4 rounded-xl bg-[#101A2B] border border-[#25344A] flex flex-col md:flex-row gap-3 items-center justify-between shadow-lg">
-            <form onSubmit={handleSearchSubmit} className="relative w-full md:w-80">
-              <input
-                type="text"
-                placeholder="Search customers (Name, ID, Omerta #)..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6]"
-              />
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#71819A]" />
-            </form>
-
-            <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
-              <select
-                value={typeFilter}
-                onChange={(e) => {
-                  setTypeFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="px-3 py-2 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] focus:outline-none focus:border-[#3978F6]"
-              >
-                <option value="">All Customer Types</option>
-                <option value="INDIVIDUAL">Individual</option>
-                <option value="BUSINESS">Business</option>
-              </select>
-
-              <select
-                value={riskFilter}
-                onChange={(e) => {
-                  setRiskFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="px-3 py-2 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] focus:outline-none focus:border-[#3978F6]"
-              >
-                <option value="">All Risk Levels</option>
-                <option value="LOW">Low Risk</option>
-                <option value="MODERATE">Moderate Risk</option>
-                <option value="HIGH">High Risk</option>
-                <option value="CRITICAL">Critical Risk</option>
-              </select>
-
-              <button
-                onClick={fetchCustomers}
-                className="p-2 rounded-xl bg-[#080D19] border border-[#25344A] hover:bg-[#152238] text-[#F4F7FC] cursor-pointer"
-                title="Refresh Table"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin text-[#3978F6]' : ''}`} />
-              </button>
-            </div>
-          </div>
-
-          {/* Customers Table */}
-          <div className="bg-[#101A2B] border border-[#25344A] rounded-xl overflow-hidden shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-[#080D19] text-[#A7B4C8] border-b border-[#25344A] uppercase text-[10px] tracking-wider font-bold">
-                  <tr>
-                    <th className="py-3.5 px-4">Customer Name &amp; Contact</th>
-                    <th className="py-3.5 px-4">Omerta User #</th>
-                    <th className="py-3.5 px-4">Type</th>
-                    <th className="py-3.5 px-4">Admin Risk Rating</th>
-                    <th className="py-3.5 px-4">Total EGP Balance</th>
-                    <th className="py-3.5 px-4">Declared Country</th>
-                    <th className="py-3.5 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#25344A]">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center text-[#A7B4C8]">
-                        <RefreshCw className="h-6 w-6 animate-spin mx-auto text-[#3978F6] mb-2" />
-                        <span>Loading customer accounts...</span>
-                      </td>
-                    </tr>
-                  ) : customers.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center text-[#A7B4C8]">
-                        No customers matching search criteria found.
-                      </td>
-                    </tr>
-                  ) : (
-                    customers.map((c) => (
-                      <tr key={c.id} className="hover:bg-[#152238]/60 transition-colors">
-                        <td className="py-3.5 px-4">
-                          <div className="font-bold text-[#F4F7FC]">{c.name}</div>
-                          <div className="text-[11px] text-[#71819A] flex items-center gap-1">
-                            <Mail className="w-3 h-3" />
-                            <span>{c.email}</span>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-4 font-mono font-bold text-[#29C5D9]">
-                          {c.omerta_user_number}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#080D19] border border-[#25344A] text-[#A7B4C8]">
-                            {c.customer_type}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <RiskBadge level={c.risk_level} />
-                        </td>
-                        <td className="py-3.5 px-4 font-mono font-bold text-[#F4F7FC]">
-                          {(c.total_balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} EGP
-                        </td>
-                        <td className="py-3.5 px-4 text-[#A7B4C8]">{c.country}</td>
-                        <td className="py-3.5 px-4 text-right">
-                          <button
-                            onClick={() => handleOpen360(c)}
-                            className="px-3 py-1.5 rounded-lg bg-[#152238] hover:bg-[#3978F6] text-xs font-bold text-[#F4F7FC] border border-[#25344A] transition-all cursor-pointer"
-                          >
-                            Customer 360°
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination footer */}
-            <div className="p-4 border-t border-[#25344A] flex items-center justify-between text-xs text-[#A7B4C8]">
-              <span>Showing {customers.length} of {total} registered customers</span>
-              <div className="flex items-center gap-2">
-                <button
-                  disabled={page <= 1}
-                  onClick={() => setPage(page - 1)}
-                  className="p-1.5 rounded-lg bg-[#101A2B] hover:bg-[#152238] border border-[#25344A] text-[#F4F7FC] disabled:opacity-30 cursor-pointer"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <span className="font-mono px-2">Page {page}</span>
-                <button
-                  disabled={page * 20 >= total}
-                  onClick={() => setPage(page + 1)}
-                  className="p-1.5 rounded-lg bg-[#101A2B] hover:bg-[#152238] border border-[#25344A] text-[#F4F7FC] disabled:opacity-30 cursor-pointer"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
+      {/* Main Tabs Container */}
+      <Card>
+        <div className="px-6 pt-2">
+          <Tabs
+            tabs={[
+              { id: 'customers', label: 'Monitored Customers', count: total, icon: Users },
+              { id: 'problem_customers', label: 'Flagged & Locked Accounts', count: problemCustomers.length, icon: ShieldAlert },
+              { id: 'staff', label: 'Staff & Roles (RBAC)', count: staffList.length, icon: Key },
+            ]}
+            activeTab={activeTab}
+            onChange={(id) => setActiveTab(id as any)}
+          />
         </div>
-      )}
 
-      {/* TAB 2: PROBLEM CUSTOMERS & LOCKOUT HUB */}
-      {activeTab === 'problem_customers' && (
-        <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-transparent border border-amber-500/20 flex items-start gap-3 shadow-xs">
-            <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-            <div className="text-xs space-y-1">
-              <p className="font-bold text-[#F4F7FC]">Customer Security &amp; Lockout Resolution Center</p>
-              <p className="text-[#A7B4C8] leading-relaxed">
-                Directly communicate with customers locked out due to 3 failed password attempts, VPN transfer restrictions, or high risk scores. Verify customer identity, dial their phone, dispatch security emails, and manually clear their risk back to active status.
-              </p>
-            </div>
-          </div>
-
-          {/* Search bar */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-md">
-              <input
-                type="text"
-                placeholder="Search problem customers by name, Omerta #, phone, or email..."
-                value={problemSearch}
-                onChange={(e) => setProblemSearch(e.target.value)}
-                className="w-full pl-3 pr-4 py-2 bg-[#101A2B] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#F4B942]"
-              />
-            </div>
-            <span className="text-xs font-bold text-[#A7B4C8] font-mono">
-              {filteredProblems.length} Problem Accounts
-            </span>
-          </div>
-
-          {/* Problem Customers List */}
-          <div className="space-y-3">
-            {loadingProblems ? (
-              <div className="py-12 text-center text-[#A7B4C8]">
-                <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-[#F4B942]" />
-                <span>Loading problem customers...</span>
-              </div>
-            ) : filteredProblems.length === 0 ? (
-              <div className="py-12 text-center text-[#A7B4C8] bg-[#101A2B] border border-[#25344A] rounded-xl p-6">
-                <CheckCircle2 className="h-8 w-8 text-[#27C58B] mx-auto mb-2" />
-                <p className="text-[#F4F7FC] font-bold text-base">No problem customers currently flagged!</p>
-                <p className="text-xs text-[#71819A] mt-1">All customer accounts are in good standing with zero lockouts.</p>
-              </div>
-            ) : (
-              filteredProblems.map((c) => (
-                <div
-                  key={c.customer_id}
-                  className="p-4 border border-amber-500/30 hover:border-amber-500/60 bg-[#101A2B] rounded-xl transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg"
-                >
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <div className="h-8 w-8 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-sm">
-                        {c.name.charAt(0)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-[#F4F7FC] text-sm">{c.name}</span>
-                          <span className="font-mono text-xs font-bold text-[#29C5D9]">{c.omerta_user_number}</span>
-                          <RiskBadge level={c.risk_level} size="sm" />
-                          {c.transfer_blocked && (
-                            <span className="px-2 py-0.5 rounded bg-rose-500/15 text-rose-400 font-mono text-[10px] font-bold border border-rose-500/30 flex items-center gap-1">
-                              🔒 Transfer Blocked (3 Strikes)
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-[#71819A] flex items-center gap-3 mt-0.5 flex-wrap">
-                          <span className="flex items-center gap-1 font-mono text-[#F4F7FC]">
-                            📞 {c.phone}
-                          </span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1 text-[#F4F7FC]">
-                            ✉️ {c.email}
-                          </span>
-                          <span>•</span>
-                          <span className="font-mono font-bold text-[#27C58B]">
-                            {c.total_balance_egp?.toLocaleString(undefined, { minimumFractionDigits: 2 })} EGP
-                          </span>
-                          {c.national_id_number && (
-                            <>
-                              <span>•</span>
-                              <span className="font-mono text-xs text-[#29C5D9] bg-[#29C5D9]/10 px-1.5 py-0.5 rounded border border-[#29C5D9]/30">
-                                ID: {c.national_id_number}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Prominent Customer Issue & Ticket Banner */}
-                    <Link
-                      to={`/admin/support-cases?search=${encodeURIComponent(c.name || c.omerta_user_number || '')}`}
-                      className="block p-2.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/30 hover:border-amber-500/50 transition-all text-xs space-y-1 group cursor-pointer"
-                      title="Click to open full chat conversation & document review"
+        <CardContent className="p-0">
+          {/* TAB 1: MONITORED CUSTOMERS */}
+          {activeTab === 'customers' && (
+            <div>
+              {/* Search & Filter bar */}
+              <div className="p-4 border-b border-[#E0DDD6] bg-[#F4F1EC]/30">
+                <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="lg:col-span-2">
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search customer name, national ID, email, user ID..."
+                      leftIcon={<Search className="h-4 w-4 text-[#64748B]" />}
+                      className="h-10 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <select
+                      value={riskFilter}
+                      onChange={(e) => {
+                        setRiskFilter(e.target.value);
+                        setPage(1);
+                      }}
+                      className="w-full h-10 bg-white border border-[#E0DDD6] rounded-[10px] px-3 text-xs text-[#0F172A] font-medium outline-none focus:border-[#1E88E5] cursor-pointer"
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] uppercase font-bold text-amber-400 flex items-center gap-1.5">
-                          <AlertTriangle className="w-3.5 h-3.5" />
-                          <span>Customer Issue &amp; Support Ticket:</span>
-                        </span>
-                        <span className="text-[10px] text-[#29C5D9] font-bold group-hover:underline flex items-center gap-1">
-                          <span>Open Chat &amp; Case</span>
-                          <ArrowUpRight className="w-3 h-3" />
-                        </span>
-                      </div>
-                      <p className="font-semibold text-white text-xs leading-snug">
-                        {c.customer_issue || c.primary_reason}
-                      </p>
-                      {c.ticket_number && (
-                        <div className="flex items-center gap-2 pt-0.5 text-[11px] text-[#A7B4C8]">
-                          <span className="font-mono text-[#29C5D9] font-bold">Ticket #{c.ticket_number}</span>
-                          {c.ticket_status && (
-                            <span className="px-1.5 py-0.2 rounded bg-[#080D19] border border-[#25344A] text-[#F4F7FC] text-[10px]">
-                              Status: {c.ticket_status}
-                            </span>
-                          )}
-                          {c.has_uploaded_id && (
-                            <span className="px-1.5 py-0.2 rounded bg-[#27C58B]/20 text-[#27C58B] text-[10px] font-bold border border-[#27C58B]/30">
-                              📄 National ID Attached
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </Link>
-
-                    {c.recent_audit_events && c.recent_audit_events.length > 0 && (
-                      <div className="bg-[#080D19] p-2 rounded-lg border border-[#25344A] text-[11px] space-y-0.5">
-                        <span className="text-[9px] text-[#71819A] uppercase font-bold tracking-wider">Latest Security Event:</span>
-                        <p className="text-[#F4F7FC] font-mono text-[10px]">
-                          [{c.recent_audit_events[0].event_type}] — {c.recent_audit_events[0].metadata?.description || 'Security threshold flagged'} ({new Date(c.recent_audit_events[0].created_at).toLocaleTimeString()})
-                        </p>
-                      </div>
+                      <option value="">All Risk Tiers</option>
+                      <option value="LOW">Low Risk</option>
+                      <option value="MODERATE">Moderate Risk</option>
+                      <option value="HIGH">High Risk</option>
+                      <option value="CRITICAL">Critical</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button type="submit" variant="sapphire" size="sm" className="h-10 flex-1 text-xs">
+                      Search
+                    </Button>
+                    {(search || riskFilter) && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-10 px-3 text-xs text-[#64748B]"
+                        onClick={() => {
+                          setSearch('');
+                          setRiskFilter('');
+                          setPage(1);
+                        }}
+                      >
+                        Reset
+                      </Button>
                     )}
                   </div>
+                </form>
+              </div>
 
-                  {/* Customer Contact & Resolution Actions */}
-                  <div className="flex items-center gap-2 self-end md:self-center flex-wrap">
-                    {/* Direct Support Chat & ID Cases */}
-                    <Link
-                      to={`/admin/support-cases?search=${encodeURIComponent(c.name || c.omerta_user_number || '')}`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-black text-xs transition-colors shadow-xs"
-                      title="Open live support chat, view customer tickets & review National ID verification"
-                    >
-                      <MessageSquare className="h-3.5 w-3.5" />
-                      <span>Support Chat &amp; Cases</span>
-                    </Link>
-
-                    <button
-                      onClick={() => handleOpenCallModal(c)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#3978F6] hover:bg-[#3978F6]/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
-                      title="Initiate phone call verification"
-                    >
-                      <PhoneCall className="h-3.5 w-3.5" />
-                      <span>Call Customer</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleOpenEmailModal(c)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#152238] hover:bg-[#1B2B43] text-[#F4F7FC] border border-[#25344A] text-xs font-bold transition-colors shadow-xs cursor-pointer"
-                      title="Dispatch security notification email"
-                    >
-                      <Mail className="h-3.5 w-3.5" />
-                      <span>Send Notice</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleOpenCustomerAgenticModal(c)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-950 to-indigo-950 border border-purple-500/40 hover:border-purple-400 text-purple-300 hover:text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
-                      title="View Autonomous Multi-Agent Forensic Investigation Report"
-                    >
-                      <Sparkles className="h-3.5 w-3.5 text-purple-400" />
-                      <span>Agentic Report</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleResolveRisk(c.customer_id, c.name)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#27C58B] hover:bg-[#27C58B]/90 text-slate-950 text-xs font-bold transition-colors shadow-xs cursor-pointer"
-                      title="Manually clear risk rating to LOW and restore active status"
-                    >
-                      <Unlock className="h-3.5 w-3.5" />
-                      <span>Resolve &amp; Unlock</span>
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: SUB-ADMIN & STAFF ACCOUNTS */}
-      {activeTab === 'staff' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-[#F4F7FC] flex items-center gap-2">
-                <Shield className="w-5 h-5 text-[#3978F6]" />
-                <span>Authorized Administrative &amp; Operational Staff</span>
-              </h2>
-              <p className="text-xs text-[#A7B4C8]">
-                Super Administrator control: Provision co-administrators, fraud analysts, senior investigators, and compliance auditors
-              </p>
-            </div>
-
-            <button
-              onClick={() => {
-                setStaffError(null);
-                setCreateStaffOpen(true);
-              }}
-              className="px-4 py-2.5 rounded-xl bg-[#3978F6] hover:bg-[#3978F6]/90 text-xs font-bold text-[#F4F7FC] flex items-center gap-2 transition-all shadow-md shadow-blue-500/20 cursor-pointer"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Create Administrator / Staff</span>
-            </button>
-          </div>
-
-          {/* Staff Table */}
-          <div className="bg-[#101A2B] border border-[#25344A] rounded-xl overflow-hidden shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-[#080D19] text-[#A7B4C8] border-b border-[#25344A] uppercase text-[10px] tracking-wider font-bold">
-                  <tr>
-                    <th className="py-3.5 px-4">Staff Member</th>
-                    <th className="py-3.5 px-4">Username &amp; ID</th>
-                    <th className="py-3.5 px-4">Role</th>
-                    <th className="py-3.5 px-4">Assigned Privileges</th>
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4 text-right">Admin Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#25344A]">
-                  {staffLoading ? (
-                    <tr>
-                      <td colSpan={6} className="py-12 text-center text-[#A7B4C8]">
-                        <RefreshCw className="h-6 w-6 animate-spin mx-auto text-[#3978F6] mb-2" />
-                        <span>Loading staff roster...</span>
-                      </td>
-                    </tr>
-                  ) : (
-                    staffList.map((st) => (
-                      <tr key={st.id} className="hover:bg-[#152238]/60 transition-colors">
-                        <td className="py-3.5 px-4">
-                          <div className="font-bold text-[#F4F7FC]">{st.full_name}</div>
-                          <div className="text-[11px] text-[#71819A] flex items-center gap-1">
-                            <Mail className="w-3 h-3" />
-                            <span>{st.email}</span>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-4 font-mono">
-                          <div className="font-bold text-[#29C5D9]">{st.username}</div>
-                          <div className="text-[10px] text-[#71819A]">{st.id}</div>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                              st.role === 'ADMINISTRATOR'
-                                ? 'bg-[#3978F6]/15 border-[#3978F6]/40 text-[#3978F6]'
-                                : st.role === 'SUB_ADMINISTRATOR'
-                                ? 'bg-[#29C5D9]/15 border-[#29C5D9]/40 text-[#29C5D9]'
-                                : st.role === 'FRAUD_ANALYST'
-                                ? 'bg-[#F4B942]/15 border-[#F4B942]/40 text-[#F4B942]'
-                                : 'bg-[#27C58B]/15 border-[#27C58B]/40 text-[#27C58B]'
-                            }`}
-                          >
-                            {st.role.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <div className="flex flex-wrap gap-1.5 max-w-md">
-                            {st.privileges.map((p) => {
-                              const def = PRIVILEGE_DEFINITIONS[p] || { label: p };
-                              return (
-                                <span
-                                  key={p}
-                                  className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#080D19] border border-[#25344A] text-[#A7B4C8]"
-                                >
-                                  {def.label}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                              st.is_active
-                                ? 'bg-[#27C58B]/15 border-[#27C58B]/40 text-[#27C58B]'
-                                : 'bg-[#F06470]/15 border-[#F06470]/40 text-[#F06470]'
-                            }`}
-                          >
-                            {st.is_active ? 'ACTIVE' : 'SUSPENDED'}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          {st.is_super_admin || st.username === 'admin' || st.email === 'admin@omerta.ai' ? (
-                            <span className="px-2.5 py-1 rounded-lg bg-[#3978F6]/20 border border-[#3978F6]/40 text-[#29C5D9] text-[10px] font-bold inline-flex items-center gap-1">
-                              🔒 Root Super Admin (Protected)
+              {/* Customers Table */}
+              <TableContainer className="border-0 rounded-none rounded-b-[16px] shadow-none">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Customer / Entity</TableHead>
+                      <TableHead>User Number</TableHead>
+                      <TableHead>Type / KYC</TableHead>
+                      <TableHead>Risk Score</TableHead>
+                      <TableHead>Account Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customers.length > 0 ? (
+                      customers.map((c) => (
+                        <TableRow
+                          key={c.external_id}
+                          onClick={() => handleOpen360(c)}
+                          className="cursor-pointer"
+                        >
+                          <TableCell>
+                            <div className="font-bold text-[#002D72]">
+                              {c.name || `${(c as any).first_name || ''} ${(c as any).last_name || ''}`}
+                            </div>
+                            <div className="text-[11px] text-[#64748B]">{c.email}</div>
+                          </TableCell>
+                          <TableCell className="font-mono font-bold text-[#002D72]">
+                            {c.omerta_user_number || c.external_id}
+                          </TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-[#F4F1EC] text-[#002D72] border border-[#E0DDD6]">
+                              {c.customer_type || 'INDIVIDUAL'}
                             </span>
-                          ) : (
-                            <button
-                              onClick={() => handleDeleteStaff(st.id, st.full_name)}
-                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 text-[10px] font-bold transition-all cursor-pointer ml-auto"
-                              title="Revoke and delete staff credentials"
+                          </TableCell>
+                          <TableCell>
+                            <RiskBadge level={c.risk_level || 'LOW'} score={(c as any).risk_score} />
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={c.status || 'ACTIVE'} />
+                          </TableCell>
+                          <TableCell className="text-xs font-mono text-[#64748B]">
+                            {c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpen360(c);
+                              }}
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-[#002D72]"
+                              title="Inspect Customer 360 Profile"
                             >
-                              <Trash2 className="w-3 h-3" />
-                              <span>Revoke Staff</span>
-                            </button>
+                              <ArrowUpRight className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-12 text-xs text-[#64748B]">
+                          {loading ? 'Scanning customer database...' : 'No customers matching filters.'}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </div>
+          )}
+
+          {/* TAB 2: PROBLEM CUSTOMERS */}
+          {activeTab === 'problem_customers' && (
+            <div>
+              <div className="p-4 border-b border-[#E0DDD6] bg-[#F4F1EC]/30 flex flex-wrap items-center justify-between gap-3">
+                <div className="relative w-72">
+                  <Input
+                    value={problemSearch}
+                    onChange={(e) => setProblemSearch(e.target.value)}
+                    placeholder="Search name, phone, user number..."
+                    leftIcon={<Search className="w-4 h-4 text-[#64748B]" />}
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <div className="text-xs text-[#64748B] font-medium">
+                  Showing <span className="font-bold text-[#002D72]">{filteredProblems.length}</span> locked customer accounts
+                </div>
+              </div>
+
+              <TableContainer className="border-0 rounded-none rounded-b-[16px] shadow-none">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>User Number</TableHead>
+                      <TableHead>Risk Level</TableHead>
+                      <TableHead>Hold Trigger</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProblems.length > 0 ? (
+                      filteredProblems.map((cust) => (
+                        <TableRow
+                          key={cust.customer_id}
+                          onClick={() => handleOpenCustomerAgenticModal(cust)}
+                          className="cursor-pointer"
+                        >
+                          <TableCell>
+                            <div className="font-bold text-[#002D72]">{cust.name}</div>
+                            <div className="text-[11px] text-[#64748B]">{cust.email}</div>
+                          </TableCell>
+                          <TableCell className="font-mono font-bold text-[#002D72]">
+                            {cust.omerta_user_number || cust.customer_id}
+                          </TableCell>
+                          <TableCell>
+                            <RiskBadge level={cust.risk_level || 'HIGH'} />
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-xs text-[#DC2626] font-semibold">
+                              {cust.primary_reason || 'Verification threshold breached'}
+                            </div>
+                            <div className="text-[11px] text-[#64748B]">
+                              Failed passwords: {cust.failed_transfer_passwords_count || 3}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={cust.status || 'SECURITY_HOLD'} />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                onClick={() => handleOpenCallModal(cust)}
+                                variant="secondary"
+                                size="sm"
+                                className="h-8 px-2 text-xs"
+                                title="Call customer to verify identity"
+                              >
+                                <PhoneCall className="w-3.5 h-3.5 text-[#002D72]" />
+                              </Button>
+                              <Button
+                                onClick={() => handleOpenEmailModal(cust)}
+                                variant="secondary"
+                                size="sm"
+                                className="h-8 px-2 text-xs"
+                                title="Send compliance notice"
+                              >
+                                <Mail className="w-3.5 h-3.5 text-[#002D72]" />
+                              </Button>
+                              <Button
+                                onClick={() => handleResolveRisk(cust.customer_id, cust.name)}
+                                variant="primary"
+                                size="sm"
+                                className="h-8 px-2.5 text-xs"
+                              >
+                                <Unlock className="w-3.5 h-3.5" />
+                                <span>Resolve Risk</span>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-12 text-xs text-[#64748B]">
+                          {loadingProblems ? 'Loading accounts on hold...' : 'No customer accounts on security hold.'}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </div>
+          )}
+
+          {/* TAB 3: STAFF & RBAC MANAGEMENT */}
+          {activeTab === 'staff' && (
+            <div>
+              <TableContainer className="border-0 rounded-none rounded-b-[16px] shadow-none">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Staff Member</TableHead>
+                      <TableHead>Institutional Role</TableHead>
+                      <TableHead>Active Privileges</TableHead>
+                      <TableHead>Session Status</TableHead>
+                      <TableHead className="text-right">Revoke / Manage</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {staffList.map((staff) => (
+                      <TableRow key={staff.id || staff.user_id}>
+                        <TableCell>
+                          <div className="font-bold text-[#002D72]">{staff.full_name}</div>
+                          <div className="text-[11px] text-[#64748B] font-mono">{staff.email}</div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-[#EBF3FC] text-[#002D72] border border-[#BFDBFE]">
+                            {staff.role?.replace(/_/g, ' ')}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1 max-w-sm">
+                            {staff.privileges?.map((priv) => (
+                              <span
+                                key={priv}
+                                className="text-[10px] font-semibold bg-[#F4F1EC] text-[#475569] border border-[#E0DDD6] px-1.5 py-0.5 rounded"
+                              >
+                                {PRIVILEGE_DEFINITIONS[priv]?.label || priv}
+                              </span>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={staff.is_active ? 'ACTIVE' : 'INACTIVE'} />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {staff.can_delete !== false ? (
+                            <Button
+                              onClick={() => handleDeleteStaff(staff.id, staff.full_name)}
+                              variant="danger"
+                              size="sm"
+                              className="h-8 px-2 text-xs"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Revoke</span>
+                            </Button>
+                          ) : (
+                            <span className="text-[11px] font-bold text-[#64748B] uppercase">Primary Admin</span>
                           )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </div>
-          </div>
-        </div>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
-      {/* MODAL: DIRECT CALL CUSTOMER */}
-      {callModalCust && (
-        <Modal isOpen={!!callModalCust} onClose={() => setCallModalCust(null)} title={`Call Customer: ${callModalCust.name}`}>
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-start gap-3 text-xs text-blue-300">
-              <PhoneCall className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
+      {/* MODAL 1: CUSTOMER 360 DOSSIER */}
+      {selectedCustomer && (
+        <Modal
+          isOpen={Boolean(selectedCustomer)}
+          onClose={() => setSelectedCustomer(null)}
+          title={`Customer 360: ${selectedCustomer.first_name || ''} ${selectedCustomer.last_name || ''}`}
+          subtitle={`User ID: ${selectedCustomer.omerta_user_number || selectedCustomer.external_id}`}
+          maxWidth="2xl"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-[#F4F1EC] p-3.5 rounded-[12px] border border-[#E0DDD6]">
               <div>
-                <p className="font-bold text-white">Direct Phone Verification Line</p>
-                <p className="text-slate-300 mt-0.5">
-                  Confirm the customer's identity, verify their recent transaction attempts, and advise them on secure password updates.
-                </p>
+                <span className="text-[10px] uppercase font-bold text-[#64748B]">Risk Status</span>
+                <div className="mt-0.5">
+                  <RiskBadge level={selectedCustomer.risk_level || 'LOW'} score={selectedCustomer.risk_score} />
+                </div>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#64748B]">Account State</span>
+                <div className="mt-0.5">
+                  <StatusBadge status={selectedCustomer.status || 'ACTIVE'} />
+                </div>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#64748B]">Phone</span>
+                <p className="font-mono font-bold text-[#002D72] mt-0.5">{selectedCustomer.phone || 'N/A'}</p>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#64748B]">Email</span>
+                <p className="truncate font-semibold text-[#002D72] mt-0.5">{selectedCustomer.email}</p>
               </div>
             </div>
 
-            <div className="space-y-3 p-4 bg-slate-900 rounded-xl border border-slate-800 text-xs">
-              <div className="flex justify-between items-center py-1 border-b border-slate-800">
-                <span className="text-slate-400 font-medium">Customer Name</span>
-                <span className="text-white font-bold">{callModalCust.name}</span>
-              </div>
-              <div className="flex justify-between items-center py-1 border-b border-slate-800">
-                <span className="text-slate-400 font-medium">Registered Mobile</span>
-                <span className="font-mono text-emerald-400 font-bold text-sm">{callModalCust.phone}</span>
-              </div>
-              <div className="flex justify-between items-center py-1 border-b border-slate-800">
-                <span className="text-slate-400 font-medium">Omerta User #</span>
-                <span className="font-mono text-cyan-400 font-bold">{callModalCust.omerta_user_number}</span>
-              </div>
-              <div className="flex justify-between items-center py-1">
-                <span className="text-slate-400 font-medium">Declared Country</span>
-                <span className="text-white font-bold">{callModalCust.country} (Cairo Time UTC+3)</span>
-              </div>
+            {/* Linked Accounts */}
+            <div className="space-y-2">
+              <h5 className="font-bold text-[#002D72] uppercase text-[11px] tracking-wider">
+                Linked Banking Accounts
+              </h5>
+              {selectedCustomer.accounts?.length > 0 ? (
+                <div className="space-y-1.5">
+                  {selectedCustomer.accounts.map((acc: any) => (
+                    <div
+                      key={acc.account_id || acc.account_number}
+                      className="p-3 bg-white rounded-[10px] border border-[#E0DDD6] flex items-center justify-between shadow-xs"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Wallet className="h-4 w-4 text-[#002D72]" />
+                        <div>
+                          <p className="font-mono font-bold text-[#002D72]">{acc.account_number}</p>
+                          <p className="text-[11px] text-[#64748B]">{acc.account_type || 'CURRENT'}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-mono font-bold text-[#002D72]">
+                          {Number(acc.balance || 0).toLocaleString()} {acc.currency || 'EGP'}
+                        </p>
+                        <StatusBadge status={acc.status || 'ACTIVE'} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-[#64748B]">No registered bank accounts.</p>
+              )}
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
+            <div className="flex items-center justify-between pt-2 border-t border-[#E0DDD6]">
+              <Button
                 type="button"
-                onClick={() => setCallModalCust(null)}
-                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                variant="ghost"
+                onClick={() => setSelectedCustomer(null)}
               >
                 Close
-              </button>
-              <a
-                href={`tel:${callModalCust.phone.replace(/\s+/g, '')}`}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-500/20 cursor-pointer"
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  const id = selectedCustomer.omerta_user_number || selectedCustomer.external_id;
+                  setSelectedCustomer(null);
+                  navigate(`/admin/network-analysis?entity=${encodeURIComponent(id)}`);
+                }}
               >
-                <PhoneCall className="h-4 w-4" />
-                <span>Dial {callModalCust.phone}</span>
-              </a>
+                <span>Inspect Entity Graph</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </Button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* MODAL: SEND SECURITY EMAIL / SMS */}
-      {emailModalCust && (
-        <Modal isOpen={!!emailModalCust} onClose={() => setEmailModalCust(null)} title={`Send Security Notice to ${emailModalCust.name}`}>
-          <form onSubmit={handleSendEmailNotice} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-300">Recipient Email</label>
-              <input
-                type="text"
-                readOnly
-                value={emailModalCust.email}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs font-mono text-slate-400"
+      {/* MODAL 2: PROVISION NEW STAFF */}
+      {createStaffOpen && (
+        <Modal
+          isOpen={createStaffOpen}
+          onClose={() => setCreateStaffOpen(false)}
+          title="Provision Institutional Staff User (RBAC)"
+          subtitle="Create new sub-administrator, fraud analyst, or compliance auditor"
+          maxWidth="lg"
+        >
+          <form onSubmit={handleCreateStaff} className="space-y-4 text-xs">
+            {staffError && (
+              <div className="p-3 rounded-[10px] bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B]">
+                {staffError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="Full Name"
+                required
+                value={newStaff.full_name}
+                onChange={(e) => setNewStaff({ ...newStaff, full_name: e.target.value })}
+                placeholder="e.g. Omar Hassan"
+              />
+              <Input
+                label="Corporate Email"
+                type="email"
+                required
+                value={newStaff.email}
+                onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value, username: e.target.value })}
+                placeholder="e.g. omar@omerta.ai"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-300">Subject</label>
-              <input
-                type="text"
-                value={emailSubject}
-                onChange={(e) => setEmailSubject(e.target.value)}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="Initial Password (Min 8 Chars)"
+                type="password"
                 required
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
+                value={newStaff.password}
+                onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })}
+                placeholder="••••••••••••"
               />
+              <Select
+                label="System Role"
+                value={newStaff.role}
+                onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
+              >
+                <option value="ADMINISTRATOR">Administrator</option>
+                <option value="SUB_ADMINISTRATOR">Sub-Administrator</option>
+                <option value="SENIOR_INVESTIGATOR">Senior Investigator</option>
+                <option value="FRAUD_ANALYST">Fraud Analyst</option>
+                <option value="COMPLIANCE_AUDITOR">Compliance Auditor</option>
+              </Select>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-300">Message Content</label>
-              <textarea
-                rows={5}
-                value={emailBody}
-                onChange={(e) => setEmailBody(e.target.value)}
-                required
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400 font-mono leading-relaxed"
-              />
+            {/* Privilege Checkboxes */}
+            <div className="space-y-2 pt-2 border-t border-[#E0DDD6]">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569]">
+                Assign RBAC Functional Privileges
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {Object.entries(PRIVILEGE_DEFINITIONS).map(([key, def]) => {
+                  const checked = newStaff.privileges.includes(key);
+                  return (
+                    <label
+                      key={key}
+                      onClick={() => handleTogglePrivilege(key)}
+                      className={`p-2.5 rounded-[10px] border cursor-pointer flex items-start gap-2.5 transition-colors ${
+                        checked
+                          ? 'bg-[#FFF9E6] border-[#FFE082]'
+                          : 'bg-white border-[#E0DDD6] hover:bg-[#F4F1EC]'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {}}
+                        className="mt-0.5 rounded text-[#002D72] focus:ring-[#1E88E5]"
+                      />
+                      <div>
+                        <p className="font-bold text-[#002D72] text-xs">{def.label}</p>
+                        <p className="text-[10px] text-[#64748B] leading-tight">{def.desc}</p>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-2">
-              <button
+              <Button
                 type="button"
-                onClick={() => setEmailModalCust(null)}
-                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                variant="ghost"
+                onClick={() => setCreateStaffOpen(false)}
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                disabled={emailSubmitting}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-bold shadow-md shadow-blue-500/20 cursor-pointer"
+                variant="primary"
+                isLoading={isSubmittingStaff}
               >
-                <Mail className="h-4 w-4" />
-                <span>{emailSubmitting ? 'Sending...' : 'Dispatch Security Email'}</span>
-              </button>
+                <UserPlus className="w-4 h-4" />
+                <span>Create Staff User</span>
+              </Button>
             </div>
           </form>
         </Modal>
       )}
 
-      {/* ========================================================================= */}
-      {/* MODAL: PROBLEM CUSTOMER AGENTIC AI FORENSIC REPORT */}
-      {/* ========================================================================= */}
-      {custAgenticModal && (
+      {/* MODAL 3: PHONE VERIFICATION */}
+      {callModalCust && (
         <Modal
-          isOpen={!!custAgenticModal}
-          onClose={() => setCustAgenticModal(null)}
-          title={`🤖 Agentic AI Forensic Investigation: ${custAgenticModal.name}`}
+          isOpen={Boolean(callModalCust)}
+          onClose={() => setCallModalCust(null)}
+          title="Direct Identity Verification"
+          subtitle={`Verify identity for ${callModalCust.name}`}
+          maxWidth="md"
         >
-          <div className="space-y-4">
-            {/* Header / Overview */}
-            <div className="p-4 rounded-xl bg-gradient-to-r from-purple-950/70 via-indigo-950/70 to-[#101A2B] border border-purple-500/40 space-y-2 shadow-lg">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center font-bold text-sm border border-purple-500/30">
-                    <Sparkles className="h-4 w-4 text-purple-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      <span>{custAgenticModal.name}</span>
-                      <span className="font-mono text-xs text-cyan-300">({custAgenticModal.omerta_user_number})</span>
-                    </h3>
-                    <div className="text-[11px] text-[#A7B4C8] flex items-center gap-2 mt-0.5">
-                      <span>📞 {custAgenticModal.phone}</span>
-                      <span>•</span>
-                      <span>✉️ {custAgenticModal.email}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <RiskBadge level={custAgenticModal.risk_level || 'HIGH'} size="sm" />
-                  <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-mono text-[10px] font-bold border border-rose-500/40">
-                    {custAgenticModal.status === 'SUSPENDED' ? 'SUSPENDED & LOCKED' : 'ELEVATED RISK'}
-                  </span>
-                </div>
+          <div className="space-y-4 text-xs">
+            <div className="p-3.5 rounded-[12px] bg-[#EBF3FC] border border-[#BFDBFE] text-[#002D72] flex items-start gap-3">
+              <PhoneCall className="w-5 h-5 text-[#002D72] shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-sm">Customer Hotline: {callModalCust.phone || '+20 100 123 4567'}</p>
+                <p className="text-xs text-[#475569] mt-0.5">
+                  Confirm secret security question and registered device before unlocking access.
+                </p>
               </div>
             </div>
 
-            {custAgenticLoading ? (
-              <div className="py-8 text-center text-[#A7B4C8] text-xs">
-                <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-purple-400" />
-                <span>Running autonomous multi-agent forensic analysis...</span>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Multi-Agent Verdict Grid */}
-                <div className="space-y-1.5">
-                  <span className="text-[10px] uppercase font-bold text-[#A7B4C8] tracking-wider">Multi-Agent Security Consensus:</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {custAgenticModal.agentic_agents?.map((ag: any, idx: number) => (
-                      <div key={idx} className="p-2.5 rounded-lg bg-[#080D19] border border-[#25344A] flex items-center justify-between text-xs">
-                        <span className="text-[#F4F7FC] font-semibold flex items-center gap-1.5">
-                          <Bot className="h-3.5 w-3.5 text-purple-400" />
-                          {ag.agent}
-                        </span>
-                        <span className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded ${
-                          ag.verdict === 'FLAGGED' || ag.verdict === 'VPN_RESTRICTED' || ag.verdict === 'ACTION_REQUIRED' || ag.verdict === 'ANOMALOUS_VELOCITY'
-                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                        }`}>
-                          {ag.verdict}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Forensic Findings */}
-                <div className="space-y-1.5">
-                  <span className="text-[10px] uppercase font-bold text-[#A7B4C8] tracking-wider">Forensic Signals &amp; Evidence:</span>
-                  <div className="space-y-2">
-                    {custAgenticModal.forensic_findings?.map((f: any, idx: number) => (
-                      <div key={idx} className="p-3 bg-[#080D19] rounded-xl border border-[#25344A] text-xs space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-rose-300 font-mono text-[11px]">{f.category}</span>
-                          <span className="px-1.5 py-0.2 bg-rose-500/20 text-rose-300 font-bold text-[9px] rounded uppercase">{f.severity}</span>
-                        </div>
-                        <p className="text-[#F4F7FC]">{f.finding}</p>
-                        <p className="text-[#29C5D9] text-[11px] pt-1">👉 <strong>Required Action:</strong> {f.action_required}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Agent Recommendation */}
-                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 space-y-1">
-                  <span className="font-bold block text-white flex items-center gap-1.5">
-                    <ShieldAlert className="h-4 w-4 text-amber-400" />
-                    Recommended Compliance Action:
-                  </span>
-                  <p className="text-[#A7B4C8] leading-relaxed">
-                    {custAgenticModal.recommended_resolution || "Call customer on registered telephone number, confirm identity, then resolve account."}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Quick Action Footer */}
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#25344A]">
-              <button
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
                 type="button"
-                onClick={() => setCustAgenticModal(null)}
-                className="px-4 py-2 rounded-lg bg-[#152238] hover:bg-[#1B2B43] text-[#F4F7FC] text-xs font-semibold cursor-pointer"
+                variant="ghost"
+                onClick={() => setCallModalCust(null)}
               >
-                Close Report
-              </button>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const c = custAgenticModal;
-                    setCustAgenticModal(null);
-                    setCallModalCust(c);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#3978F6] hover:bg-[#3978F6]/90 text-white text-xs font-bold shadow-xs cursor-pointer"
-                >
-                  <PhoneCall className="h-3.5 w-3.5" />
-                  <span>Call {custAgenticModal.phone}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    const c = custAgenticModal;
-                    setCustAgenticModal(null);
-                    handleResolveRisk(c.customer_id, c.name);
-                  }}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#27C58B] hover:bg-[#27C58B]/90 text-slate-950 text-xs font-bold shadow-xs cursor-pointer"
-                >
-                  <Unlock className="h-3.5 w-3.5" />
-                  <span>Resolve &amp; Reactivate</span>
-                </button>
-              </div>
+                Close
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => {
+                  handleResolveRisk(callModalCust.customer_id, callModalCust.name);
+                  setCallModalCust(null);
+                }}
+              >
+                <Unlock className="w-4 h-4" />
+                <span>Identity Verified — Unlock</span>
+              </Button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* CREATE SUB-ADMIN / STAFF MODAL */}
-      <Modal
-        isOpen={createStaffOpen}
-        onClose={() => setCreateStaffOpen(false)}
-        title="Provision Administrator / Operational Staff Account"
-        subtitle="Create co-administrators, investigators, fraud analysts, or auditors with designated credentials"
-        maxWidth="lg"
-      >
-        <form onSubmit={handleCreateStaff} className="space-y-4">
-          {staffError && (
-            <div className="p-3.5 rounded-xl bg-[#F06470]/10 border border-[#F06470]/30 text-xs text-[#F06470] flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{staffError}</span>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-1">
-                Full Name
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Dr. Omar Mansour"
-                value={newStaff.full_name}
-                onChange={(e) => setNewStaff({ ...newStaff, full_name: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-1">
-                Login Username
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. omar_admin"
-                value={newStaff.username}
-                onChange={(e) => setNewStaff({ ...newStaff, username: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6]"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-1">
-                Official Email Address
-              </label>
-              <input
-                type="email"
-                required
-                placeholder="e.g. omar@omerta.ai"
-                value={newStaff.email}
-                onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-1">
-                Account Password
-              </label>
-              <input
-                type="password"
-                required
-                placeholder="Min. 8 characters"
-                value={newStaff.password}
-                onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6]"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-1">
-              Designated Staff / Admin Role
-            </label>
-            <select
-              value={newStaff.role}
-              onChange={(e) => {
-                const r = e.target.value;
-                setNewStaff({
-                  ...newStaff,
-                  role: r,
-                  privileges:
-                    r === 'ADMINISTRATOR'
-                      ? ['manage_users', 'review_flagged_transactions', 'adjust_balances', 'view_audit_logs', 'export_reports', 'manage_staff']
-                      : r === 'FRAUD_ANALYST'
-                      ? ['review_flagged_transactions', 'view_audit_logs', 'export_reports']
-                      : r === 'SENIOR_INVESTIGATOR'
-                      ? ['manage_users', 'review_flagged_transactions', 'view_audit_logs', 'export_reports']
-                      : ['view_audit_logs', 'export_reports'],
-                });
-              }}
-              className="w-full px-3 py-2.5 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] focus:outline-none focus:border-[#3978F6]"
-            >
-              <option value="ADMINISTRATOR">Administrator / Co-Admin (Full Oversight, User Management, Thresholds)</option>
-              <option value="FRAUD_ANALYST">Fraud Operations Analyst (Review Queue, Triage, Customer Verification)</option>
-              <option value="SENIOR_INVESTIGATOR">Senior AML Investigator (SAR Dispositions, Case Dossiers)</option>
-              <option value="AUDITOR">Compliance Auditor (Audit Trails, Telemetry, RegTech Inspection)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-2">
-              Assigned Privileges
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {Object.entries(PRIVILEGE_DEFINITIONS).map(([key, def]) => {
-                const Icon = def.icon;
-                const isChecked = newStaff.privileges.includes(key);
-                return (
-                  <div
-                    key={key}
-                    onClick={() => handleTogglePrivilege(key)}
-                    className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
-                      isChecked
-                        ? 'bg-[#152238] border-[#3978F6]'
-                        : 'bg-[#080D19] border-[#25344A] hover:bg-[#152238]/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`p-1.5 rounded-lg ${isChecked ? 'bg-[#3978F6]/20 text-[#3978F6]' : 'bg-[#101A2B] text-[#71819A]'}`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-[#F4F7FC] block">{def.label}</span>
-                        <span className="text-[10px] text-[#A7B4C8]">{def.desc}</span>
-                      </div>
-                    </div>
-
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => {}}
-                      className="h-4 w-4 rounded bg-[#101A2B] border-[#25344A] text-[#3978F6] focus:ring-0 cursor-pointer"
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#25344A]">
-            <button
-              type="button"
-              onClick={() => setCreateStaffOpen(false)}
-              className="px-4 py-2.5 rounded-xl bg-[#152238] hover:bg-[#1B2B43] border border-[#25344A] text-xs font-semibold text-[#F4F7FC] cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmittingStaff}
-              className="px-5 py-2.5 rounded-xl bg-[#3978F6] hover:bg-[#3978F6]/90 disabled:opacity-50 text-xs font-bold text-[#F4F7FC] shadow-md shadow-blue-500/25 cursor-pointer"
-            >
-              {isSubmittingStaff ? 'Creating Staff Account...' : 'Save & Provision Access'}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Customer 360 Modal */}
-      {selectedCustomer && (
+      {/* MODAL 4: SEND EMAIL NOTICE */}
+      {emailModalCust && (
         <Modal
-          isOpen={Boolean(selectedCustomer)}
-          onClose={() => setSelectedCustomer(null)}
-          title={`Customer 360° — ${selectedCustomer.customer.name}`}
-          subtitle={`ID: ${selectedCustomer.customer.external_id} • Country: ${selectedCustomer.customer.country}`}
+          isOpen={Boolean(emailModalCust)}
+          onClose={() => setEmailModalCust(null)}
+          title="Send Compliance Notice"
+          subtitle={`Send to ${emailModalCust.email}`}
+          maxWidth="lg"
+        >
+          <form onSubmit={handleSendEmailNotice} className="space-y-4 text-xs">
+            <Input
+              label="Subject"
+              value={emailSubject}
+              onChange={(e) => setEmailSubject(e.target.value)}
+              required
+            />
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569]">
+                Notice Body
+              </label>
+              <textarea
+                rows={6}
+                value={emailBody}
+                onChange={(e) => setEmailBody(e.target.value)}
+                className="w-full bg-white border border-[#E0DDD6] rounded-[10px] p-3 text-sm font-mono text-[#0F172A] outline-none focus:border-[#1E88E5]"
+                required
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setEmailModalCust(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                isLoading={emailSubmitting}
+              >
+                <Mail className="w-4 h-4" />
+                <span>Send Notice</span>
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* MODAL 5: CUSTOMER AGENTIC FORENSIC MODAL */}
+      {custAgenticModal && (
+        <Modal
+          isOpen={Boolean(custAgenticModal)}
+          onClose={() => setCustAgenticModal(null)}
+          title={`Forensic Dossier: ${custAgenticModal.name}`}
+          subtitle={`Customer ID: ${custAgenticModal.omerta_user_number || custAgenticModal.customer_id}`}
           maxWidth="2xl"
         >
           <div className="space-y-4 text-xs">
-            <div className="p-4 rounded-xl bg-[#080D19] border border-[#25344A] grid grid-cols-2 gap-3">
-              <div>
-                <span className="text-[10px] text-[#71819A] uppercase">Email</span>
-                <p className="font-bold text-[#F4F7FC]">{selectedCustomer.customer.email}</p>
+            {custAgenticLoading ? (
+              <div className="py-12 text-center text-[#64748B]">
+                <Bot className="h-8 w-8 text-[#002D72] animate-pulse mx-auto mb-2" />
+                <p className="font-bold">Aggregating customer risk signals...</p>
               </div>
-              <div>
-                <span className="text-[10px] text-[#71819A] uppercase">Phone</span>
-                <p className="font-mono text-[#F4F7FC]">{selectedCustomer.customer.phone || '—'}</p>
-              </div>
-              <div>
-                <span className="text-[10px] text-[#71819A] uppercase">Omerta User #</span>
-                <p className="font-mono font-bold text-[#29C5D9]">{selectedCustomer.customer.omerta_user_number}</p>
-              </div>
-              <div>
-                <span className="text-[10px] text-[#71819A] uppercase">Internal AML Rating</span>
-                <div>
-                  <RiskBadge level={selectedCustomer.customer.risk_level} />
+            ) : (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-[#F4F1EC] p-3 rounded-[10px] border border-[#E0DDD6]">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[#64748B]">Risk Status</span>
+                    <div className="mt-0.5">
+                      <RiskBadge level={custAgenticModal.risk_level || 'HIGH'} />
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[#64748B]">Account State</span>
+                    <div className="mt-0.5">
+                      <StatusBadge status={custAgenticModal.status || 'SECURITY_HOLD'} />
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[#64748B]">Phone</span>
+                    <p className="font-mono font-bold text-[#002D72] mt-0.5">{custAgenticModal.phone || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[#64748B]">Email</span>
+                    <p className="truncate font-semibold text-[#002D72] mt-0.5">{custAgenticModal.email}</p>
+                  </div>
                 </div>
-              </div>
-            </div>
+
+                <div className="space-y-2">
+                  <h5 className="font-bold text-[#002D72] uppercase text-[11px] tracking-wider">
+                    Forensic Observations &amp; Signals
+                  </h5>
+                  {custAgenticModal.forensic_findings?.map((f: any, idx: number) => (
+                    <div key={idx} className="p-3 rounded-[10px] bg-white border border-[#E0DDD6] shadow-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-[#002D72]">{f.category?.replace(/_/g, ' ')}</span>
+                        <StatusBadge status={f.severity} />
+                      </div>
+                      <p className="text-xs text-[#0F172A]">{f.finding}</p>
+                      {f.action_required && (
+                        <p className="text-[11px] text-[#B45309] font-medium">Action: {f.action_required}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-[#E0DDD6]">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setCustAgenticModal(null)}
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => {
+                      handleResolveRisk(custAgenticModal.customer_id, custAgenticModal.name);
+                      setCustAgenticModal(null);
+                    }}
+                  >
+                    <Unlock className="w-4 h-4" />
+                    <span>Resolve Risk &amp; Unlock Customer</span>
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </Modal>
       )}

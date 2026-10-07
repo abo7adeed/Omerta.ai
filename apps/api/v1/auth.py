@@ -5,6 +5,7 @@ multi-role login (CUSTOMER, ADMINISTRATOR, FRAUD_ANALYST, SENIOR_INVESTIGATOR, A
 and authenticated user payload resolution.
 """
 
+from datetime import UTC, datetime
 from decimal import Decimal
 import secrets
 from typing import Any
@@ -83,16 +84,16 @@ def evaluate_vpn_risk(
 class RegisterRequest(BaseModel):
     full_name: str = Field(..., min_length=2, max_length=100)
     email: str = Field(..., min_length=5, max_length=120)
-    username: str = Field(..., min_length=3, max_length=30)
+    username: str | None = Field(default=None, max_length=60)
     password: str = Field(..., min_length=8, description="Account Password for login/logout")
     confirm_password: str = Field(..., min_length=8)
     transfer_password: str | None = Field(default=None, description="Transfer Password strictly for authorizing money transfers")
     confirm_transfer_password: str | None = Field(default=None)
     national_id_number: str | None = Field(default=None, description="National Identification Number")
-    phone: str = Field(default="", max_length=35)
-    country: str = Field(default="EG", min_length=2, max_length=2)
-    preferred_currency: str = Field(default="EGP", min_length=3, max_length=3)
-    initial_balance: Decimal = Field(default=Decimal("10000.00"), ge=Decimal("100.00"), le=Decimal("1000000.00"))
+    phone: str = Field(default="", max_length=60)
+    country: str = Field(default="EG", min_length=2, max_length=60)
+    preferred_currency: str = Field(default="EGP", min_length=3, max_length=10)
+    initial_balance: Decimal = Field(default=Decimal("10000.00"), ge=Decimal("0.00"), le=Decimal("10000000.00"))
     device_consent: bool = Field(default=True)
     client_ip: str | None = None
     observed_country: str | None = None
@@ -179,6 +180,23 @@ async def register(body: RegisterRequest, request: Request) -> AuthResponse:
 
     effective_nat_id = body.national_id_number or f"2900101{secrets.randbelow(8999999) + 1000000}"
 
+    # Auto-resolve username
+    effective_username = (body.username.strip() if body.username and body.username.strip() else body.email.split("@")[0].strip())
+    import re
+    effective_username = re.sub(r"[^a-zA-Z0-9_-]", "_", effective_username)[:30]
+
+    # Map Country name to standard code
+    country_map = {
+        "egypt": "EG",
+        "saudi arabia": "SA",
+        "united arab emirates": "AE",
+        "united states": "US",
+        "united kingdom": "GB",
+        "germany": "DE",
+    }
+    raw_country = (body.country or "EG").strip()
+    effective_country = country_map.get(raw_country.lower(), raw_country.upper()[:2] if len(raw_country) >= 2 else "EG")
+
     user_agent = request.headers.get("user-agent", "Mozilla/5.0 (X11; Linux x86_64)")
     forwarded = request.headers.get("cf-connecting-ip") or request.headers.get("x-real-ip") or request.headers.get("x-forwarded-for")
     header_ip = forwarded.split(",")[0].strip() if forwarded else None
@@ -200,12 +218,12 @@ async def register(body: RegisterRequest, request: Request) -> AuthResponse:
             res = await cust_service.register_customer(
                 full_name=body.full_name,
                 email=body.email,
-                username=body.username,
+                username=effective_username,
                 password=body.password,
                 transfer_password=effective_transfer_password,
                 national_id_number=effective_nat_id,
                 phone=body.phone,
-                country=body.country,
+                country=effective_country,
                 preferred_currency=body.preferred_currency,
                 initial_balance=body.initial_balance,
                 device_consent=body.device_consent,
@@ -618,4 +636,48 @@ async def process_telemetry_heartbeat(
             ip_timezone=body.ip_timezone,
         )
         return result
+
+
+@router.post("/logout")
+async def logout_endpoint(
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Deactivate active sessions for this user on logout so they can sign in again from anywhere."""
+    user_external_id = current_user.get("sub")
+    session_id = current_user.get("session_id")
+    now = datetime.now(UTC)
+
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        user = await session.scalar(
+            select(User).where(User.external_id == user_external_id)
+        )
+        if user:
+            active_sessions = (
+                await session.scalars(
+                    select(UserSession).where(UserSession.user_id == user.id, UserSession.is_active.is_(True))
+                )
+            ).all()
+            for s in active_sessions:
+                s.is_active = False
+                s.ended_at = now
+                s.revoked_at = now
+
+            session.add(
+                AuditEvent(
+                    event_id=f"EVT-LOGOUT-{secrets.token_hex(4).upper()}",
+                    event_type="USER_LOGGED_OUT",
+                    actor_type=user.role,
+                    actor_id=user.external_id,
+                    source="AuthenticationService",
+                    metadata_={
+                        "user_id": user.external_id,
+                        "username": user.username,
+                        "session_id": session_id,
+                    },
+                )
+            )
+            await session.commit()
+
+    return {"success": True, "message": "Logged out successfully and active session terminated."}
 

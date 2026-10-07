@@ -15,7 +15,7 @@ import secrets
 from typing import Any
 import uuid
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -174,6 +174,8 @@ class TransferService:
             "omerta_user_number": customer.omerta_user_number,
             "phone_masked": masked_phone,
             "display_name": masked_name,
+            "recipient_name": masked_name,
+            "name": masked_name,
             "country": customer.declared_country or customer.country,
             "supported_currencies": list(set(supported_currencies)),
             "preferred_currency": customer.preferred_currency or "EGP",

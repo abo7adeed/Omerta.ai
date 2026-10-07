@@ -542,7 +542,22 @@ async def list_admin_support_cases(
         )
 
         if status_filter:
-            stmt = stmt.where(SupportTicket.status == status_filter)
+            norm_status = status_filter.upper()
+            if norm_status in ("UNSOLVED", "OPEN", "OPEN_CASES"):
+                stmt = stmt.where(SupportTicket.status.notin_(["RESOLVED", "CLOSED"]))
+            elif norm_status in ("RESOLVED", "CLOSED", "CLOSED_CASES"):
+                stmt = stmt.where(SupportTicket.status.in_(["RESOLVED", "CLOSED"]))
+            elif norm_status in ("PENDING_ID", "ID_REVIEWS", "IDV"):
+                stmt = stmt.where(
+                    or_(
+                        SupportTicket.requires_identity_verification.is_(True),
+                        SupportTicket.issue_type == "TRANSFER_BLOCKED",
+                        SupportTicket.identity_verifications.any(),
+                    )
+                )
+            elif norm_status != "ALL":
+                stmt = stmt.where(SupportTicket.status == status_filter)
+
         if issue_type:
             stmt = stmt.where(SupportTicket.issue_type == issue_type)
         if priority:
@@ -569,6 +584,38 @@ async def list_admin_support_cases(
             if pending_id:
                 id_status = "PENDING"
             latest_idv = t.identity_verifications[-1] if t.identity_verifications else None
+
+            messages = [
+                {
+                    "id": m.id,
+                    "message_id": m.external_id,
+                    "sender_role": m.sender_role,
+                    "sender_name": m.sender_name,
+                    "message_text": m.message_text,
+                    "attachment_url": m.attachment_url,
+                    "attachment_name": m.attachment_name,
+                    "attachment_type": m.attachment_type,
+                    "is_read": m.is_read_by_recipient,
+                    "created_at": m.created_at.isoformat(),
+                }
+                for m in t.messages
+            ]
+
+            id_verifications = [
+                {
+                    "id": v.id,
+                    "verification_id": v.external_id,
+                    "document_type": v.document_type,
+                    "national_id_number": v.national_id_number,
+                    "document_front_url": v.document_front_url,
+                    "document_back_url": v.document_back_url,
+                    "verification_status": v.verification_status,
+                    "reviewer_notes": v.reviewer_notes,
+                    "reviewed_at": v.reviewed_at.isoformat() if v.reviewed_at else None,
+                    "created_at": v.created_at.isoformat(),
+                }
+                for v in t.identity_verifications
+            ]
 
             results.append({
                 "id": t.id,
@@ -609,6 +656,8 @@ async def list_admin_support_cases(
                 "description": t.description,
                 "has_pending_id_verification": pending_id,
                 "messages_count": len(t.messages),
+                "messages": messages,
+                "identity_verifications": id_verifications,
                 "created_at": t.created_at.isoformat(),
                 "updated_at": t.updated_at.isoformat(),
                 "last_message": {
@@ -808,3 +857,57 @@ async def restore_customer_transfer_access(
             "transfer_status": "ACTIVE",
             "require_transfer_password_change": True,
         }
+
+
+class UpdateCaseStatusRequest(BaseModel):
+    status: str = Field(..., description="OPEN | IN_REVIEW | WAITING_FOR_CUSTOMER | RESOLVED | CLOSED")
+    assigned_to_user_id: int | None = None
+
+
+@router.patch("/admin/cases/{ticket_id}/status")
+async def update_admin_case_status(
+    ticket_id: str,
+    body: UpdateCaseStatusRequest,
+    current_user: dict[str, Any] = Depends(require_role(ADMIN_AUDITOR_ROLES)),
+) -> dict[str, Any]:
+    """Update support case status and assignment."""
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        ticket = await session.scalar(
+            select(SupportTicket).where(_ticket_condition(ticket_id))
+        )
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Support ticket not found.")
+
+        old_status = ticket.status
+        ticket.status = body.status.upper()
+        ticket.updated_at = datetime.now(UTC)
+        if body.status.upper() in ("RESOLVED", "CLOSED"):
+            ticket.resolved_at = datetime.now(UTC)
+        if body.assigned_to_user_id is not None:
+            ticket.assigned_to_user_id = body.assigned_to_user_id
+
+        # Audit Event
+        session.add(
+            AuditEvent(
+                event_id=f"EVT-STSTAT-{secrets.token_hex(4).upper()}",
+                event_type="SUPPORT_CASE_STATUS_UPDATED",
+                actor_type=current_user.get("role", "ADMINISTRATOR"),
+                actor_id=str(current_user.get("sub", "")),
+                source="AdminSupportService",
+                metadata_={
+                    "ticket_id": ticket.external_id,
+                    "old_status": old_status,
+                    "new_status": ticket.status,
+                    "assigned_to": body.assigned_to_user_id,
+                },
+            )
+        )
+        await session.commit()
+
+        return {
+            "success": True,
+            "ticket_id": ticket.external_id,
+            "status": ticket.status,
+            "updated_at": ticket.updated_at.isoformat(),
+        }
+

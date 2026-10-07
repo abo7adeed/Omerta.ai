@@ -24,8 +24,14 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
-import { StatusBadge } from '../../components/common/StatusBadge';
-import { Modal } from '../../components/common/Modal';
+import {
+  Card,
+  Button,
+  Input,
+  StatusBadge,
+  Modal,
+  Alert,
+} from '../../components/ui';
 
 export const CustomerDashboardPage: React.FC = () => {
   const { user, customer } = useAuth();
@@ -54,7 +60,6 @@ export const CustomerDashboardPage: React.FC = () => {
     try {
       const res = await api.getCustomerDashboard();
       setData(res);
-      // Auto open modal immediately on login / dashboard load if transfer password change is strictly required after compliance restore
       if (res?.customer?.require_transfer_password_change) {
         setShowPasswordModal(true);
       }
@@ -140,7 +145,6 @@ export const CustomerDashboardPage: React.FC = () => {
   };
 
   const primaryAccount = data?.accounts?.[0] || { balance: 0, currency: 'EGP', account_id: 'ACC-DEMO' };
-
   const isTransferBlocked = data?.customer?.transfer_status === 'BLOCKED';
   const isPasswordChangeRequired = Boolean(data?.customer?.require_transfer_password_change);
 
@@ -158,320 +162,331 @@ export const CustomerDashboardPage: React.FC = () => {
 
   if (isLoading && !data) {
     return (
-      <div className="py-20 flex flex-col items-center justify-center text-[#A7B4C8]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#29C5D9] mb-3" />
-        <p className="text-xs font-semibold">Loading verified customer portfolio...</p>
+      <div className="py-24 flex flex-col items-center justify-center text-[var(--color-text-secondary)]">
+        <Loader2 className="h-10 w-10 animate-spin text-[var(--color-sapphire)] mb-4" />
+        <p className="text-sm font-semibold text-[var(--color-sapphire)]">Loading customer dashboard...</p>
       </div>
     );
   }
 
-
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-6">
       {/* Welcome & Status Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-xl bg-gradient-to-r from-[#101A2B] via-[#152238] to-[#101A2B] border border-[#25344A]">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-bold tracking-tight text-[#F4F7FC]">
+      <Card className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-5">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--color-sapphire)]">
               Welcome back, {data?.customer?.name || user?.full_name || 'Customer'}
             </h1>
-            <span className="px-2 py-0.5 rounded-full bg-[#27C58B]/15 text-[#27C58B] border border-[#27C58B]/30 text-[10px] font-bold uppercase">
-              Verified Demo
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+              Verified Client
             </span>
             {isTransferBlocked ? (
-              <span className="px-2.5 py-0.5 rounded-full bg-[#F06470]/15 text-[#F06470] border border-[#F06470]/40 text-[10px] font-bold uppercase flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
-                Transfer Blocked
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-300">
+                <AlertCircle className="w-3.5 h-3.5" /> Transfer Blocked
               </span>
             ) : (
-              <span className="px-2.5 py-0.5 rounded-full bg-[#27C58B]/15 text-[#27C58B] border border-[#27C58B]/30 text-[10px] font-bold uppercase flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" />
-                Transfer Active
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-blue-100 text-[var(--color-sapphire)] border border-blue-200">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Transfer Active
               </span>
             )}
           </div>
-          <p className="text-xs text-[#A7B4C8]">
+          <p className="text-xs text-[var(--color-text-secondary)] font-medium">
             Simulated digital banking overview, support desk &amp; peer-to-peer transfers
           </p>
         </div>
 
         {/* Shareable Omerta User Number */}
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-[#080D19]/80 border border-[#25344A]">
+        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)] shrink-0">
           <div className="flex flex-col">
-            <span className="text-[10px] uppercase font-bold text-[#71819A]">Your Omerta User #</span>
-            <span className="font-mono text-sm font-bold text-[#29C5D9]">
+            <span className="text-[11px] uppercase font-bold tracking-wider text-[var(--color-text-muted)]">Your Omerta User #</span>
+            <span className="font-mono text-sm font-extrabold text-[var(--color-sapphire)]">
               {data?.customer?.omerta_user_number || customer?.omerta_user_number || 'OMR-1092-4821'}
             </span>
           </div>
-          <button
+          <Button
+            size="sm"
+            variant="secondary"
             onClick={handleCopyUserNumber}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-[#152238] hover:bg-[#1B2B43] border border-[#25344A] text-xs text-[#F4F7FC] font-medium transition-colors"
+            className="px-3 min-h-[36px]"
             title="Share this unique number with other registered users to receive funds"
           >
             {copied ? (
               <>
-                <Check className="h-3.5 w-3.5 text-[#27C58B]" />
-                <span className="text-[#27C58B]">Copied</span>
+                <Check className="h-3.5 w-3.5 text-emerald-600 mr-1" />
+                <span className="text-emerald-700 font-bold">Copied</span>
               </>
             ) : (
               <>
-                <Copy className="h-3.5 w-3.5 text-[#3978F6]" />
+                <Copy className="h-3.5 w-3.5 text-[var(--color-sapphire)] mr-1" />
                 <span>Copy</span>
               </>
             )}
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {/* SECURITY HOLD BANNER (If Transfer Blocked) */}
       {isTransferBlocked && (
-        <div className="p-5 rounded-2xl bg-[#F06470]/10 border border-[#F06470]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg shadow-rose-950/20">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-6 w-6 text-[#F06470] shrink-0 mt-0.5" />
+        <Card className="p-6 bg-rose-50/90 border-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-2.5 rounded-xl bg-rose-100 text-rose-700 shrink-0 mt-0.5">
+              <AlertTriangle className="h-6 w-6 stroke-[2.2]" />
+            </div>
             <div className="space-y-1">
-              <h3 className="text-sm font-bold text-[#F4F7FC]">
+              <h3 className="text-sm font-bold text-rose-950">
                 Security Hold: Money Transfers Restricted
               </h3>
-              <p className="text-xs text-[#F4F7FC]/80 leading-relaxed max-w-2xl">
+              <p className="text-xs text-rose-900 leading-relaxed font-medium max-w-2xl">
                 Your transfer password was entered incorrectly 3 consecutive times. Your session and dashboard access remain active, but money movement is locked. Please open a support ticket to verify your National ID and restore transfer privileges.
               </p>
             </div>
           </div>
-          <button
+          <Button
             type="button"
+            variant="danger"
+            size="sm"
             onClick={() => navigate('/customer/support?reason=TRANSFER_BLOCKED')}
-            className="shrink-0 px-4 py-2.5 rounded-xl bg-[#F06470] hover:bg-[#F06470]/90 text-[#F4F7FC] text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
+            className="shrink-0"
           >
-            <LifeBuoy className="h-4 w-4" />
+            <LifeBuoy className="h-4 w-4 mr-1.5" />
             <span>Open Support Ticket</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-          </button>
-        </div>
+            <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+          </Button>
+        </Card>
       )}
 
       {/* ACTION REQUIRED: RESTORE PASSWORD CHANGE BANNER */}
       {isPasswordChangeRequired && (
-        <div className="p-5 rounded-2xl bg-[#29C5D9]/10 border border-[#29C5D9]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg shadow-cyan-950/20">
-          <div className="flex items-start gap-3">
-            <KeyRound className="h-6 w-6 text-[#29C5D9] shrink-0 mt-0.5" />
+        <Card className="p-6 bg-amber-50/90 border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-2.5 rounded-xl bg-amber-100 text-amber-800 shrink-0 mt-0.5">
+              <KeyRound className="h-6 w-6 stroke-[2.2]" />
+            </div>
             <div className="space-y-1">
-              <h3 className="text-sm font-bold text-[#F4F7FC]">
+              <h3 className="text-sm font-bold text-amber-950">
                 Action Required: Set New Transfer Password
               </h3>
-              <p className="text-xs text-[#F4F7FC]/80 leading-relaxed max-w-2xl">
-                Compliance staff has verified your identity and restored your transfer access! To complete account reactivation, please set a new transfer password now (without needing your old forgotten password).
+              <p className="text-xs text-amber-900 leading-relaxed font-medium max-w-2xl">
+                Compliance staff has verified your identity and restored your transfer access! To complete account reactivation, please set a new transfer password now.
               </p>
             </div>
           </div>
-          <button
+          <Button
             type="button"
+            variant="primary"
+            size="sm"
             onClick={() => {
               setPasswordModalError(null);
               setShowPasswordModal(true);
             }}
-            className="shrink-0 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#3978F6] to-[#29C5D9] hover:opacity-90 text-slate-950 text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
+            className="shrink-0"
           >
-            <Lock className="h-4 w-4" />
+            <Lock className="h-4 w-4 mr-1.5" />
             <span>Set New Transfer Password</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-          </button>
-        </div>
+            <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+          </Button>
+        </Card>
       )}
 
-      {/* Primary Balance Card & Quick Action Grid */}
+      {/* Primary Balance Bento Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Available Balance Card */}
-        <div className="lg:col-span-2 p-6 omerta-card-glow relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+        <Card className="lg:col-span-2 p-6 md:p-8 flex flex-col justify-between min-h-[240px]">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-[#3978F6]/20 text-[#29C5D9] border border-[#3978F6]/30">
-                <Wallet className="h-5 w-5" />
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-[var(--color-sapphire)] text-[var(--color-gold)] shadow-sm">
+                <Wallet className="h-6 w-6 stroke-[2.2]" />
               </div>
               <div>
-                <span className="text-xs font-semibold text-[#A7B4C8]">Primary Checking Account</span>
-                <p className="text-[11px] font-mono text-[#71819A]">{primaryAccount.account_id}</p>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Primary Checking Account</span>
+                <p className="text-xs font-mono font-bold text-[var(--color-sapphire)]">{primaryAccount.account_id}</p>
               </div>
             </div>
 
             <button
               onClick={() => setShowBalance(!showBalance)}
-              className="p-1.5 text-[#A7B4C8] hover:text-[#F4F7FC] rounded hover:bg-[#1B2B43] transition-colors"
+              className="p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-sapphire)] rounded-lg hover:bg-[var(--color-secondary-surface)] transition-all cursor-pointer"
               title={showBalance ? 'Hide Balance' : 'Show Balance'}
+              aria-label={showBalance ? 'Hide Balance' : 'Show Balance'}
             >
               {showBalance ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
 
           {/* Amount Display */}
-          <div className="my-4">
-            <span className="text-xs font-medium text-[#71819A] block mb-1">Available Demo Balance</span>
-            <div className="flex items-baseline gap-2">
+          <div className="my-5">
+            <span className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">
+              Available Demo Balance
+            </span>
+            <div className="flex items-baseline gap-2.5">
               {showBalance ? (
                 <>
-                  <span className="text-3xl sm:text-4xl font-black tracking-tight text-[#F4F7FC] font-tabular">
+                  <span className="text-3xl sm:text-5xl font-extrabold tracking-tight text-[var(--color-sapphire)] font-mono font-tabular">
                     {primaryAccount.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
-                  <span className="text-lg font-bold text-[#29C5D9]">{primaryAccount.currency}</span>
+                  <span className="text-xl font-bold text-[var(--color-gold)]">{primaryAccount.currency}</span>
                 </>
               ) : (
-                <span className="text-3xl font-black text-[#71819A] tracking-widest">••••••••••</span>
+                <span className="text-4xl font-extrabold text-[var(--color-text-muted)] tracking-widest">••••••••••</span>
               )}
             </div>
-            <p className="text-[11px] text-[#71819A] mt-1 flex items-center gap-1">
-              <ShieldCheck className="h-3.5 w-3.5 text-[#27C58B]" />
+            <p className="text-xs text-[var(--color-text-secondary)] mt-2 flex items-center gap-1.5 font-medium">
+              <ShieldCheck className="h-4 w-4 text-emerald-600" />
               <span>Protected with ledger double-entry audit trail</span>
             </p>
           </div>
 
           {/* Action Row */}
-          <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-[#25344A]">
-            <button
+          <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-[var(--color-border)]">
+            <Button
+              size="sm"
+              variant={isTransferBlocked ? 'danger' : 'primary'}
               onClick={handleTransferButtonClick}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-md cursor-pointer ${
-                isTransferBlocked
-                  ? 'bg-[#F06470]/20 text-[#F06470] border border-[#F06470]/40 hover:bg-[#F06470]/30'
-                  : 'bg-[#3978F6] hover:bg-[#3978F6]/90 text-[#F4F7FC] shadow-blue-500/20'
-              }`}
             >
-              <Send className="h-3.5 w-3.5" />
+              <Send className="h-4 w-4 mr-1.5" />
               <span>{isTransferBlocked ? 'Transfers Blocked (Click for Info)' : 'Send Money'}</span>
-            </button>
+            </Button>
 
-            <button
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={() => navigate('/customer/accounts')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#152238] hover:bg-[#1B2B43] border border-[#25344A] text-[#F4F7FC] text-xs font-semibold transition-colors"
             >
-              <CreditCard className="h-3.5 w-3.5 text-[#29C5D9]" />
+              <CreditCard className="h-4 w-4 text-[var(--color-sapphire)] mr-1.5" />
               <span>View All Accounts</span>
-            </button>
+            </Button>
 
-            <button
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={() => navigate('/customer/support')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#152238] hover:bg-[#1B2B43] border border-[#25344A] text-[#29C5D9] text-xs font-semibold transition-colors"
             >
-              <LifeBuoy className="h-3.5 w-3.5" />
+              <LifeBuoy className="h-4 w-4 text-[var(--color-royal-blue)] mr-1.5" />
               <span>Support &amp; Chat</span>
-            </button>
+            </Button>
 
-            <button
+            <Button
+              size="sm"
+              variant="ghost"
               onClick={() => navigate('/customer/transactions')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#152238] hover:bg-[#1B2B43] border border-[#25344A] text-[#F4F7FC] text-xs font-semibold transition-colors ml-auto"
+              className="ml-auto"
             >
-              <Clock className="h-3.5 w-3.5 text-[#A7B4C8]" />
+              <Clock className="h-4 w-4 mr-1.5" />
               <span>History</span>
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
 
         {/* Activity Summary Card */}
-        <div className="p-6 omerta-card flex flex-col justify-between">
+        <Card className="p-6 flex flex-col justify-between">
           <div>
-            <h3 className="text-sm font-bold text-[#F4F7FC] mb-4 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-[#3978F6]" />
-              <span>Demo Activity Overview</span>
+            <h3 className="text-sm font-bold text-[var(--color-sapphire)] mb-4 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-[var(--color-gold)]" />
+              <span>Activity Overview</span>
             </h3>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-[#101A2B] border border-[#25344A]">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 rounded bg-[#27C58B]/20 text-[#27C58B]">
-                    <ArrowDownLeft className="h-4 w-4" />
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)]">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
+                    <ArrowDownLeft className="h-4 w-4 stroke-[2.5]" />
                   </div>
                   <div>
-                    <span className="text-xs font-semibold text-[#F4F7FC] block">Total Incoming</span>
-                    <span className="text-[10px] text-[#71819A]">{data?.activity?.incoming_count || 0} transfer(s)</span>
+                    <span className="text-xs font-bold text-[var(--color-sapphire)] block">Incoming</span>
+                    <span className="text-[11px] text-[var(--color-text-muted)] font-medium">{data?.activity?.incoming_count || 0} transfer(s)</span>
                   </div>
                 </div>
-                <span className="text-sm font-bold text-[#27C58B] font-tabular">
+                <span className="text-sm font-extrabold text-emerald-700 font-mono font-tabular">
                   +{(data?.activity?.incoming_volume || 0).toLocaleString()} {primaryAccount.currency}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-lg bg-[#101A2B] border border-[#25344A]">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 rounded bg-[#3978F6]/20 text-[#29C5D9]">
-                    <ArrowUpRight className="h-4 w-4" />
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)]">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-100 text-[var(--color-sapphire)]">
+                    <ArrowUpRight className="h-4 w-4 stroke-[2.5]" />
                   </div>
                   <div>
-                    <span className="text-xs font-semibold text-[#F4F7FC] block">Total Outgoing</span>
-                    <span className="text-[10px] text-[#71819A]">{data?.activity?.outgoing_count || 0} transfer(s)</span>
+                    <span className="text-xs font-bold text-[var(--color-sapphire)] block">Outgoing</span>
+                    <span className="text-[11px] text-[var(--color-text-muted)] font-medium">{data?.activity?.outgoing_count || 0} transfer(s)</span>
                   </div>
                 </div>
-                <span className="text-sm font-bold text-[#F4F7FC] font-tabular">
+                <span className="text-sm font-extrabold text-[var(--color-sapphire)] font-mono font-tabular">
                   -{(data?.activity?.outgoing_volume || 0).toLocaleString()} {primaryAccount.currency}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-[#25344A] flex items-center justify-between text-xs text-[#71819A]">
+          <div className="mt-4 pt-3 border-t border-[var(--color-border)] flex items-center justify-between text-xs text-[var(--color-text-secondary)] font-semibold">
             <span>Total Transfers</span>
-            <span className="font-bold text-[#F4F7FC]">{data?.activity?.total_transactions || 0}</span>
+            <span className="font-extrabold text-[var(--color-sapphire)]">{data?.activity?.total_transactions || 0}</span>
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* Recent Customer Transactions */}
-      <div className="omerta-card overflow-hidden">
-        <div className="p-4 border-b border-[#25344A] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-[#29C5D9]" />
-            <h2 className="text-sm font-bold text-[#F4F7FC]">Recent Transactions</h2>
+      <Card className="p-0 overflow-hidden">
+        <div className="p-5 border-b border-[var(--color-border)] flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <Clock className="h-5 w-5 text-[var(--color-sapphire)]" />
+            <h2 className="text-base font-bold text-[var(--color-sapphire)]">Recent Transactions</h2>
           </div>
 
           <button
             onClick={() => navigate('/customer/transactions')}
-            className="text-xs text-[#3978F6] hover:text-[#29C5D9] font-semibold flex items-center gap-1 transition-colors"
+            className="text-xs text-[var(--color-royal-blue)] hover:underline font-semibold flex items-center gap-1 transition-colors cursor-pointer"
           >
             <span>View Full Ledger</span>
-            <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRight className="h-4 w-4" />
           </button>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="text-left text-xs">
-            <thead className="bg-[#101A2B] text-[#A7B4C8] uppercase tracking-wider font-bold">
-              <tr>
-                <th className="p-3.5">Direction</th>
-                <th className="p-3.5">Reference</th>
-                <th className="p-3.5">Counterparty</th>
-                <th className="p-3.5">Amount</th>
-                <th className="p-3.5">Status</th>
-                <th className="p-3.5">Timestamp</th>
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-[var(--color-secondary-surface)] border-b border-[var(--color-border)] text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                <th className="p-4">Direction</th>
+                <th className="p-4">Reference</th>
+                <th className="p-4">Counterparty</th>
+                <th className="p-4">Amount</th>
+                <th className="p-4">Status</th>
+                <th className="p-4">Timestamp</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#25344A]">
+            <tbody className="divide-y divide-[var(--color-border)]">
               {data?.recent_transactions?.length > 0 ? (
                 data.recent_transactions.map((t: any) => (
-                  <tr key={t.transaction_id} className="hover:bg-[#1B2B43]/50 transition-colors">
-                    <td className="p-3.5">
+                  <tr key={t.transaction_id} className="hover:bg-[var(--color-hover-surface)] transition-colors">
+                    <td className="p-4">
                       {t.direction === 'INCOMING' ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#27C58B]/15 text-[#27C58B] font-bold text-[10px] border border-[#27C58B]/30">
-                          <ArrowDownLeft className="h-3 w-3" /> Incoming
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 font-bold text-[11px] border border-emerald-200">
+                          <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-600" /> Incoming
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#3978F6]/15 text-[#29C5D9] font-bold text-[10px] border border-[#3978F6]/30">
-                          <ArrowUpRight className="h-3 w-3" /> Outgoing
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-[var(--color-sapphire)] font-bold text-[11px] border border-blue-200">
+                          <ArrowUpRight className="h-3.5 w-3.5 text-[var(--color-royal-blue)]" /> Outgoing
                         </span>
                       )}
                     </td>
-                    <td className="p-3.5 font-mono text-[#A7B4C8] font-bold">{t.transaction_id}</td>
-                    <td className="p-3.5 font-semibold text-[#F4F7FC]">{t.counterparty}</td>
-                    <td className="p-3.5 font-mono font-bold font-tabular text-[#F4F7FC]">
+                    <td className="p-4 font-mono text-[var(--color-text-secondary)] font-bold">{t.transaction_id}</td>
+                    <td className="p-4 font-semibold text-[var(--color-text-primary)]">{t.counterparty}</td>
+                    <td className="p-4 font-mono font-bold font-tabular text-[var(--color-sapphire)]">
                       {t.direction === 'INCOMING' ? '+' : '-'}
                       {t.amount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {t.currency}
                     </td>
-                    <td className="p-3.5">
+                    <td className="p-4">
                       <StatusBadge status={t.status} />
                     </td>
-                    <td className="p-3.5 text-[#71819A] whitespace-nowrap">
+                    <td className="p-4 text-[var(--color-text-secondary)] font-medium whitespace-nowrap">
                       {new Date(t.timestamp).toLocaleDateString()} {new Date(t.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-[#71819A]">
+                  <td colSpan={6} className="p-10 text-center text-[var(--color-text-secondary)] font-medium">
                     No transactions yet. Click &quot;Send Money&quot; to test your first simulated transfer!
                   </td>
                 </tr>
@@ -479,7 +494,7 @@ export const CustomerDashboardPage: React.FC = () => {
             </tbody>
           </table>
         </div>
-      </div>
+      </Card>
 
       {/* CHANGE / SET NEW TRANSFER PASSWORD MODAL */}
       {showPasswordModal && (
@@ -498,11 +513,11 @@ export const CustomerDashboardPage: React.FC = () => {
         >
           <form onSubmit={handleChangeTransferPassword} className="space-y-4 text-xs">
             {passwordModalSuccess ? (
-              <div className="p-4 rounded-xl bg-[#27C58B]/10 border border-[#27C58B]/30 text-[#27C58B] flex items-center gap-3">
-                <Check className="w-5 h-5 shrink-0 stroke-[3]" />
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 flex items-center gap-3">
+                <Check className="w-6 h-6 shrink-0 text-emerald-600 stroke-[3]" />
                 <div className="space-y-0.5">
-                  <p className="font-bold text-white text-sm">Transfer Password Updated Successfully!</p>
-                  <p className="text-xs text-[#27C58B]/90">
+                  <p className="font-bold text-emerald-950 text-sm">Transfer Password Updated Successfully!</p>
+                  <p className="text-xs text-emerald-800 font-medium">
                     Your transfer access is now ACTIVE. You can make money transfers freely.
                   </p>
                 </div>
@@ -510,89 +525,70 @@ export const CustomerDashboardPage: React.FC = () => {
             ) : (
               <>
                 {passwordModalError && (
-                  <div className="p-3 rounded-xl bg-[#F06470]/10 border border-[#F06470]/30 text-xs text-[#F06470] flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{passwordModalError}</span>
-                  </div>
+                  <Alert
+                    variant="danger"
+                    icon={<AlertCircle className="w-4 h-4" />}
+                    message={passwordModalError}
+                  />
                 )}
 
-                {/* Only ask for current password if not strictly recovering through compliance bypass */}
                 {!isPasswordChangeRequired && (
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-1">
-                      Current Transfer Password
-                    </label>
-                    <input
-                      type={showPasswordText ? 'text' : 'password'}
-                      value={currentTransferPassword}
-                      onChange={(e) => setCurrentTransferPassword(e.target.value)}
-                      placeholder="Enter current transfer password"
-                      className="w-full px-3 py-2 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6]"
-                    />
-                  </div>
+                  <Input
+                    label="Current Transfer Password"
+                    type={showPasswordText ? 'text' : 'password'}
+                    value={currentTransferPassword}
+                    onChange={(e) => setCurrentTransferPassword(e.target.value)}
+                    placeholder="Enter current transfer password"
+                  />
                 )}
 
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-1">
-                    New Transfer Password (Min 6 Characters)
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPasswordText ? 'text' : 'password'}
-                      required
-                      value={newTransferPassword}
-                      onChange={(e) => setNewTransferPassword(e.target.value)}
-                      placeholder="Enter new transfer password"
-                      className="w-full pl-3 pr-9 py-2 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#29C5D9]"
-                    />
+                <Input
+                  label="New Transfer Password (Min 8 Characters)"
+                  type={showPasswordText ? 'text' : 'password'}
+                  required
+                  value={newTransferPassword}
+                  onChange={(e) => setNewTransferPassword(e.target.value)}
+                  placeholder="Enter new transfer password"
+                  icon={
                     <button
                       type="button"
                       onClick={() => setShowPasswordText(!showPasswordText)}
-                      className="absolute right-2.5 top-2.5 text-[#71819A] hover:text-[#F4F7FC]"
+                      className="p-1 hover:text-[var(--color-sapphire)] cursor-pointer"
                     >
-                      {showPasswordText ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5 text-[#A7B4C8]" />}
+                      {showPasswordText ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
-                  </div>
-                </div>
+                  }
+                />
 
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-1">
-                    Confirm New Transfer Password
-                  </label>
-                  <input
-                    type={showPasswordText ? 'text' : 'password'}
-                    required
-                    value={confirmTransferPassword}
-                    onChange={(e) => setConfirmTransferPassword(e.target.value)}
-                    placeholder="Repeat new transfer password"
-                    className="w-full px-3 py-2 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#29C5D9]"
-                  />
-                </div>
+                <Input
+                  label="Confirm New Transfer Password"
+                  type={showPasswordText ? 'text' : 'password'}
+                  required
+                  value={confirmTransferPassword}
+                  onChange={(e) => setConfirmTransferPassword(e.target.value)}
+                  placeholder="Repeat new transfer password"
+                />
 
                 <div className="flex items-center justify-end gap-3 pt-3">
                   {!isPasswordChangeRequired && (
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setShowPasswordModal(false)}
-                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer"
                     >
                       Cancel
-                    </button>
+                    </Button>
                   )}
-                  <button
+                  <Button
                     type="submit"
-                    disabled={passwordModalLoading}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#3978F6] hover:bg-[#3978F6]/90 disabled:opacity-50 text-white font-bold shadow-lg shadow-blue-500/25 cursor-pointer"
+                    variant="primary"
+                    size="sm"
+                    isLoading={passwordModalLoading}
                   >
-                    {passwordModalLoading ? (
-                      <span>Updating Password...</span>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-4 h-4 text-[#29C5D9]" />
-                        <span>Save Transfer Password</span>
-                      </>
-                    )}
-                  </button>
+                    <ShieldCheck className="w-4 h-4 mr-1.5" />
+                    <span>Save Transfer Password</span>
+                  </Button>
                 </div>
               </>
             )}
@@ -610,19 +606,19 @@ export const CustomerDashboardPage: React.FC = () => {
           maxWidth="md"
         >
           <div className="space-y-4 text-xs">
-            <div className="p-4 rounded-xl bg-[#F06470]/10 border border-[#F06470]/30 text-[#F06470] flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 shrink-0 text-[#F06470] mt-0.5" />
+            <div className="p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-950 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 shrink-0 text-rose-600 mt-0.5" />
               <div className="space-y-1">
-                <p className="font-bold text-white text-sm">Transfers Locked Due to 3 Incorrect Attempts</p>
-                <p className="text-[#F06470]/90 leading-relaxed text-xs">
-                  You entered your transfer password incorrectly 3 times. For your financial security, money movement is temporarily locked. Your account login remains active.
+                <p className="font-bold text-rose-950 text-sm">Transfers Locked Due to 3 Incorrect Attempts</p>
+                <p className="text-rose-900 leading-relaxed text-xs font-medium">
+                  You entered your transfer password incorrectly 3 times. For your security, money movement is locked. Your account login remains active.
                 </p>
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-[#080D19] border border-[#25344A] space-y-2 text-[#F4F7FC]">
-              <span className="text-[10px] font-bold text-[#A7B4C8] uppercase tracking-wider">How to Restore Transfer Privileges</span>
-              <ul className="list-disc pl-4 space-y-1.5 text-xs text-[#A7B4C8]">
+            <div className="p-4 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)] space-y-2">
+              <span className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">How to Restore Privileges</span>
+              <ul className="list-disc pl-4 space-y-1.5 text-xs text-[var(--color-text-secondary)] font-medium">
                 <li>Open a support ticket with the Helpdesk.</li>
                 <li>Upload a clear photo of your National ID or Passport (Front &amp; Back).</li>
                 <li>Compliance officers will verify your account ownership and restore your transfer access.</li>
@@ -630,38 +626,39 @@ export const CustomerDashboardPage: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-2">
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => setShowTransferBlockedModal(false)}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer text-xs"
               >
                 Close
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="danger"
+                size="sm"
                 onClick={() => {
                   setShowTransferBlockedModal(false);
                   navigate('/customer/support?reason=TRANSFER_BLOCKED');
                 }}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#F06470] hover:bg-[#F06470]/90 text-white font-bold shadow-lg shadow-rose-500/25 cursor-pointer text-xs"
               >
-                <LifeBuoy className="w-4 h-4" />
+                <LifeBuoy className="w-4 h-4 mr-1.5" />
                 <span>Go to Support &amp; Verify ID</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+                <ArrowRight className="w-4 h-4 ml-1.5" />
+              </Button>
             </div>
           </div>
         </Modal>
       )}
 
       {/* Demo Disclaimer Footer */}
-      <div className="p-4 rounded-lg bg-[#101A2B] border border-[#25344A] flex items-center gap-3 text-xs text-[#71819A]">
-        <AlertCircle className="h-4 w-4 text-[#F4B942] shrink-0" />
-        <span>
-          <strong>Demo Banking Environment:</strong> Omerta.ai is a simulation environment for financial crime intelligence and compliance testing. Balances and transfers do not represent real funds.
+      <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 flex items-center gap-3 text-xs text-[var(--color-text-secondary)]">
+        <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+        <span className="font-medium">
+          <strong className="text-[var(--color-sapphire)]">Demo Banking Environment:</strong> Omerta.ai is a simulation environment for financial crime intelligence and compliance testing. Balances and transfers do not represent real funds.
         </span>
       </div>
     </div>
   );
 };
-

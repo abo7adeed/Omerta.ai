@@ -1,29 +1,33 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   LifeBuoy,
   Search,
   ShieldCheck,
-  AlertTriangle,
   CheckCircle2,
-  XCircle,
   Send,
-  CheckCheck,
-  RotateCcw,
   RefreshCw,
-  Eye,
   FileText,
-  MessageSquare,
-  UserCheck,
   Paperclip,
   Check,
   X,
+  Unlock,
+  AlertTriangle,
+  Clock,
+  UserCheck,
+  RotateCcw,
+  ExternalLink,
+  ShieldAlert,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { StatusBadge } from '../components/common/StatusBadge';
-import { Modal } from '../components/common/Modal';
-import type { SupportTicketItem, SupportMessageItem } from '../types';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { Modal } from '../components/ui/Modal';
+import { StatCard } from '../components/ui/StatCard';
+import type { SupportTicketItem } from '../types';
 
 const compressImageFile = (file: File, maxDim = 1280, quality = 0.85): Promise<string> => {
   return new Promise((resolve) => {
@@ -68,17 +72,19 @@ const compressImageFile = (file: File, maxDim = 1280, quality = 0.85): Promise<s
 export const SupportCasesPage: React.FC = () => {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const [cases, setCases] = useState<SupportTicketItem[]>([]);
+
+  // All tickets fetched from the backend (unfiltered platform master list)
+  const [allCases, setAllCases] = useState<SupportTicketItem[]>([]);
   const [selectedCase, setSelectedCase] = useState<SupportTicketItem | null>(null);
-  const [activeTab, setActiveTab] = useState<'UNSOLVED' | 'RESOLVED' | 'BLOCKED' | 'PENDING_ID' | 'ALL'>('UNSOLVED');
+  const [activeTab, setActiveTab] = useState<'UNSOLVED' | 'PENDING_ID' | 'RESOLVED' | 'ALL'>('UNSOLVED');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+  const [loading, setLoading] = useState(true);
 
   // Role permissions
   const isSuperAdmin = user?.role === 'ADMINISTRATOR' || user?.role === 'SUB_ADMINISTRATOR';
-  const isAuditAdmin = user?.role === 'AUDITOR' || user?.role === 'COMPLIANCE_AUDITOR';
-  const canRestoreTransfer = isSuperAdmin;
+  const canRestoreTransfer = isSuperAdmin || user?.role === 'FRAUD_ANALYST' || user?.role === 'SENIOR_INVESTIGATOR';
 
-  // Live Staff Chat State (Multi-attachment support)
+  // Live Staff Chat State
   const [staffMessage, setStaffMessage] = useState('');
   const [staffAttachments, setStaffAttachments] = useState<{ url: string; name: string }[]>([]);
   const [isSending, setIsSending] = useState(false);
@@ -98,1188 +104,813 @@ export const SupportCasesPage: React.FC = () => {
 
   // Image zoom modal
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-
-  const fetchCases = async (autoSelectId?: number | string) => {
+  // Fetch all cases without restrictive server status filtering so global StatCards stay accurate
+  const fetchAllCases = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
-      const res = await api.getAdminSupportCases();
-      setCases(res);
-      if (res.length > 0) {
-        const paramSearch = searchParams.get('search')?.toLowerCase();
-        const paramTicketId = searchParams.get('ticketId');
+      const res = await api.getAdminSupportCases({ status: 'ALL' });
+      const items: SupportTicketItem[] = Array.isArray(res) ? res : res.items || [];
+      setAllCases(items);
 
-        if (autoSelectId) {
-          const found = res.find((c: any) => c.id === autoSelectId || c.ticket_id === autoSelectId || c.ticket_number === autoSelectId);
-          if (found) {
-            setSelectedCase(found);
-            await fetchSelectedCaseDetails(found.id || found.ticket_id || found.ticket_number);
-          }
-        } else if (paramTicketId) {
-          const found = res.find((c: any) => String(c.id) === paramTicketId || c.ticket_id === paramTicketId || c.ticket_number === paramTicketId);
-          if (found) {
-            setSelectedCase(found);
-            await fetchSelectedCaseDetails(found.id || found.ticket_id || found.ticket_number);
-          }
-        } else if (paramSearch) {
-          const match = res.find((c: any) =>
-            (c.customer_name && c.customer_name.toLowerCase().includes(paramSearch)) ||
-            (c.omerta_user_number && c.omerta_user_number.toLowerCase().includes(paramSearch)) ||
-            (c.national_id_number && c.national_id_number.toLowerCase().includes(paramSearch))
-          );
-          if (match) {
-            setSelectedCase(match);
-            await fetchSelectedCaseDetails(match.id || match.ticket_id || match.ticket_number);
-          } else {
-            setSelectedCase(res[0]);
-            await fetchSelectedCaseDetails(res[0].id || res[0].ticket_id || res[0].ticket_number);
-          }
-        } else if (!selectedCase) {
-          // Default to first active unsolved ticket if available
-          const firstUnsolved = res.find((c: any) => c.status !== 'RESOLVED' && c.status !== 'CLOSED');
-          const toSelect = firstUnsolved || res[0];
-          setSelectedCase(toSelect);
-          await fetchSelectedCaseDetails(toSelect.id || toSelect.ticket_id || toSelect.ticket_number);
-        } else {
-          const refreshed = res.find((c: any) => c.id === selectedCase.id || c.ticket_id === (selectedCase.ticket_id || selectedCase.id));
-          if (refreshed) {
-            setSelectedCase(refreshed);
-          }
+      if (selectedCase) {
+        const selId = selectedCase.id || selectedCase.ticket_number;
+        const updated = items.find((c: any) => (c.id || c.ticket_number) === selId);
+        if (updated) setSelectedCase(updated);
+      }
+    } catch (err) {
+      console.error('Failed to load support cases', err);
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllCases(true);
+  }, []);
+
+  // Polling for live chat updates every 3.5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchAllCases(false);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [selectedCase?.id, selectedCase?.ticket_number]);
+
+  // Compute Global Counts from allCases
+  const metrics = useMemo(() => {
+    const openCount = allCases.filter((c) => c.status !== 'RESOLVED' && c.status !== 'CLOSED').length;
+    const idvCount = allCases.filter(
+      (c) =>
+        c.issue_type === 'TRANSFER_BLOCKED' ||
+        c.has_pending_id_verification ||
+        Boolean(c.identity_verification) ||
+        (c.identity_verifications && c.identity_verifications.length > 0)
+    ).length;
+    const resolvedCount = allCases.filter((c) => c.status === 'RESOLVED' || c.status === 'CLOSED').length;
+    const totalCount = allCases.length;
+
+    return { openCount, idvCount, resolvedCount, totalCount };
+  }, [allCases]);
+
+  // Filtered cases for dual-pane list
+  const displayedCases = useMemo(() => {
+    return allCases.filter((c) => {
+      // 1. Tab filter
+      if (activeTab === 'UNSOLVED') {
+        if (c.status === 'RESOLVED' || c.status === 'CLOSED') return false;
+      } else if (activeTab === 'PENDING_ID') {
+        const hasId =
+          c.issue_type === 'TRANSFER_BLOCKED' ||
+          c.has_pending_id_verification ||
+          Boolean(c.identity_verification) ||
+          (c.identity_verifications && c.identity_verifications.length > 0);
+        if (!hasId) return false;
+      } else if (activeTab === 'RESOLVED') {
+        if (c.status !== 'RESOLVED' && c.status !== 'CLOSED') return false;
+      }
+
+      // 2. Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchNumber = c.ticket_number?.toLowerCase().includes(q) || c.ticket_id?.toLowerCase().includes(q);
+        const matchSubject = c.subject?.toLowerCase().includes(q);
+        const matchCustomer = c.customer_name?.toLowerCase().includes(q) || c.customer?.name?.toLowerCase().includes(q);
+        const matchUserNo = c.omerta_user_number?.toLowerCase().includes(q) || c.customer?.omerta_user_number?.toLowerCase().includes(q);
+        const matchNatId = c.national_id_number?.toLowerCase().includes(q) || c.customer?.national_id_number?.toLowerCase().includes(q);
+        const matchDesc = c.description?.toLowerCase().includes(q);
+        if (!matchNumber && !matchSubject && !matchCustomer && !matchUserNo && !matchNatId && !matchDesc) {
+          return false;
         }
       }
-    } catch {
-      // Fallback
-    }
-  };
 
-  const fetchSelectedCaseDetails = async (caseId: number | string) => {
-    if (!caseId || caseId === 'undefined') return;
-    try {
-      const updated = await api.getAdminSupportCase(caseId);
-      setSelectedCase(updated);
-    } catch {
-      // Silent error in background polling
-    }
-  };
+      return true;
+    });
+  }, [allCases, activeTab, searchQuery]);
 
-  const handleSelectCase = async (c: SupportTicketItem) => {
-    setSelectedCase(c);
-    const cId = c.id || (c as any).ticket_id || c.ticket_number;
-    if (cId && cId !== 'undefined') {
-      await fetchSelectedCaseDetails(cId);
-    }
-  };
-
+  // Sync selected case when displayedCases change
   useEffect(() => {
-    const s = searchParams.get('search');
-    if (s) setSearchQuery(s);
-    fetchCases();
-  }, [searchParams]);
-
-  // Periodic polling for staff chat thread
-  useEffect(() => {
-    const cId = selectedCase?.id || (selectedCase as any)?.ticket_id || selectedCase?.ticket_number;
-    if (!cId || cId === 'undefined') return;
-    const interval = setInterval(() => {
-      fetchSelectedCaseDetails(cId);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [selectedCase?.id, (selectedCase as any)?.ticket_id, selectedCase?.ticket_number]);
-
-  const handleMultiStaffFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const newAttachments: { url: string; name: string }[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const compressed = await compressImageFile(file);
-      newAttachments.push({ url: compressed, name: file.name });
+    if (displayedCases.length > 0) {
+      if (!selectedCase) {
+        setSelectedCase(displayedCases[0]);
+      } else {
+        const selId = selectedCase.id || selectedCase.ticket_number;
+        const matching = displayedCases.find((c) => (c.id || c.ticket_number) === selId);
+        if (matching) {
+          setSelectedCase(matching);
+        } else {
+          setSelectedCase(displayedCases[0]);
+        }
+      }
+    } else {
+      setSelectedCase(null);
     }
-    setStaffAttachments((prev) => [...prev, ...newAttachments]);
-  };
+  }, [displayedCases]);
 
-  const handleSendStaffMessage = async (e: React.FormEvent) => {
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [selectedCase?.messages?.length]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cId = selectedCase?.id || (selectedCase as any)?.ticket_id || selectedCase?.ticket_number;
-    if (!cId || (!staffMessage.trim() && staffAttachments.length === 0)) return;
+    if ((!staffMessage.trim() && staffAttachments.length === 0) || !selectedCase) return;
 
+    const tId = selectedCase.id || selectedCase.ticket_number;
     setIsSending(true);
     try {
       const joinedUrls = staffAttachments.map((a) => a.url).join('|||');
       const joinedNames = staffAttachments.map((a) => a.name).join('|||');
 
-      await api.adminSendSupportMessage(cId, {
-        message_text: staffMessage.trim() || 'Attached document / response',
+      await api.adminSendSupportMessage(tId, {
+        message_text: staffMessage.trim() || '(Evidence attachment provided by Compliance)',
         attachment_url: joinedUrls || undefined,
         attachment_name: joinedNames || undefined,
         attachment_type: staffAttachments.length > 0 ? 'IMAGE' : 'NONE',
       });
       setStaffMessage('');
       setStaffAttachments([]);
-      await fetchSelectedCaseDetails(cId);
+      fetchAllCases(false);
     } catch (err: any) {
-      alert(err.message || 'Failed to send message.');
+      alert(err.message || 'Failed to send compliance response message.');
     } finally {
       setIsSending(false);
     }
   };
 
-  const handleVerifyIdentityDecision = async (decision: 'VERIFIED' | 'REJECTED') => {
-    const cId = selectedCase?.id || (selectedCase as any)?.ticket_id || selectedCase?.ticket_number;
-    if (!cId) return;
-    setVerifyError(null);
-    setVerifySuccess(null);
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.type.startsWith('image/')) {
+        const compressed = await compressImageFile(file);
+        if (compressed) {
+          setStaffAttachments((prev) => [...prev, { url: compressed, name: file.name }]);
+        }
+      }
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleVerifyIdentity = async (decision: 'VERIFIED' | 'REJECTED') => {
+    if (!selectedCase) return;
+    const tId = selectedCase.id || selectedCase.ticket_number;
     setIsVerifying(true);
-    try {
-      await api.adminVerifyIdentityDecision(cId, {
-        decision,
-        reviewer_notes: reviewerNotes.trim() || `Identity marked as ${decision} by compliance reviewer.`,
-      });
+    setVerifySuccess(null);
+    setVerifyError(null);
 
-      setVerifySuccess(`Identity successfully marked as ${decision}!`);
-      setTimeout(() => setVerifySuccess(null), 3500);
-      await fetchCases(cId);
+    try {
+      await api.adminVerifyIdentityDecision(tId, {
+        decision,
+        reviewer_notes: reviewerNotes,
+      });
+      setVerifySuccess(`National ID document verification ${decision.toLowerCase()} successfully.`);
+      setTimeout(() => setVerifySuccess(null), 4000);
+      fetchAllCases(false);
     } catch (err: any) {
-      setVerifyError(err.message || 'Verification decision failed.');
+      setVerifyError(err.message || 'Failed to submit identity verification decision.');
+      setTimeout(() => setVerifyError(null), 4000);
     } finally {
       setIsVerifying(false);
     }
   };
 
-  const handleRestoreTransferAccess = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cId = selectedCase?.id || (selectedCase as any)?.ticket_id || selectedCase?.ticket_number;
-    if (!cId) return;
-    setRestoreError(null);
-    setRestoreSuccess(null);
-
+  const handleRestoreTransfers = async () => {
+    if (!selectedCase) return;
+    const tId = selectedCase.id || selectedCase.ticket_number;
     setIsRestoring(true);
-    try {
-      await api.adminRestoreTransferAccess(cId, {
-        confirmation: true,
-        reason: restoreReason.trim() || 'Identity verified by compliance staff. Transfer access restored.',
-      });
+    setRestoreSuccess(null);
+    setRestoreError(null);
 
-      setRestoreSuccess('Transfer privileges restored successfully! Customer has been notified in chat.');
+    try {
+      await api.adminRestoreTransferAccess(tId, {
+        confirmation: true,
+        reason: restoreReason,
+      });
+      setRestoreSuccess('Customer transfer access has been restored and security lockout unlocked!');
       setTimeout(() => {
         setIsRestoreModalOpen(false);
         setRestoreSuccess(null);
-      }, 2000);
-      await fetchCases(cId);
+        fetchAllCases(false);
+      }, 1400);
     } catch (err: any) {
-      setRestoreError(err.message || 'Failed to restore transfer privileges.');
+      setRestoreError(err.message || 'Failed to restore transfer access.');
     } finally {
       setIsRestoring(false);
     }
   };
 
-  // Segmented counts
-  const unsolvedCases = cases.filter((c) => c.status !== 'RESOLVED' && c.status !== 'CLOSED');
-  const solvedCases = cases.filter((c) => c.status === 'RESOLVED' || c.status === 'CLOSED');
-  const blockedCases = cases.filter((c) => c.transfer_blocked || c.issue_type === 'TRANSFER_BLOCKED');
-  const pendingIdCases = cases.filter((c) => c.identity_status === 'PENDING' || c.identity_status === 'PENDING_REVIEW' || c.identity_verification_id !== null);
-
-  // Filter cases according to active tab and search query
-  const filteredCases = cases.filter((c) => {
-    const matchesSearch =
-      !searchQuery ||
-      c.ticket_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.customer_name && c.customer_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (c.omerta_user_number && c.omerta_user_number.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    if (!matchesSearch) return false;
-
-    if (activeTab === 'UNSOLVED') return c.status !== 'RESOLVED' && c.status !== 'CLOSED';
-    if (activeTab === 'RESOLVED') return c.status === 'RESOLVED' || c.status === 'CLOSED';
-    if (activeTab === 'BLOCKED') return c.transfer_blocked || c.issue_type === 'TRANSFER_BLOCKED';
-    if (activeTab === 'PENDING_ID') return c.identity_status === 'PENDING' || c.identity_status === 'PENDING_REVIEW' || c.identity_verification_id !== null;
-    return true;
-  });
-
-  const handleSwitchTab = (tab: 'UNSOLVED' | 'RESOLVED' | 'BLOCKED' | 'PENDING_ID' | 'ALL') => {
-    setActiveTab(tab);
-    const target = cases.filter((c) => {
-      const matchesSearch =
-        !searchQuery ||
-        c.ticket_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (c.customer_name && c.customer_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (c.omerta_user_number && c.omerta_user_number.toLowerCase().includes(searchQuery.toLowerCase()));
-      if (!matchesSearch) return false;
-      if (tab === 'UNSOLVED') return c.status !== 'RESOLVED' && c.status !== 'CLOSED';
-      if (tab === 'RESOLVED') return c.status === 'RESOLVED' || c.status === 'CLOSED';
-      if (tab === 'BLOCKED') return c.transfer_blocked || c.issue_type === 'TRANSFER_BLOCKED';
-      if (tab === 'PENDING_ID') return c.identity_status === 'PENDING' || c.identity_status === 'PENDING_REVIEW' || c.identity_verification_id !== null;
-      return true;
-    });
-
-    if (target.length > 0) {
-      handleSelectCase(target[0]);
-    } else {
-      setSelectedCase(null);
+  const handleResolveCase = async (status: 'RESOLVED' | 'CLOSED' | 'OPEN') => {
+    if (!selectedCase) return;
+    const tId = selectedCase.id || selectedCase.ticket_number;
+    try {
+      await api.adminUpdateTicketStatus(tId, { status });
+      fetchAllCases(false);
+    } catch (err: any) {
+      alert(err.message || 'Failed to update case status.');
     }
   };
 
-  const renderPhotoGrid = (imageUrls: string[]) => {
-    if (imageUrls.length === 0) return null;
-    if (imageUrls.length === 1) {
-      return (
-        <div className="p-1.5">
-          <div
-            onClick={() => setZoomedImage(imageUrls[0])}
-            className="relative group cursor-pointer overflow-hidden rounded-xl bg-slate-950/80 border border-black/20 h-52 flex items-center justify-center transition-all hover:opacity-95"
-          >
-            <img
-              src={imageUrls[0]}
-              alt="Attachment"
-              className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
-            />
-            <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 text-white text-xs font-bold transition-opacity">
-              <Eye className="w-4 h-4 text-[#29C5D9]" />
-              <span>Click to view full photo</span>
-            </div>
-          </div>
-        </div>
-      );
-    }
+  // Resolve ID documents & data from selectedCase
+  const latestIdv =
+    selectedCase?.identity_verifications && selectedCase.identity_verifications.length > 0
+      ? selectedCase.identity_verifications[selectedCase.identity_verifications.length - 1]
+      : selectedCase?.identity_verification;
 
-    if (imageUrls.length === 2) {
-      return (
-        <div className="p-1.5">
-          <div className="grid grid-cols-2 gap-1.5">
-            {imageUrls.map((imgUrl, idx) => (
-              <div
-                key={idx}
-                onClick={() => setZoomedImage(imgUrl)}
-                className="relative group cursor-pointer overflow-hidden rounded-xl bg-slate-950/80 border border-black/20 h-44 flex items-center justify-center transition-all hover:opacity-95"
-              >
-                <img
-                  src={imgUrl}
-                  alt={`Attachment ${idx + 1}`}
-                  className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
-                />
-                <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 text-white text-[11px] font-bold transition-opacity">
-                  <Eye className="w-3.5 h-3.5 text-[#29C5D9]" />
-                  <span>Zoom</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
+  const hasIdDoc = Boolean(
+    latestIdv?.document_front_url ||
+      selectedCase?.issue_type === 'TRANSFER_BLOCKED' ||
+      selectedCase?.transfer_blocked ||
+      (selectedCase?.identity_verifications && selectedCase.identity_verifications.length > 0)
+  );
 
-    if (imageUrls.length === 3) {
-      return (
-        <div className="p-1.5">
-          <div className="grid grid-cols-3 gap-1.5">
-            {imageUrls.map((imgUrl, idx) => (
-              <div
-                key={idx}
-                onClick={() => setZoomedImage(imgUrl)}
-                className="relative group cursor-pointer overflow-hidden rounded-xl bg-slate-950/80 border border-black/20 h-36 flex items-center justify-center transition-all hover:opacity-95"
-              >
-                <img
-                  src={imgUrl}
-                  alt={`Attachment ${idx + 1}`}
-                  className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
-                />
-                <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 text-white text-[10px] font-bold transition-opacity">
-                  <Eye className="w-3.5 h-3.5 text-[#29C5D9]" />
-                  <span>Zoom</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    const displayed = imageUrls.slice(0, 4);
-    const remaining = imageUrls.length - 4;
-
-    return (
-      <div className="p-1.5">
-        <div className="grid grid-cols-2 gap-1.5">
-          {displayed.map((imgUrl, idx) => {
-            const isLast = idx === 3 && remaining > 0;
-            return (
-              <div
-                key={idx}
-                onClick={() => setZoomedImage(imgUrl)}
-                className="relative group cursor-pointer overflow-hidden rounded-xl bg-slate-950/80 border border-black/20 h-36 flex items-center justify-center transition-all hover:opacity-95"
-              >
-                <img
-                  src={imgUrl}
-                  alt={`Attachment ${idx + 1}`}
-                  className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
-                />
-                {isLast ? (
-                  <div className="absolute inset-0 bg-slate-950/70 flex items-center justify-center text-white font-black text-lg">
-                    +{remaining + 1}
-                  </div>
-                ) : (
-                  <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 text-white text-[10px] font-bold transition-opacity">
-                    <Eye className="w-3.5 h-3.5 text-[#29C5D9]" />
-                    <span>Zoom</span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+  const idFrontUrl = latestIdv?.document_front_url;
+  const idBackUrl = latestIdv?.document_back_url;
+  const nationalIdNum =
+    latestIdv?.national_id_number || selectedCase?.national_id_number || selectedCase?.customer?.national_id_number;
+  const idStatus = latestIdv?.verification_status || latestIdv?.status || selectedCase?.identity_status || 'PENDING_REVIEW';
+  const isTransferBlocked =
+    selectedCase?.transfer_blocked ||
+    selectedCase?.customer?.transfer_status === 'BLOCKED' ||
+    selectedCase?.issue_type === 'TRANSFER_BLOCKED';
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-xl bg-gradient-to-r from-[#101A2B] via-[#152238] to-[#101A2B] border border-[#25344A]">
+      {/* Header Banner */}
+      <Card className="p-6 sm:p-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-[#E0DDD6]">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-bold tracking-tight text-[#F4F7FC] flex items-center gap-2">
-              <ShieldCheck className="h-6 w-6 text-[#29C5D9]" />
-              <span>Customer Issues / Support &amp; Security Cases</span>
-            </h1>
-            <span className="px-2 py-0.5 rounded-full bg-[#3978F6]/15 text-[#3978F6] border border-[#3978F6]/30 text-[10px] font-bold uppercase">
-              Compliance Desk
-            </span>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#F9A825] mb-1">
+            <LifeBuoy className="w-4 h-4" />
+            Case Management Center
           </div>
-          <p className="text-xs text-[#A7B4C8]">
-            Manage customer complaints, transfer security holds, live customer chat, and human National ID verification.
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#002D72]">
+            Cases &amp; Customer Investigations
+          </h1>
+          <p className="text-xs text-[#64748B] mt-1 font-medium">
+            Review identity documents, customer support inquiries, live dialog, and restore transfer permissions.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => fetchCases()}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#152238] hover:bg-[#1B2B43] border border-[#25344A] text-[#F4F7FC] text-xs font-semibold transition-colors cursor-pointer self-start sm:self-auto"
-        >
-          <RefreshCw className="h-3.5 w-3.5 text-[#29C5D9]" />
-          <span>Refresh Queue</span>
-        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          <Button
+            onClick={() => fetchAllCases(true)}
+            variant="primary"
+            size="sm"
+            leftIcon={<RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />}
+            className="shadow-sm"
+          >
+            Refresh Feed
+          </Button>
+        </div>
+      </Card>
+
+      {/* KPI Cards: Always Display Global Platform Counts */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Open Cases"
+          value={metrics.openCount}
+          subtitle="Pending staff action"
+          icon={LifeBuoy}
+          variant="gold"
+          onClick={() => setActiveTab('UNSOLVED')}
+          className={`cursor-pointer transition-all duration-150 ${activeTab === 'UNSOLVED' ? 'ring-2 ring-[#F9A825] shadow-md' : 'hover:border-[#F9A825]'}`}
+        />
+        <StatCard
+          title="ID Verifications"
+          value={metrics.idvCount}
+          subtitle="Document proof awaiting check"
+          icon={ShieldCheck}
+          variant="sapphire"
+          onClick={() => setActiveTab('PENDING_ID')}
+          className={`cursor-pointer transition-all duration-150 ${activeTab === 'PENDING_ID' ? 'ring-2 ring-[#002D72] shadow-md' : 'hover:border-[#002D72]'}`}
+        />
+        <StatCard
+          title="Resolved Cases"
+          value={metrics.resolvedCount}
+          subtitle="Compliance approved & settled"
+          icon={CheckCircle2}
+          variant="emerald"
+          onClick={() => setActiveTab('RESOLVED')}
+          className={`cursor-pointer transition-all duration-150 ${activeTab === 'RESOLVED' ? 'ring-2 ring-[#10B981] shadow-md' : 'hover:border-[#10B981]'}`}
+        />
+        <StatCard
+          title="Total Tickets"
+          value={metrics.totalCount}
+          subtitle="Cumulative inquiries"
+          icon={FileText}
+          variant="sapphire"
+          onClick={() => setActiveTab('ALL')}
+          className={`cursor-pointer transition-all duration-150 ${activeTab === 'ALL' ? 'ring-2 ring-[#002D72] shadow-md' : 'hover:border-[#002D72]'}`}
+        />
       </div>
 
-      {/* Filter Tabs & Search Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Segmented Queue Filter Tabs */}
-        <div className="flex flex-wrap items-center gap-2 p-1 rounded-xl bg-[#080D19] border border-[#25344A]">
-          <button
-            onClick={() => handleSwitchTab('UNSOLVED')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'UNSOLVED'
-                ? 'bg-[#3978F6] text-[#F4F7FC] shadow-sm'
-                : 'text-[#A7B4C8] hover:text-[#F4F7FC]'
-            }`}
-          >
-            <span>Active (Unsolved)</span>
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${activeTab === 'UNSOLVED' ? 'bg-white/20' : 'bg-[#152238]'}`}>
-              {unsolvedCases.length}
-            </span>
-          </button>
+      {/* Dual Pane: Cases List + Case Workspace */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* LEFT COLUMN: CASES LIST (5 Cols) */}
+        <Card className="lg:col-span-5 flex flex-col h-[760px] overflow-hidden bg-white border border-[#E0DDD6]">
+          <div className="p-4 border-b border-[#E0DDD6] space-y-3 bg-[#F4F1EC]/40">
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search case #, customer, ID, subject..."
+              leftIcon={<Search className="w-4 h-4 text-[#64748B]" />}
+              className="h-9 text-xs bg-white"
+            />
 
-          <button
-            onClick={() => handleSwitchTab('RESOLVED')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'RESOLVED'
-                ? 'bg-[#27C58B] text-slate-950 font-black shadow-sm'
-                : 'text-[#A7B4C8] hover:text-[#F4F7FC]'
-            }`}
-          >
-            <Check className="w-3.5 h-3.5" />
-            <span>Solved (Resolved)</span>
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${activeTab === 'RESOLVED' ? 'bg-slate-950/20 text-slate-950' : 'bg-[#152238]'}`}>
-              {solvedCases.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => handleSwitchTab('BLOCKED')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'BLOCKED'
-                ? 'bg-[#F06470] text-[#F4F7FC] shadow-sm'
-                : 'text-[#A7B4C8] hover:text-[#F4F7FC]'
-            }`}
-          >
-            <AlertTriangle className="w-3 h-3" />
-            <span>Transfer Blocked ({blockedCases.length})</span>
-          </button>
-
-          <button
-            onClick={() => handleSwitchTab('PENDING_ID')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'PENDING_ID'
-                ? 'bg-[#29C5D9] text-slate-950 font-black shadow-sm'
-                : 'text-[#A7B4C8] hover:text-[#F4F7FC]'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Pending ID ({pendingIdCases.length})</span>
-          </button>
-
-          <button
-            onClick={() => handleSwitchTab('ALL')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'ALL'
-                ? 'bg-[#152238] text-[#F4F7FC] border border-[#25344A]'
-                : 'text-[#71819A] hover:text-[#F4F7FC]'
-            }`}
-          >
-            All Cases ({cases.length})
-          </button>
-        </div>
-
-        {/* Search Input */}
-        <div className="relative min-w-[280px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#71819A]" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by ticket #, customer name, omerta #..."
-            className="w-full pl-9 pr-4 py-2 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6]"
-          />
-        </div>
-      </div>
-
-      {/* Main Support Control Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[600px]">
-        {/* LEFT COLUMN: Filtered Cases List (4 cols) */}
-        <div className="lg:col-span-4 omerta-card flex flex-col overflow-hidden">
-          <div className="p-3.5 border-b border-[#25344A] bg-[#101A2B] flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#F4F7FC]">
-              Queue ({filteredCases.length})
-            </span>
-            <span className="text-[10px] text-[#71819A]">Click case to review</span>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+              {[
+                { id: 'UNSOLVED', label: 'Unsolved', count: metrics.openCount },
+                { id: 'PENDING_ID', label: 'ID Reviews', count: metrics.idvCount },
+                { id: 'RESOLVED', label: 'Resolved', count: metrics.resolvedCount },
+                { id: 'ALL', label: 'All Cases', count: metrics.totalCount },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`px-3 py-1.5 rounded-[8px] text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === tab.id
+                      ? 'bg-[#002D72] text-white shadow-xs'
+                      : 'bg-white text-[#64748B] hover:text-[#002D72] border border-[#E0DDD6]'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                      activeTab === tab.id ? 'bg-[#F9A825] text-[#002D72] font-black' : 'bg-[#E2E8F0] text-[#475569]'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-[#25344A]/60 max-h-[620px]">
-            {filteredCases.length === 0 ? (
-              <div className="p-8 text-center text-xs text-[#71819A] space-y-2">
-                <LifeBuoy className="h-8 w-8 mx-auto text-[#71819A]/40" />
-                <p>No cases matching active filter.</p>
-              </div>
-            ) : (
-              filteredCases.map((c) => {
-                const isSelected = selectedCase?.id === c.id || selectedCase?.ticket_number === c.ticket_number;
-                const isSolved = c.status === 'RESOLVED' || c.status === 'CLOSED';
+          <div className="flex-1 overflow-y-auto divide-y divide-[#E0DDD6]">
+            {displayedCases.length > 0 ? (
+              displayedCases.map((c) => {
+                const isSelected = (selectedCase?.id || selectedCase?.ticket_number) === (c.id || c.ticket_number);
+                const hasId =
+                  c.issue_type === 'TRANSFER_BLOCKED' ||
+                  c.has_pending_id_verification ||
+                  Boolean(c.identity_verification) ||
+                  (c.identity_verifications && c.identity_verifications.length > 0);
+                const isBlocked = c.transfer_blocked || c.customer?.transfer_status === 'BLOCKED' || c.issue_type === 'TRANSFER_BLOCKED';
 
                 return (
                   <div
                     key={c.id || c.ticket_number}
-                    onClick={() => handleSelectCase(c)}
-                    className={`p-4 cursor-pointer transition-colors text-xs ${
+                    onClick={() => setSelectedCase(c)}
+                    className={`p-4 transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-[#152238] border-l-4 border-l-[#3978F6]'
-                        : 'hover:bg-[#101A2B]/60'
+                        ? 'bg-[#FFF9E6] border-l-4 border-l-[#F9A825]'
+                        : 'hover:bg-[#F9F8F6]'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-mono font-bold text-[#29C5D9]">{c.ticket_number}</span>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-[#002D72] text-xs">
+                          #{c.ticket_number || c.ticket_id}
+                        </span>
+                        {isBlocked && (
+                          <span className="px-1.5 py-0.5 rounded bg-rose-50 border border-rose-200 text-rose-700 text-[10px] font-bold">
+                            Blocked
+                          </span>
+                        )}
+                      </div>
                       <StatusBadge status={c.status} />
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-xs text-[#F4F7FC] font-semibold mb-1">
-                      <span>{c.customer_name || 'Customer'}</span>
-                      <span className="font-mono text-[10px] text-[#71819A]">({c.omerta_user_number || 'OMR'})</span>
-                    </div>
+                    <h4 className="text-xs font-bold text-[#0F172A] truncate mb-1">
+                      {c.subject || 'Customer Inquiry'}
+                    </h4>
 
-                    <p className="text-xs text-[#A7B4C8] line-clamp-1 mb-2">{c.subject}</p>
-
-                    <div className="flex items-center gap-1.5 flex-wrap text-[10px] mb-2">
-                      <span className="px-1.5 py-0.5 rounded bg-[#080D19] border border-[#25344A] text-[#A7B4C8] font-mono">
-                        {c.issue_type}
+                    <div className="flex items-center justify-between text-[11px] text-[#64748B]">
+                      <span className="font-semibold text-[#002D72] truncate max-w-[160px]">
+                        {c.customer_name || c.customer?.name || 'Customer'}
                       </span>
-                      {c.transfer_blocked && (
-                        <span className="px-1.5 py-0.5 rounded bg-[#F06470]/15 text-[#F06470] font-bold border border-[#F06470]/30">
-                          Transfer Blocked
-                        </span>
-                      )}
-                      {c.identity_status && (
-                        <span
-                          className={`px-1.5 py-0.5 rounded font-bold border ${
-                            c.identity_status === 'VERIFIED'
-                              ? 'bg-[#27C58B]/15 text-[#27C58B] border-[#27C58B]/30'
-                              : c.identity_status === 'REJECTED'
-                              ? 'bg-[#F06470]/15 text-[#F06470] border-[#F06470]/30'
-                              : 'bg-[#F4B942]/15 text-[#F4B942] border-[#F4B942]/30'
-                          }`}
-                        >
-                          ID: {c.identity_status}
-                        </span>
-                      )}
-                      {isSolved && (
-                        <span className="px-1.5 py-0.5 rounded bg-[#27C58B]/15 text-[#27C58B] font-bold border border-[#27C58B]/30 flex items-center gap-1">
-                          <Check className="w-3 h-3" />
-                          <span>Solved</span>
-                        </span>
-                      )}
+                      <span className="font-mono text-[10px]">
+                        {c.created_at ? new Date(c.created_at).toLocaleDateString() : 'Recent'}
+                      </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-[10px] text-[#71819A]">
-                      <span>{new Date(c.created_at).toLocaleDateString()}</span>
-                      <span>{c.messages?.length || 0} msg(s)</span>
-                    </div>
+                    {hasId && (
+                      <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] bg-[#EBF3FC] text-[#002D72] text-[10px] font-bold border border-[#BFDBFE]">
+                        <ShieldCheck className="w-3 h-3 text-[#10B981]" />
+                        <span>ID Submission Included</span>
+                      </div>
+                    )}
                   </div>
                 );
               })
+            ) : (
+              <div className="p-12 text-center text-xs text-[#64748B] flex flex-col items-center justify-center gap-2">
+                <LifeBuoy className="w-8 h-8 text-[#CBD5E1]" />
+                <p className="font-semibold text-[#002D72]">
+                  {loading ? 'Fetching case tickets...' : 'No cases found for this tab.'}
+                </p>
+                <p className="text-[11px] text-[#94A3B8]">
+                  Try switching to another tab or resetting the search filter.
+                </p>
+              </div>
             )}
           </div>
-        </div>
+        </Card>
 
-        {/* RIGHT COLUMN: Case Overview, Live Chat, ID Verification & Restore (8 cols) */}
-        <div className="lg:col-span-8 space-y-6">
+        {/* RIGHT COLUMN: ACTIVE CASE WORKSPACE & CHAT (7 Cols) */}
+        <Card className="lg:col-span-7 flex flex-col h-[760px] overflow-hidden bg-white border border-[#E0DDD6]">
           {selectedCase ? (
             <>
-              {/* Card 1: Case & Customer Intelligence Header */}
-              {(() => {
-                const cleanRegisteredId =
-                  selectedCase.national_id_number && selectedCase.national_id_number !== 'VERIFIED_ON_PROFILE'
-                    ? selectedCase.national_id_number
-                    : selectedCase.customer?.national_id_number && selectedCase.customer?.national_id_number !== 'VERIFIED_ON_PROFILE'
-                    ? selectedCase.customer?.national_id_number
-                    : selectedCase.customer_id
-                    ? `2980101${String(selectedCase.customer_id).padStart(6, '0')}`
-                    : '29801011234567';
-
-                return (
-                  <div className="omerta-card p-5 space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#25344A] pb-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-base font-bold text-[#29C5D9]">{selectedCase.ticket_number}</span>
-                          <StatusBadge status={selectedCase.status} />
-                          <span className="px-2 py-0.5 rounded-full bg-[#152238] border border-[#25344A] text-[10px] font-bold text-[#A7B4C8]">
-                            Priority: {selectedCase.priority}
-                          </span>
-                        </div>
-                        <h3 className="text-sm font-bold text-[#F4F7FC]">{selectedCase.subject}</h3>
-                      </div>
-
-                      {/* RESTORE TRANSFER ACCESS ACTION BUTTON (Admin/Privileged Only) */}
-                      {selectedCase.transfer_blocked && canRestoreTransfer && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRestoreError(null);
-                            setRestoreSuccess(null);
-                            setIsRestoreModalOpen(true);
-                          }}
-                          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#27C58B] to-[#29C5D9] hover:opacity-90 text-slate-950 text-xs font-black shadow-lg shadow-emerald-500/20 cursor-pointer"
-                        >
-                          <RotateCcw className="w-4 h-4 stroke-[2.5]" />
-                          <span>Restore Transfer Access</span>
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Customer Details Strip */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-[#080D19] p-3.5 rounded-xl border border-[#25344A]">
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-[#71819A] block">Customer</span>
-                        <span className="font-bold text-[#F4F7FC]">{selectedCase.customer_name || 'Customer'}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-[#71819A] block">Omerta ID</span>
-                        <span className="font-mono font-bold text-[#29C5D9]">{selectedCase.omerta_user_number || 'N/A'}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-[#71819A] block">Database National ID</span>
-                        <span className="font-mono font-bold text-[#29C5D9]">{cleanRegisteredId}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-[#71819A] block">Transfer Status</span>
-                        {selectedCase.transfer_blocked ? (
-                          <span className="text-[#F06470] font-bold">BLOCKED (3 Strikes)</span>
-                        ) : (
-                          <span className="text-[#27C58B] font-bold">ACTIVE</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Card 2: Human Identity Verification & Side-by-Side Database Comparison Panel */}
-              {(() => {
-                const registeredId =
-                  selectedCase.national_id_number && selectedCase.national_id_number !== 'VERIFIED_ON_PROFILE'
-                    ? selectedCase.national_id_number
-                    : selectedCase.customer?.national_id_number && selectedCase.customer?.national_id_number !== 'VERIFIED_ON_PROFILE'
-                    ? selectedCase.customer?.national_id_number
-                    : selectedCase.customer_id
-                    ? `2980101${String(selectedCase.customer_id).padStart(6, '0')}`
-                    : '29801011234567';
-
-                const rawSubmittedId = selectedCase.identity_verification?.national_id_number;
-                const submittedId = rawSubmittedId && rawSubmittedId !== 'VERIFIED_ON_PROFILE' ? rawSubmittedId : registeredId;
-                const hasSubmission = Boolean(selectedCase.identity_verification?.document_front_url || rawSubmittedId);
-                const isExactMatch = Boolean(registeredId && submittedId && registeredId.trim() === submittedId.trim());
-                const isMismatch = Boolean(registeredId && submittedId && registeredId.trim() !== submittedId.trim());
-
-                return (
-                  <div className="omerta-card p-5 space-y-4 border-[#29C5D9]/30">
-                    <div className="flex items-center justify-between border-b border-[#25344A] pb-3">
-                      <div className="flex items-center gap-2">
-                        <ShieldCheck className="h-5 w-5 text-[#29C5D9]" />
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#F4F7FC]">
-                          Human Identity Verification &amp; National ID Audit
-                        </h3>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {isExactMatch && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#27C58B]/20 text-[#27C58B] border border-[#27C58B]/40 flex items-center gap-1">
-                            <Check className="w-3 h-3" />
-                            <span>100% Match</span>
-                          </span>
-                        )}
-                        {isMismatch && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F06470]/20 text-[#F06470] border border-[#F06470]/40 flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3" />
-                            <span>Mismatch</span>
-                          </span>
-                        )}
-                        {selectedCase.identity_status && (
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                              selectedCase.identity_status === 'VERIFIED'
-                                ? 'bg-[#27C58B]/15 text-[#27C58B] border-[#27C58B]/30'
-                                : selectedCase.identity_status === 'REJECTED'
-                                ? 'bg-[#F06470]/15 text-[#F06470] border-[#F06470]/30'
-                                : 'bg-[#F4B942]/15 text-[#F4B942] border-[#F4B942]/30'
-                            }`}
-                          >
-                            Status: {selectedCase.identity_status}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {verifySuccess && (
-                      <div className="p-3 rounded-xl bg-[#27C58B]/10 border border-[#27C58B]/30 text-[#27C58B] text-xs flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 shrink-0" />
-                        <span>{verifySuccess}</span>
-                      </div>
-                    )}
-
-                    {verifyError && (
-                      <div className="p-3 rounded-xl bg-[#F06470]/10 border border-[#F06470]/30 text-[#F06470] text-xs flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 shrink-0" />
-                        <span>{verifyError}</span>
-                      </div>
-                    )}
-
-                    {/* SIDE-BY-SIDE COMPARISON: Registered Database Record VS. Customer Ticket Submission */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
-                      {/* Column 1: Registered Database Record */}
-                      <div className="p-4 rounded-xl bg-[#080D19] border border-[#25344A] space-y-3">
-                        <div className="flex items-center justify-between border-b border-[#25344A]/80 pb-2">
-                          <span className="font-bold text-[#A7B4C8] uppercase tracking-wider flex items-center gap-1.5 text-[11px]">
-                            <UserCheck className="w-4 h-4 text-[#3978F6]" />
-                            <span>1. Registered Database Record</span>
-                          </span>
-                          <span className="text-[10px] text-[#29C5D9] bg-[#29C5D9]/10 px-2 py-0.5 rounded font-mono">
-                            From Registration Profile
-                          </span>
-                        </div>
-
-                        <div className="space-y-2 text-xs">
-                          <div>
-                            <span className="text-[10px] text-[#71819A] block uppercase font-bold">Registered National ID</span>
-                            <span className="font-mono font-black text-sm text-[#29C5D9]">
-                              {registeredId}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 pt-1">
-                            <div>
-                              <span className="text-[10px] text-[#71819A] block uppercase font-bold">Customer Name</span>
-                              <span className="font-bold text-[#F4F7FC]">{selectedCase.customer_name || 'N/A'}</span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] text-[#71819A] block uppercase font-bold">Omerta Number</span>
-                              <span className="font-mono text-[#F4F7FC]">{selectedCase.omerta_user_number || 'N/A'}</span>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 pt-1">
-                            <div>
-                              <span className="text-[10px] text-[#71819A] block uppercase font-bold">Email</span>
-                              <span className="text-[#A7B4C8] truncate block">{selectedCase.customer_email || selectedCase.customer?.email || 'N/A'}</span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] text-[#71819A] block uppercase font-bold">Phone</span>
-                              <span className="font-mono text-[#A7B4C8]">{selectedCase.customer?.phone || 'N/A'}</span>
-                            </div>
-                          </div>
-                          <div className="pt-1">
-                            <span className="text-[10px] text-[#71819A] block uppercase font-bold">Transfer Security Status</span>
-                            {selectedCase.transfer_blocked ? (
-                              <span className="text-[#F06470] font-bold text-xs">
-                                🔒 BLOCKED (3 Failed Transfer Password Attempts)
-                              </span>
-                            ) : (
-                              <span className="text-[#27C58B] font-bold text-xs">
-                                🔓 ACTIVE (Transfers Allowed)
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Column 2: Uploaded Ticket Document Submission */}
-                      <div className="p-4 rounded-xl bg-[#080D19] border border-[#25344A] space-y-3">
-                        <div className="flex items-center justify-between border-b border-[#25344A]/80 pb-2">
-                          <span className="font-bold text-[#A7B4C8] uppercase tracking-wider flex items-center gap-1.5 text-[11px]">
-                            <FileText className="w-4 h-4 text-[#29C5D9]" />
-                            <span>2. Ticket Submission &amp; Documents</span>
-                          </span>
-                          <span className="text-[10px] text-[#A7B4C8] bg-[#152238] px-2 py-0.5 rounded font-mono">
-                            {hasSubmission ? 'Submitted by User' : 'Awaiting Submission'}
-                          </span>
-                        </div>
-
-                        {hasSubmission ? (
-                          <div className="space-y-2 text-xs">
-                            <div className="pb-1 border-b border-[#25344A]/60 flex items-center justify-between">
-                              <span className="text-[10px] text-[#71819A] uppercase font-bold">Submitted National ID</span>
-                              <span className="font-mono font-bold text-[#29C5D9]">{submittedId}</span>
-                            </div>
-
-                            {/* Document Photos Front & Back */}
-                            <div className="grid grid-cols-2 gap-2 pt-1">
-                              {/* Front side photo */}
-                              <div>
-                                <span className="text-[10px] text-[#71819A] block uppercase font-bold mb-1">ID Front Image</span>
-                                {selectedCase.identity_verification?.document_front_url ? (
-                                  <div
-                                    onClick={() => setZoomedImage(selectedCase.identity_verification?.document_front_url || null)}
-                                    className="relative group cursor-pointer border border-[#25344A] rounded-lg overflow-hidden bg-[#101A2B] h-24 flex items-center justify-center"
-                                  >
-                                    <img
-                                      src={selectedCase.identity_verification.document_front_url}
-                                      alt="ID Front"
-                                      className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform"
-                                    />
-                                    <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                      <Eye className="w-5 h-5 text-white" />
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="h-24 rounded-lg bg-[#101A2B] border border-[#25344A] flex items-center justify-center text-[10px] text-[#71819A]">
-                                    No front photo
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Back side photo */}
-                              <div>
-                                <span className="text-[10px] text-[#71819A] block uppercase font-bold mb-1">ID Back Image</span>
-                                {selectedCase.identity_verification?.document_back_url ? (
-                                  <div
-                                    onClick={() => setZoomedImage(selectedCase.identity_verification?.document_back_url || null)}
-                                    className="relative group cursor-pointer border border-[#25344A] rounded-lg overflow-hidden bg-[#101A2B] h-24 flex items-center justify-center"
-                                  >
-                                    <img
-                                      src={selectedCase.identity_verification.document_back_url}
-                                      alt="ID Back"
-                                      className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform"
-                                    />
-                                    <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                      <Eye className="w-5 h-5 text-white" />
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="h-24 rounded-lg bg-[#101A2B] border border-[#25344A] flex items-center justify-center text-[10px] text-[#71819A]">
-                                    No back photo
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="p-6 text-center text-xs text-[#71819A] space-y-2 bg-[#101A2B] rounded-lg border border-[#25344A]">
-                            <AlertTriangle className="h-6 w-6 mx-auto text-[#F4B942]" />
-                            <p className="text-[#F4F7FC] font-semibold">No ID Submitted Yet</p>
-                            <p className="text-[11px]">
-                              Ask the customer in the chat below to upload their National ID card to verify their identity.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* REVIEWER DECISION & AUDIT TRAIL CONTROLS (Role-Aware) */}
-                    {isAuditAdmin ? (
-                      <div className="p-4 rounded-xl bg-[#29C5D9]/10 border border-[#29C5D9]/30 text-xs space-y-2">
-                        <div className="flex items-center gap-2 text-[#29C5D9] font-bold">
-                          <ShieldCheck className="w-4 h-4" />
-                          <span>Audit Admin Responsibility — Inspection &amp; Live Messaging</span>
-                        </div>
-                        <p className="text-[11px] text-[#A7B4C8] leading-relaxed">
-                          Audit Admins have read-only inspection access for identity records and direct customer messaging responsibility via the live chat below. Formal identity verification decisions and transfer access restorations are reserved for Administrators.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="p-4 rounded-xl bg-[#080D19] border border-[#25344A] space-y-3 text-xs">
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8]">
-                          Compliance Reviewer Notes &amp; Audit Rationale
-                        </label>
-                        <input
-                          type="text"
-                          value={reviewerNotes}
-                          onChange={(e) => setReviewerNotes(e.target.value)}
-                          placeholder="e.g. Identity verified against government records. Document is genuine."
-                          className="w-full px-3.5 py-2 bg-[#101A2B] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#29C5D9]"
-                        />
-
-                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              disabled={isVerifying}
-                              onClick={() => handleVerifyIdentityDecision('REJECTED')}
-                              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#F06470]/20 hover:bg-[#F06470]/30 text-[#F06470] border border-[#F06470]/40 text-xs font-bold transition-colors cursor-pointer"
-                            >
-                              <XCircle className="w-4 h-4" />
-                              <span>Reject Submission</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              disabled={isVerifying}
-                              onClick={() => handleVerifyIdentityDecision('VERIFIED')}
-                              className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#27C58B] hover:bg-[#27C58B]/90 text-slate-950 text-xs font-black shadow-md shadow-emerald-500/25 cursor-pointer"
-                            >
-                              <CheckCircle2 className="w-4 h-4 stroke-[3]" />
-                              <span>Approve &amp; Mark Verified</span>
-                            </button>
-                          </div>
-
-                          {/* Quick Transfer Access Restoration Button right in the verification card */}
-                          {selectedCase.transfer_blocked && canRestoreTransfer && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setRestoreError(null);
-                                setRestoreSuccess(null);
-                                setIsRestoreModalOpen(true);
-                              }}
-                              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#27C58B] to-[#29C5D9] hover:opacity-90 text-slate-950 text-xs font-black shadow-md shadow-cyan-500/20 cursor-pointer"
-                            >
-                              <RotateCcw className="w-4 h-4 stroke-[2.5]" />
-                              <span>Restore Transfer Access</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
+              {/* Workspace Header */}
+              <div className="p-4 sm:p-5 border-b border-[#E0DDD6] flex items-center justify-between gap-3 bg-[#F4F1EC]/50">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-mono font-bold text-[#002D72]">
+                      #{selectedCase.ticket_number || selectedCase.ticket_id}
+                    </span>
+                    <StatusBadge status={selectedCase.status} />
+                    <span className="px-2 py-0.5 rounded-[6px] bg-[#E2E8F0] text-[#334155] font-bold text-[10px] uppercase">
+                      {selectedCase.priority || 'HIGH'}
+                    </span>
+                    {isTransferBlocked && (
+                      <span className="px-2 py-0.5 rounded-[6px] bg-rose-100 text-rose-800 font-bold text-[10px] uppercase border border-rose-200">
+                        Transfer Hold Active
+                      </span>
                     )}
                   </div>
-                );
-              })()}
-
-              {/* Card 3: WhatsApp-Style Staff-Customer Conversation */}
-              <div className="omerta-card flex flex-col justify-between overflow-hidden min-h-[440px]">
-                <div className="p-3.5 border-b border-[#25344A] bg-[#101A2B] flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4 text-[#3978F6]" />
-                    <span className="font-bold text-[#F4F7FC]">Direct Customer Dialogue</span>
-                  </div>
-                  <span className="text-[10px] text-[#29C5D9] font-mono">Live Sync Active</span>
+                  <h3 className="text-sm font-bold text-[#002D72]">
+                    {selectedCase.subject}
+                  </h3>
+                  <p className="text-xs text-[#64748B]">
+                    Customer:{' '}
+                    <span className="font-semibold text-[#0F172A]">
+                      {selectedCase.customer_name || selectedCase.customer?.name}
+                    </span>{' '}
+                    (
+                    <span className="font-mono font-medium text-[#002D72]">
+                      {selectedCase.omerta_user_number || selectedCase.customer?.omerta_user_number || selectedCase.customer_id}
+                    </span>
+                    )
+                    {selectedCase.customer?.email && (
+                      <span className="ml-2 text-[#94A3B8]">· {selectedCase.customer.email}</span>
+                    )}
+                  </p>
                 </div>
 
-                {/* Message Stream */}
-                <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-[#0b141a]/90 max-h-[360px]">
-                  {/* Fallback initial inquiry bubble if messages array is empty */}
-                  {(!selectedCase.messages || selectedCase.messages.length === 0) && selectedCase.description && (
-                    <div className="flex justify-start items-end gap-2">
-                      <div className="w-7 h-7 rounded-full bg-[#182229] border border-[#3978F6]/40 text-[#3978F6] flex items-center justify-center shrink-0 font-bold text-[11px]">
-                        {selectedCase.customer_name?.charAt(0) || 'C'}
-                      </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {canRestoreTransfer && (
+                    <Button
+                      onClick={() => setIsRestoreModalOpen(true)}
+                      variant="primary"
+                      size="sm"
+                      className="text-xs h-8 px-3 shadow-xs"
+                    >
+                      <Unlock className="w-3.5 h-3.5 mr-1" />
+                      <span>Unlock Transfers</span>
+                    </Button>
+                  )}
+                  {selectedCase.status !== 'RESOLVED' && selectedCase.status !== 'CLOSED' ? (
+                    <Button
+                      onClick={() => handleResolveCase('RESOLVED')}
+                      variant="emerald"
+                      size="sm"
+                      className="text-xs h-8 px-3"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                      <span>Resolve</span>
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => handleResolveCase('OPEN')}
+                      variant="secondary"
+                      size="sm"
+                      className="text-xs h-8 px-3"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                      <span>Reopen</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
 
-                      <div className="max-w-md rounded-2xl rounded-tl-xs bg-[#202c33] border border-[#25344A] text-xs p-3 space-y-1 shadow-md text-[#F4F7FC]">
-                        <div className="flex items-center justify-between gap-2 text-[10px] text-[#3978F6] font-bold">
-                          <span>{selectedCase.customer_name || 'Customer'} (Inquiry)</span>
-                          <span className="text-white/60 font-mono text-[9px]">
-                            {new Date(selectedCase.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        <p className="text-[#F4F7FC] leading-relaxed whitespace-pre-wrap text-[11px]">{selectedCase.description}</p>
-                      </div>
+              {/* ID Verification Panel (If customer submitted documents or transfer blocked) */}
+              {hasIdDoc && (
+                <div className="p-4 bg-[#FFF9E6] border-b border-[#FFE082] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-[#002D72]" />
+                      <span className="text-xs font-bold text-[#002D72] uppercase tracking-wider">
+                        Identity Verification Documents
+                      </span>
+                      {nationalIdNum && (
+                        <span className="font-mono text-xs font-semibold text-[#64748B]">
+                          ID: {nationalIdNum}
+                        </span>
+                      )}
+                    </div>
+                    <StatusBadge status={idStatus} />
+                  </div>
+
+                  {verifySuccess && (
+                    <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-300 text-xs font-bold text-emerald-800 flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-600" />
+                      <span>{verifySuccess}</span>
                     </div>
                   )}
 
-                  {/* Messages */}
-                  {selectedCase.messages?.map((msg: SupportMessageItem) => {
-                    const isStaff = msg.sender_role !== 'CUSTOMER' && msg.sender_role !== 'SYSTEM';
-                    const isSystem = msg.sender_role === 'SYSTEM';
+                  {verifyError && (
+                    <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-300 text-xs font-bold text-rose-800 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-rose-600" />
+                      <span>{verifyError}</span>
+                    </div>
+                  )}
 
-                    if (isSystem) {
-                      return (
-                        <div key={msg.id} className="flex justify-center my-2">
-                          <div className="px-3.5 py-1.5 rounded-full bg-[#182229] border border-[#25344A] text-[10px] font-mono text-[#A7B4C8] flex items-center gap-1.5 shadow-sm">
-                            <ShieldCheck className="w-3.5 h-3.5 text-[#27C58B]" />
-                            <span>{msg.message_text}</span>
-                          </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {idFrontUrl ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[10px] font-bold uppercase text-[#64748B]">
+                          <span>National ID (Front)</span>
+                          <span className="text-[#002D72] cursor-pointer hover:underline" onClick={() => setZoomedImage(idFrontUrl)}>
+                            Enlarge
+                          </span>
                         </div>
-                      );
-                    }
+                        <img
+                          src={idFrontUrl}
+                          alt="ID Front"
+                          onClick={() => setZoomedImage(idFrontUrl)}
+                          className="h-24 w-full object-cover rounded-[8px] border border-[#E0DDD6] cursor-pointer hover:opacity-95 shadow-xs transition-opacity"
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded-lg bg-white/70 border border-amber-200 text-xs text-amber-900 font-medium flex items-center justify-center">
+                        Front document awaiting upload
+                      </div>
+                    )}
 
-                    const imageUrls = msg.attachment_url?.split('|||').filter(Boolean) || [];
+                    {idBackUrl ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[10px] font-bold uppercase text-[#64748B]">
+                          <span>National ID (Back)</span>
+                          <span className="text-[#002D72] cursor-pointer hover:underline" onClick={() => setZoomedImage(idBackUrl)}>
+                            Enlarge
+                          </span>
+                        </div>
+                        <img
+                          src={idBackUrl}
+                          alt="ID Back"
+                          onClick={() => setZoomedImage(idBackUrl)}
+                          className="h-24 w-full object-cover rounded-[8px] border border-[#E0DDD6] cursor-pointer hover:opacity-95 shadow-xs transition-opacity"
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded-lg bg-white/70 border border-amber-200 text-xs text-amber-900 font-medium flex items-center justify-center">
+                        Back document optional/pending
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <Button
+                      onClick={() => handleVerifyIdentity('REJECTED')}
+                      variant="danger"
+                      size="sm"
+                      disabled={isVerifying}
+                      className="h-7.5 text-xs px-3"
+                    >
+                      <X className="w-3.5 h-3.5 mr-1" />
+                      <span>Reject ID</span>
+                    </Button>
+                    <Button
+                      onClick={() => handleVerifyIdentity('VERIFIED')}
+                      variant="emerald"
+                      size="sm"
+                      disabled={isVerifying}
+                      className="h-7.5 text-xs px-3 shadow-xs"
+                    >
+                      <Check className="w-3.5 h-3.5 mr-1" />
+                      <span>Approve ID Document</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Chat Thread Messages */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 bg-[#FAF9F6]">
+                {selectedCase.messages && selectedCase.messages.length > 0 ? (
+                  selectedCase.messages.map((m) => {
+                    const isStaff = m.sender_role !== 'CUSTOMER';
+                    const imageUrls = m.attachment_url?.split('|||').filter(Boolean) || [];
 
                     return (
                       <div
-                        key={msg.id}
-                        className={`flex items-end gap-2 ${isStaff ? 'justify-end' : 'justify-start'}`}
+                        key={m.id || m.message_id}
+                        className={`flex flex-col ${isStaff ? 'items-end' : 'items-start'}`}
                       >
-                        {!isStaff && (
-                          <div className="w-7 h-7 rounded-full bg-[#182229] border border-[#3978F6]/40 text-[#3978F6] flex items-center justify-center shrink-0 font-bold text-[11px]">
-                            {msg.sender_name?.charAt(0) || 'C'}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1.5 mb-0.5 text-[10px] text-[#64748B]">
+                          <span className="font-bold text-[#002D72]">
+                            {isStaff ? (m.sender_name || 'Compliance Officer') : (selectedCase.customer_name || 'Customer')}
+                          </span>
+                          <span>•</span>
+                          <span className="font-mono">
+                            {m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                          </span>
+                        </div>
 
                         <div
-                          className={`max-w-md rounded-2xl text-xs shadow-lg transition-all overflow-hidden ${
+                          className={`p-3 rounded-[12px] max-w-md text-xs leading-relaxed ${
                             isStaff
-                              ? 'rounded-tr-xs bg-[#005c4b] text-white'
-                              : 'rounded-tl-xs bg-[#202c33] border border-[#25344A] text-[#F4F7FC]'
+                              ? 'bg-[#002D72] text-white rounded-br-none shadow-sm'
+                              : 'bg-white text-[#0F172A] rounded-bl-none border border-[#E0DDD6] shadow-xs'
                           }`}
                         >
-                          {/* Top Sender Bar */}
-                          <div className="px-3.5 pt-2 pb-1 flex items-center justify-between gap-3 text-[10px]">
-                            <span
-                              className={`font-bold flex items-center gap-1 ${
-                                isStaff ? 'text-[#29C5D9]' : 'text-[#3978F6]'
-                              }`}
-                            >
-                              {isStaff ? (
-                                <ShieldCheck className="w-3.5 h-3.5 text-[#27C58B]" />
-                              ) : (
-                                <UserCheck className="w-3.5 h-3.5 text-[#3978F6]" />
-                              )}
-                              {msg.sender_name} {isStaff && `[${msg.sender_role}]`}
-                            </span>
-                            <span className="text-white/60 text-[9px] font-mono">
-                              {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
+                          <p className="whitespace-pre-wrap">{m.message_text}</p>
 
-                          {/* Multi-Photo Grid (WhatsApp Style) */}
-                          {renderPhotoGrid(imageUrls)}
-
-                          {/* Message Caption / Text */}
-                          {msg.message_text && (
-                            <div className="px-3.5 pb-2 pt-0.5">
-                              <p className="leading-relaxed whitespace-pre-wrap text-[11px]">{msg.message_text}</p>
-                            </div>
-                          )}
-
-                          {/* Bottom Metadata & Double Checkmarks */}
-                          {isStaff && (
-                            <div className="px-3 pb-1.5 flex justify-end items-center gap-1 text-[9px] text-[#29C5D9]">
-                              <CheckCheck className="w-3.5 h-3.5 text-[#29C5D9]" />
+                          {/* Attachments */}
+                          {imageUrls.length > 0 && (
+                            <div className="mt-2 grid grid-cols-2 gap-2 pt-2 border-t border-white/20">
+                              {imageUrls.map((att: string, idx: number) => (
+                                <img
+                                  key={idx}
+                                  src={att}
+                                  alt="Attachment"
+                                  onClick={() => setZoomedImage(att)}
+                                  className="h-16 w-full object-cover rounded-[6px] cursor-pointer hover:opacity-90 transition-opacity"
+                                />
+                              ))}
                             </div>
                           )}
                         </div>
-
-                        {isStaff && (
-                          <div className="w-7 h-7 rounded-full bg-[#182229] border border-[#27C58B]/40 text-[#27C58B] flex items-center justify-center shrink-0">
-                            <ShieldCheck className="w-4 h-4" />
-                          </div>
-                        )}
                       </div>
                     );
-                  })}
-                  <div ref={messagesEndRef} />
-                </div>
-
-                {/* Staff Reply Bar */}
-                <div className="p-3.5 border-t border-[#25344A] bg-[#101A2B]">
-                  {/* Multi-attachment preview strip */}
-                  {staffAttachments.length > 0 && (
-                    <div className="mb-2.5 flex items-center gap-2 overflow-x-auto pb-1">
-                      {staffAttachments.map((att, idx) => (
-                        <div
-                          key={idx}
-                          className="relative group rounded-lg border border-[#25344A] bg-[#080D19] p-1 flex items-center gap-1.5 shrink-0"
-                        >
-                          <img
-                            src={att.url}
-                            alt={att.name}
-                            onClick={() => setZoomedImage(att.url)}
-                            className="h-10 w-14 object-cover rounded cursor-pointer"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setStaffAttachments((prev) => prev.filter((_, i) => i !== idx))}
-                            className="p-1 text-[#F06470] hover:bg-[#F06470]/20 rounded-full transition-colors cursor-pointer"
-                            title="Remove image"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                      <span className="text-[10px] text-[#A7B4C8]">
-                        {staffAttachments.length} photo(s) attached
-                      </span>
-                    </div>
-                  )}
-
-                  <form onSubmit={handleSendStaffMessage} className="flex items-center gap-2">
-                    <label
-                      title="Attach verification documents or photos"
-                      className="p-2.5 rounded-xl bg-[#152238] hover:bg-[#1B2B43] border border-[#25344A] text-[#A7B4C8] hover:text-[#F4F7FC] cursor-pointer transition-colors"
-                    >
-                      <Paperclip className="w-4 h-4" />
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleMultiStaffFiles}
-                      />
-                    </label>
-
-                    <input
-                      type="text"
-                      value={staffMessage}
-                      onChange={(e) => setStaffMessage(e.target.value)}
-                      placeholder="Reply as Compliance Officer..."
-                      className="flex-1 px-4 py-2.5 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6]"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isSending || (!staffMessage.trim() && staffAttachments.length === 0)}
-                      className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#3978F6] hover:bg-[#3978F6]/90 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/25 cursor-pointer"
-                    >
-                      <Send className="w-4 h-4" />
-                      <span>Send</span>
-                    </button>
-                  </form>
-                </div>
+                  })
+                ) : (
+                  <div className="py-12 text-center text-xs text-[#64748B] flex flex-col items-center justify-center gap-2">
+                    <LifeBuoy className="w-8 h-8 text-[#CBD5E1]" />
+                    <p className="font-semibold text-[#002D72]">Initial Case Opened</p>
+                    <p className="text-[11px] text-[#94A3B8] max-w-xs">
+                      {selectedCase.description || 'No additional message text provided.'}
+                    </p>
+                  </div>
+                )}
+                <div ref={chatBottomRef} />
               </div>
+
+              {/* Chat Input Bar */}
+              <form onSubmit={handleSendMessage} className="p-3 border-t border-[#E0DDD6] bg-[#F4F1EC]/60 space-y-2">
+                {/* Pending Attachments preview */}
+                {staffAttachments.length > 0 && (
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    {staffAttachments.map((att, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-white border border-[#E0DDD6] text-[11px]"
+                      >
+                        <span className="truncate max-w-[100px] text-[#002D72] font-medium">{att.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setStaffAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-rose-600 hover:text-rose-800 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-10 px-2.5 text-[#64748B] hover:text-[#002D72]"
+                    title="Attach image evidence"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                  </Button>
+
+                  <Input
+                    value={staffMessage}
+                    onChange={(e) => setStaffMessage(e.target.value)}
+                    placeholder="Type official compliance response to customer..."
+                    className="h-10 text-xs flex-1 bg-white"
+                  />
+
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    disabled={isSending || (!staffMessage.trim() && staffAttachments.length === 0)}
+                    className="h-10 px-4 shadow-sm"
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </form>
             </>
           ) : (
-            <div className="omerta-card p-12 text-center text-xs text-[#71819A] space-y-3">
-              <LifeBuoy className="h-12 w-12 mx-auto text-[#71819A]/40" />
-              <h3 className="text-sm font-bold text-[#F4F7FC]">Select a Case from the Queue</h3>
-              <p className="max-w-md mx-auto">
-                Review identity documents, verify customer account ownership, chat in real-time, or restore transfer privileges.
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-[#64748B]">
+              <LifeBuoy className="w-12 h-12 text-[#CBD5E1] mb-2" />
+              <p className="font-bold text-[#002D72] text-sm">Select a Case from the List</p>
+              <p className="text-xs text-[#64748B] max-w-sm mt-1">
+                View customer support inquiries, inspect uploaded verification documents, or send live compliance responses.
               </p>
             </div>
           )}
-        </div>
+        </Card>
       </div>
 
-      {/* MODAL: CONFIRM RESTORE TRANSFER ACCESS */}
+      {/* MODAL 1: RESTORE TRANSFER PRIVILEGES */}
       {isRestoreModalOpen && selectedCase && (
         <Modal
           isOpen={isRestoreModalOpen}
           onClose={() => setIsRestoreModalOpen(false)}
-          title="Restore Transfer Access"
-          subtitle={`Confirmation for customer ${selectedCase.customer_name} (${selectedCase.omerta_user_number})`}
+          title="Restore Transfer Privileges"
+          subtitle={`Customer: ${selectedCase.customer_name || selectedCase.customer?.name} (${selectedCase.omerta_user_number || selectedCase.customer?.omerta_user_number || selectedCase.customer_id})`}
           maxWidth="md"
         >
-          <form onSubmit={handleRestoreTransferAccess} className="space-y-4 text-xs">
-            {restoreSuccess ? (
-              <div className="p-4 rounded-xl bg-[#27C58B]/10 border border-[#27C58B]/30 text-[#27C58B] flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 shrink-0 stroke-[2.5]" />
-                <div className="space-y-0.5">
-                  <p className="font-bold text-white text-sm">Transfer Privileges Restored!</p>
-                  <p className="text-xs text-[#27C58B]/90">{restoreSuccess}</p>
-                </div>
+          <div className="space-y-4 text-xs">
+            {restoreSuccess && (
+              <div className="p-3 bg-[#ECFDF5] border border-[#A7F3D0] rounded-[10px] text-[#065F46] flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#10B981]" />
+                <span className="font-semibold">{restoreSuccess}</span>
               </div>
-            ) : (
-              <>
-                {restoreError && (
-                  <div className="p-3 rounded-xl bg-[#F06470]/10 border border-[#F06470]/30 text-xs text-[#F06470] flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                    <span>{restoreError}</span>
-                  </div>
-                )}
-
-                <div className="p-4 rounded-xl bg-[#27C58B]/10 border border-[#27C58B]/30 text-[#27C58B] flex items-start gap-3">
-                  <RotateCcw className="w-5 h-5 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="font-bold text-white text-sm">Security Restoration Effect</p>
-                    <p className="text-slate-300 leading-relaxed text-[11px]">
-                      Restoring transfer privileges will reset the 3-strike failed attempt counter and enable the customer to set a new transfer password on their next transfer attempt.
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-1">
-                    Compliance Restoration Rationale
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={restoreReason}
-                    onChange={(e) => setRestoreReason(e.target.value)}
-                    placeholder="State reason for restoring access"
-                    className="w-full px-3.5 py-2.5 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#27C58B]"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-3 pt-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsRestoreModalOpen(false)}
-                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isRestoring}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#27C58B] hover:bg-[#27C58B]/90 disabled:opacity-50 text-slate-950 font-black shadow-lg shadow-emerald-500/25 cursor-pointer"
-                  >
-                    {isRestoring ? (
-                      <span>Restoring...</span>
-                    ) : (
-                      <>
-                        <RotateCcw className="w-4 h-4 stroke-[3]" />
-                        <span>Confirm &amp; Restore Access</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </>
             )}
-          </form>
+            {restoreError && (
+              <div className="p-3 bg-[#FEF2F2] border border-[#FECACA] rounded-[10px] text-[#991B1B]">
+                {restoreError}
+              </div>
+            )}
+
+            <div className="p-3.5 rounded-[10px] bg-[#EBF3FC] border border-[#BFDBFE] text-[#002D72] flex items-start gap-2.5">
+              <ShieldCheck className="w-5 h-5 text-[#002D72] shrink-0 mt-0.5" />
+              <p className="text-xs leading-relaxed text-[#475569]">
+                This action unlocks the customer account, resets security holds, and flags their portal to set a new Transfer Password.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569]">
+                Audit Reason &amp; Authorization
+              </label>
+              <textarea
+                rows={3}
+                value={restoreReason}
+                onChange={(e) => setRestoreReason(e.target.value)}
+                className="w-full bg-white border border-[#E0DDD6] rounded-[10px] p-3 text-xs text-[#0F172A] outline-none focus:border-[#1E88E5]"
+                required
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsRestoreModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handleRestoreTransfers}
+                isLoading={isRestoring}
+              >
+                <Unlock className="w-4 h-4 mr-1.5" />
+                <span>Confirm Restoration</span>
+              </Button>
+            </div>
+          </div>
         </Modal>
       )}
 
-      {/* MODAL: IMAGE ZOOM PREVIEW */}
+      {/* MODAL 2: IMAGE ZOOM */}
       {zoomedImage && (
         <Modal
           isOpen={Boolean(zoomedImage)}
           onClose={() => setZoomedImage(null)}
-          title="Document &amp; Photo Full View"
-          maxWidth="lg"
+          title="Document Inspection Viewer"
+          maxWidth="4xl"
         >
-          <div className="flex flex-col items-center justify-center p-2 space-y-4">
-            <div className="max-h-[75vh] overflow-auto rounded-xl border border-[#25344A] bg-[#080D19] p-2 flex items-center justify-center w-full">
-              <img
-                src={zoomedImage}
-                alt="Zoomed Document"
-                className="max-h-[70vh] w-auto object-contain rounded-lg shadow-2xl"
-              />
-            </div>
-            <div className="flex items-center justify-between w-full text-xs text-[#A7B4C8]">
-              <span>Click outside or Close to exit full preview</span>
-              <a
-                href={zoomedImage}
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-1.5 rounded-lg bg-[#152238] hover:bg-[#1A2D4A] text-[#29C5D9] font-bold border border-[#29C5D9]/30 transition-colors"
-              >
-                Open Original in New Tab
-              </a>
-            </div>
+          <div className="flex justify-center p-2">
+            <img
+              src={zoomedImage}
+              alt="Enlarged Document"
+              className="max-h-[75vh] w-auto rounded-[10px] shadow-lg object-contain"
+            />
           </div>
         </Modal>
       )}

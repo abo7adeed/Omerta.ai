@@ -160,8 +160,9 @@ export type IdentityVerificationStatus = 'NOT_VERIFIED' | 'PENDING' | 'PENDING_R
 
 export interface SupportMessageItem {
   id: number;
-  ticket_id: number;
-  sender_user_id: number | null;
+  message_id?: string;
+  ticket_id?: number;
+  sender_user_id?: number | null;
   sender_name: string;
   sender_role: MessageSenderRole;
   message_text: string;
@@ -169,29 +170,32 @@ export interface SupportMessageItem {
   attachment_name?: string | null;
   attachment_type?: string;
   is_internal_note?: boolean;
+  is_read?: boolean;
   created_at: string;
 }
 
 export interface IdentityVerificationItem {
   id: number;
-  ticket_id: number;
-  customer_id: number;
+  verification_id?: string;
+  ticket_id?: number;
+  customer_id?: number;
   national_id_number: string;
   document_type: string;
   document_front_url: string;
   document_back_url?: string | null;
   status: IdentityVerificationStatus;
+  verification_status?: IdentityVerificationStatus;
   reviewed_by_user_id?: number | null;
   reviewer_notes?: string | null;
   reviewed_at?: string | null;
-  created_at: string;
+  created_at?: string;
 }
 
 export interface SupportTicketItem {
   id: number;
   ticket_id?: string;
   ticket_number: string;
-  customer_id: number;
+  customer_id?: number;
   customer_name?: string;
   customer_email?: string;
   omerta_user_number?: string;
@@ -200,6 +204,7 @@ export interface SupportTicketItem {
   issue_type: TicketIssueType;
   ticket_type?: string;
   requires_identity_verification?: boolean;
+  has_pending_id_verification?: boolean;
   subject: string;
   description: string;
   status: TicketStatus;
@@ -216,6 +221,7 @@ export interface SupportTicketItem {
   messages_count?: number;
   messages?: SupportMessageItem[];
   identity_verification?: IdentityVerificationItem | null;
+  identity_verifications?: IdentityVerificationItem[];
   customer?: {
     id?: string | null;
     name?: string | null;
@@ -269,8 +275,16 @@ export interface CustomerItem {
 export interface DeviceItem {
   id: number;
   external_id: string;
+  device_id?: string;
   device_type: string;
   platform: string;
+  browser?: string;
+  model?: string;
+  user_agent?: string;
+  user_name?: string;
+  user_names?: string[];
+  user_roles?: string[];
+  is_active_now?: boolean;
   is_emulator: boolean;
   is_rooted: boolean;
   session_count?: number;
@@ -278,10 +292,15 @@ export interface DeviceItem {
   account_count?: number;
   is_shared?: boolean;
   risk_level?: RiskLevel | string;
+  risk_score?: number;
   status?: string;
+  ip_address?: string;
+  location?: string;
+  screen_resolution?: string;
   first_seen?: string;
   first_seen_at?: string;
   last_seen?: string;
+  last_seen_at?: string;
 }
 
 export interface CaseItem {

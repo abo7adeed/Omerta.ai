@@ -42,9 +42,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#080D19] flex flex-col items-center justify-center text-[#A7B4C8]">
-        <div className="w-8 h-8 border-2 border-[#29C5D9] border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-sm font-medium text-[#F4F7FC]">Authenticating Omerta.ai Session...</p>
+      <div className="min-h-screen bg-[#FFF8E1] flex flex-col items-center justify-center text-[#002D72]">
+        <div className="w-9 h-9 border-3 border-[#002D72] border-t-[#F9A825] rounded-full animate-spin mb-4" />
+        <p className="text-xs font-bold uppercase tracking-wider text-[#002D72]">
+          Authenticating Omerta.ai Session...
+        </p>
       </div>
     );
   }

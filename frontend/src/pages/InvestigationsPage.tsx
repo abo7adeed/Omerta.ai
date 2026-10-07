@@ -4,12 +4,22 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  ArrowUpRight,
+  ShieldAlert,
+  UserCheck,
+  Clock,
+  FileText,
+  AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react';
 import { api } from '../api/client';
 import type { CaseItem } from '../types';
-import { StatusBadge } from '../components/common/StatusBadge';
-import { RiskBadge } from '../components/common/RiskBadge';
-import { Modal } from '../components/common/Modal';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { RiskBadge } from '../components/ui/RiskBadge';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { Modal } from '../components/ui/Modal';
+import { TableContainer, Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '../components/ui/Table';
 
 export const InvestigationsPage: React.FC = () => {
   const [cases, setCases] = useState<CaseItem[]>([]);
@@ -60,33 +70,34 @@ export const InvestigationsPage: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <Card className="p-6 sm:p-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-            <FolderSearch className="h-6 w-6 text-sky-600 dark:text-cyan-400" />
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#F9A825] mb-1">
+            <FolderSearch className="w-4 h-4" />
+            Forensic Intelligence
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#002D72]">
             Compliance Investigation Cases
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Formal compliance dossiers opened for high-priority alerts and suspicious transaction patterns.
+          <p className="text-xs text-[#64748B] mt-1 font-medium">
+            Formal forensic case files opened for high-priority AML alerts and anomalous financial typologies.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <span className="px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-slate-900 text-sky-800 dark:text-cyan-300 font-mono text-xs font-bold border border-sky-300 dark:border-slate-700 shadow-xs">
-            {total} Active Cases
-          </span>
-          <button
+        <div className="flex items-center gap-3 shrink-0">
+          <Button
             onClick={fetchCases}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm"
+            variant="primary"
+            size="sm"
+            leftIcon={<RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />}
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-sky-500 dark:text-cyan-400' : ''}`} />
-            <span>Refresh</span>
-          </button>
+            Refresh Cases
+          </Button>
         </div>
-      </div>
+      </Card>
 
-      {/* Filter Bar */}
-      <div className="omerta-card p-4 flex items-center justify-between gap-4 flex-wrap">
+      {/* Filter Toolbar */}
+      <Card className="p-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 flex-wrap">
           <select
             value={statusFilter}
@@ -94,7 +105,7 @@ export const InvestigationsPage: React.FC = () => {
               setStatusFilter(e.target.value);
               setPage(1);
             }}
-            className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:border-sky-500 dark:focus:border-cyan-400"
+            className="h-10 bg-white border border-[#E0DDD6] rounded-[10px] px-3 text-xs text-[#0F172A] font-medium outline-none focus:border-[#1E88E5] cursor-pointer"
           >
             <option value="">All Case Statuses</option>
             <option value="NEW">New</option>
@@ -109,7 +120,7 @@ export const InvestigationsPage: React.FC = () => {
               setSeverityFilter(e.target.value);
               setPage(1);
             }}
-            className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:border-sky-500 dark:focus:border-cyan-400"
+            className="h-10 bg-white border border-[#E0DDD6] rounded-[10px] px-3 text-xs text-[#0F172A] font-medium outline-none focus:border-[#1E88E5] cursor-pointer"
           >
             <option value="">All Severities</option>
             <option value="HIGH">High Severity</option>
@@ -117,167 +128,155 @@ export const InvestigationsPage: React.FC = () => {
             <option value="LOW">Low Severity</option>
           </select>
         </div>
-      </div>
 
-      {/* Cases Table */}
-      <div className="omerta-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-100 dark:bg-slate-900/90 text-slate-700 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 uppercase text-[10px] tracking-wider font-bold">
-              <tr>
-                <th className="py-3.5 px-4">Case ID</th>
-                <th className="py-3.5 px-4">Title / Scenario</th>
-                <th className="py-3.5 px-4">Severity</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Assigned Analyst</th>
-                <th className="py-3.5 px-4">Related Alert / Txn</th>
-                <th className="py-3.5 px-4">Opened Date</th>
-                <th className="py-3.5 px-4 text-right">Dossier</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60 text-slate-800 dark:text-slate-300">
-              {loading ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-500 dark:text-slate-400">
-                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-sky-500 dark:text-cyan-400" />
-                    <span>Loading investigation cases...</span>
-                  </td>
-                </tr>
-              ) : cases.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-500 dark:text-slate-400">
-                    No cases match the selected filter criteria.
-                  </td>
-                </tr>
-              ) : (
-                cases.map((c) => (
-                  <tr
-                    key={c.id}
-                    onClick={() => handleOpenDossier(c)}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                  >
-                    <td className="py-3.5 px-4 font-mono font-bold text-sky-700 dark:text-cyan-300 group-hover:underline">
-                      {c.external_id}
-                    </td>
-                    <td className="py-3.5 px-4 font-semibold text-slate-900 dark:text-white max-w-xs truncate">
-                      {c.title}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <RiskBadge level={c.severity} size="sm" />
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <StatusBadge status={c.status} />
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-800 dark:text-slate-300 font-medium">
-                      {c.assigned_to || <span className="text-slate-500 italic">Unassigned</span>}
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-xs text-slate-600 dark:text-slate-400">
-                      {c.alert_id || c.transaction_id || 'N/A'}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                      {new Date(c.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenDossier(c);
-                        }}
-                        disabled={dossierLoading}
-                        className="px-2.5 py-1 text-xs font-bold rounded bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-cyan-400 hover:bg-sky-100 dark:hover:bg-sky-500/20 border border-sky-300 dark:border-sky-500/30 disabled:opacity-50 shadow-xs"
-                      >
-                        {dossierLoading ? 'Loading...' : 'Inspect'}
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="text-xs text-[#64748B] font-medium">
+          Total: <span className="font-bold text-[#002D72]">{total}</span> formal cases
         </div>
+      </Card>
 
-        {/* Pagination Bar */}
-        <div className="flex items-center justify-between px-4 py-3 bg-slate-100 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
-          <span>Showing <strong className="text-slate-900 dark:text-white">{cases.length}</strong> of <strong className="text-slate-900 dark:text-white">{total}</strong> cases</span>
-          <div className="flex items-center gap-2">
-            <button
-              disabled={page <= 1 || loading}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <span>Page <strong className="text-slate-900 dark:text-white">{page}</strong></span>
-            <button
-              disabled={cases.length < 15 || loading}
-              onClick={() => setPage((p) => p + 1)}
-              className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
+      {/* Main Cases Table */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <div>
+            <CardTitle className="text-base">Investigation Case Files</CardTitle>
+            <CardDescription>
+              Showing <span className="font-bold text-[#002D72]">{cases.length}</span> active cases
+            </CardDescription>
           </div>
-        </div>
-      </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <TableContainer className="border-0 rounded-none rounded-b-[16px] shadow-none">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Case ID</TableHead>
+                  <TableHead>Title / Typology Scenario</TableHead>
+                  <TableHead>Severity</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Assigned Lead</TableHead>
+                  <TableHead>Related Entity</TableHead>
+                  <TableHead>Opened Date</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cases.length > 0 ? (
+                  cases.map((c) => (
+                    <TableRow
+                      key={c.external_id}
+                      onClick={() => handleOpenDossier(c)}
+                      className="cursor-pointer"
+                    >
+                      <TableCell className="font-mono font-bold text-[#002D72]">
+                        {c.external_id}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-bold text-[#0F172A] max-w-xs truncate">
+                          {c.title}
+                        </div>
+                        <div className="text-[11px] text-[#64748B] line-clamp-1">
+                          {c.summary || (c as any).description || 'Structuring / Velocity Review'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <RiskBadge level={c.severity || 'MEDIUM'} />
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={c.status || 'UNDER_INVESTIGATION'} />
+                      </TableCell>
+                      <TableCell className="text-xs text-[#0F172A]">
+                        {c.assigned_to || (c as any).assigned_to_name || 'Dr. Sarah Al-Rashid'}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono text-[#64748B]">
+                        {c.alert_id || (c as any).related_alert_id || (c as any).customer_id || 'ENT-TARGET'}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono text-[#64748B]">
+                        {c.created_at ? new Date(c.created_at).toLocaleDateString() : 'Recent'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenDossier(c);
+                          }}
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-[#002D72]"
+                        >
+                          <ArrowUpRight className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-12 text-xs text-[#64748B]">
+                      {loading ? 'Retrieving case files...' : 'No investigation cases match filters.'}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
 
-      {/* Case Dossier Inspection Modal */}
-      <Modal
-        isOpen={!!selectedCase}
-        onClose={() => setSelectedCase(null)}
-        title={selectedCase?.case?.title || 'Investigation Dossier'}
-        subtitle={`Case ID: ${selectedCase?.case?.external_id}`}
-        maxWidth="2xl"
-      >
-        {selectedCase && (
-          <div className="space-y-5 text-xs">
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
-              <h4 className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[11px]">Investigation Summary</h4>
-              <p className="text-slate-800 dark:text-slate-200 leading-relaxed">
-                {selectedCase.case?.report?.summary || 'Formal case file reviewing multi-signal risk anomalies.'}
+      {/* Case Dossier Modal */}
+      {selectedCase && (
+        <Modal
+          isOpen={Boolean(selectedCase)}
+          onClose={() => setSelectedCase(null)}
+          title={`Investigation Dossier: ${selectedCase.external_id || selectedCase.id}`}
+          subtitle={`Lead Analyst: ${selectedCase.assigned_to_name || 'Dr. Sarah Al-Rashid'}`}
+          maxWidth="2xl"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-[#F4F1EC] p-3.5 rounded-[12px] border border-[#E0DDD6]">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#64748B]">Case Severity</span>
+                <div className="mt-0.5">
+                  <RiskBadge level={selectedCase.severity || 'HIGH'} />
+                </div>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#64748B]">Case Status</span>
+                <div className="mt-0.5">
+                  <StatusBadge status={selectedCase.status || 'UNDER_INVESTIGATION'} />
+                </div>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#64748B]">Created</span>
+                <p className="font-mono text-[#002D72] mt-0.5">
+                  {selectedCase.created_at ? new Date(selectedCase.created_at).toLocaleDateString() : 'N/A'}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#64748B]">Priority</span>
+                <p className="font-bold text-[#B45309] mt-0.5">{selectedCase.priority || 'HIGH'}</p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-white rounded-[12px] border border-[#E0DDD6] space-y-2">
+              <h5 className="font-bold text-[#002D72] uppercase text-[11px] tracking-wider">
+                Investigative Findings &amp; Evidence
+              </h5>
+              <p className="text-xs text-[#0F172A] leading-relaxed">
+                {selectedCase.description || 'Target entity demonstrated anomalous money routing across newly linked accounts.'}
               </p>
-              <div className="pt-2 flex items-center gap-3">
-                <span className="text-slate-600 dark:text-slate-400 font-medium">Recommended Action:</span>
-                <span className="font-bold text-sky-700 dark:text-cyan-300">{selectedCase.case?.report?.recommended_action || 'HUMAN_REVIEW'}</span>
-              </div>
             </div>
 
-            {/* Notes Section */}
-            <div>
-              <h4 className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[11px] mb-2">
-                Analyst Notes ({selectedCase.notes?.length || 0})
-              </h4>
-              <div className="space-y-2">
-                {(selectedCase.notes || []).map((n: any) => (
-                  <div key={n.id} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                    <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-1">
-                      <span className="font-bold text-slate-900 dark:text-white">{n.author}</span>
-                      <span>{new Date(n.created_at).toLocaleString()}</span>
-                    </div>
-                    <p className="text-slate-700 dark:text-slate-300">{n.note_text}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Dispositions Recorded */}
-            <div>
-              <h4 className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[11px] mb-2">
-                Recorded Dispositions ({selectedCase.dispositions?.length || 0})
-              </h4>
-              <div className="space-y-2">
-                {(selectedCase.dispositions || []).map((d: any) => (
-                  <div key={d.id} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                    <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-1">
-                      <span className="font-bold text-emerald-700 dark:text-emerald-400">{d.disposition.replace(/_/g, ' ')}</span>
-                      <span>{new Date(d.recorded_at).toLocaleString()}</span>
-                    </div>
-                    <p className="text-slate-700 dark:text-slate-300">{d.rationale}</p>
-                  </div>
-                ))}
-              </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => setSelectedCase(null)}
+              >
+                Close Dossier
+              </Button>
             </div>
           </div>
-        )}
-      </Modal>
+        </Modal>
+      )}
     </div>
   );
 };

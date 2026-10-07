@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Building,
+  Building2,
   User,
   Mail,
   Lock,
@@ -11,8 +11,12 @@ import {
   EyeOff,
   ArrowRight,
   ShieldCheck,
+  KeyRound,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 
 interface CountryOption {
   code: string;
@@ -30,10 +34,6 @@ const COUNTRIES: CountryOption[] = [
   { code: 'US', name: 'United States', flag: '🇺🇸', dialCode: '+1', currency: 'USD', samplePhone: '(555) 234-5678' },
   { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', dialCode: '+44', currency: 'GBP', samplePhone: '7911 123456' },
   { code: 'DE', name: 'Germany', flag: '🇩🇪', dialCode: '+49', currency: 'EUR', samplePhone: '151 12345678' },
-  { code: 'FR', name: 'France', flag: '🇫🇷', dialCode: '+33', currency: 'EUR', samplePhone: '6 12 34 56 78' },
-  { code: 'CA', name: 'Canada', flag: '🇨🇦', dialCode: '+1', currency: 'CAD', samplePhone: '(555) 012-3456' },
-  { code: 'KW', name: 'Kuwait', flag: '🇰🇼', dialCode: '+965', currency: 'KWD', samplePhone: '9123 4567' },
-  { code: 'QA', name: 'Qatar', flag: '🇶🇦', dialCode: '+974', currency: 'QAR', samplePhone: '3312 3456' },
 ];
 
 export const RegisterPage: React.FC = () => {
@@ -73,7 +73,7 @@ export const RegisterPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.device_consent) {
-      setError('You must accept the Banking Terms of Service, Privacy Policy, and Device Security Consent to open an account.');
+      setError('You must accept the Banking Terms of Service and Device Security Consent.');
       return;
     }
     if (!formData.national_id_number.trim()) {
@@ -96,365 +96,265 @@ export const RegisterPage: React.FC = () => {
       setError('Transfer password and confirmation do not match.');
       return;
     }
-    if (formData.transfer_password.length < 6) {
-      setError('Transfer password must be at least 6 characters long.');
+    if (formData.transfer_password.length < 8) {
+      setError('Dedicated transfer password must be at least 8 characters long.');
       return;
     }
-    if (formData.password === formData.transfer_password) {
-      setError('Security Requirement: Transfer password MUST be different from your account login password.');
-      return;
-    }
-
-    const fullPhone = phoneNumber.trim()
-      ? (phoneNumber.startsWith('+') ? phoneNumber.trim() : `${selectedCountry.dialCode} ${phoneNumber.trim()}`)
-      : `${selectedCountry.dialCode} 10${Math.floor(10000000 + Math.random() * 90000000)}`;
 
     setIsLoading(true);
     setError(null);
 
     try {
+      const fullPhone = phoneNumber ? `${selectedCountry.dialCode} ${phoneNumber.trim()}` : '';
       await register({
-        full_name: formData.full_name,
-        email: formData.email,
-        username: formData.username,
-        national_id_number: formData.national_id_number.trim(),
-        password: formData.password,
-        confirm_password: formData.confirm_password,
-        transfer_password: formData.transfer_password,
-        confirm_transfer_password: formData.confirm_transfer_password,
+        ...formData,
         phone: fullPhone,
-        country: selectedCountry.code,
-        preferred_currency: formData.preferred_currency,
-        initial_balance: formData.initial_balance,
-        device_consent: formData.device_consent,
+        country: selectedCountry.name,
       });
       navigate('/customer/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Registration failed. Please check your inputs and try again.');
+      setError(err.message || 'Registration failed. Please check details.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#080D19] text-[#F4F7FC] flex flex-col justify-between relative overflow-hidden font-sans">
-      {/* Subtle Background Glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(57,120,246,0.12),rgba(0,0,0,0))] pointer-events-none" />
-
-      {/* Header Branding */}
-      <header className="px-6 sm:px-8 py-6 flex items-center justify-between relative z-10">
-        <Link to="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#3978F6] to-[#29C5D9] flex items-center justify-center text-slate-950 font-black shadow-lg shadow-cyan-500/20">
-            <Building className="w-5 h-5 stroke-[2.5]" />
+    <div className="min-h-screen bg-[#FFF8E1] flex flex-col justify-between p-4 sm:p-8">
+      {/* Header */}
+      <header className="max-w-6xl w-full mx-auto flex items-center justify-between py-2">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-[10px] bg-[#002D72] text-[#F9A825] flex items-center justify-center shadow-xs">
+            <Building2 className="w-5 h-5 stroke-[2.2]" />
           </div>
           <div>
-            <div className="text-xl font-bold tracking-tight text-[#F4F7FC] flex items-center gap-1.5">
-              Omerta<span className="text-[#29C5D9]">.ai</span>
+            <div className="text-xl font-bold tracking-tight text-[#002D72]">
+              OMERTA<span className="text-[#F9A825]">.AI</span>
             </div>
-            <div className="text-[10px] text-[#A7B4C8] tracking-wider uppercase font-semibold">
-              Digital Banking Intelligence
+            <div className="text-[10px] text-[#64748B] tracking-wider uppercase font-bold">
+              Account Registration &amp; KYC
             </div>
           </div>
-        </Link>
+        </div>
 
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#27C58B] animate-pulse" />
-          <span className="text-xs font-mono text-[#A7B4C8]">System Active</span>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-[8px] bg-white border border-[#E0DDD6]">
+          <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
+          <span className="text-xs font-semibold text-[#002D72]">Instant Verification</span>
         </div>
       </header>
 
-      {/* Main Registration Box */}
-      <main className="flex-1 flex items-center justify-center px-4 py-8 relative z-10">
-        <div className="w-full max-w-xl bg-[#101A2B] border border-[#25344A] rounded-2xl p-6 sm:p-8 space-y-6 shadow-2xl">
-          {/* Brand Header */}
-          <div className="text-center space-y-1.5">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#F4F7FC]">
-              Create Your Banking Account
+      {/* Main Registration Form */}
+      <main className="flex-1 flex items-center justify-center py-8">
+        <Card className="w-full max-w-2xl p-6 sm:p-8 space-y-6 shadow-md">
+          <div className="text-center space-y-1">
+            <h1 className="text-2xl font-bold text-[#002D72] tracking-tight">
+              Open Corporate Banking Account
             </h1>
-            <p className="text-xs text-[#A7B4C8] max-w-md mx-auto">
-              Open your verified account with dual-layer security credentials and instant transfer enablement.
+            <p className="text-xs text-[#64748B] font-medium">
+              Create your financial account with automated AML protection &amp; dedicated transfer keys
             </p>
           </div>
 
           {error && (
-            <div className="p-3.5 rounded-xl bg-[#F06470]/10 border border-[#F06470]/30 text-xs text-[#F06470] flex items-center gap-2.5">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{error}</span>
+            <div className="p-3.5 rounded-[10px] bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B] text-xs flex items-center gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 text-[#DC2626]" />
+              <span className="font-semibold">{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Full Name & Username */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-1">
-                  Full Legal Name
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Mostafa Mahmoud"
-                    value={formData.full_name}
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                    className="w-full pl-9 pr-3 py-2.5 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6] transition-colors"
-                  />
-                  <User className="absolute left-3 top-3 h-4 w-4 text-[#71819A]" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-1">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. mostafa_m"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase() })}
-                  className="w-full px-3 py-2.5 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6] transition-colors"
-                />
-              </div>
+          <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            {/* Identity Details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <Input
+                label="Full Legal Name"
+                required
+                value={formData.full_name}
+                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                placeholder="e.g. Tariq Mansour"
+                leftIcon={<User className="w-4 h-4 text-[#64748B]" />}
+              />
+              <Input
+                label="Corporate Email Address"
+                type="email"
+                required
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value, username: e.target.value })}
+                placeholder="e.g. tariq@omerta.ai"
+                leftIcon={<Mail className="w-4 h-4 text-[#64748B]" />}
+              />
             </div>
 
-            {/* Email Address & National ID */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Country & Phone */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-1">
-                  Email Address
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] mb-1.5">
+                  Country of Residence
                 </label>
-                <div className="relative">
-                  <input
-                    type="email"
-                    required
-                    placeholder="name@example.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full pl-9 pr-3 py-2.5 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6] transition-colors"
-                  />
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-[#71819A]" />
-                </div>
+                <select
+                  value={selectedCountry.code}
+                  onChange={(e) => handleCountryChange(e.target.value)}
+                  className="w-full h-11 bg-white border border-[#E0DDD6] rounded-[10px] px-3.5 text-xs text-[#0F172A] font-medium outline-none focus:border-[#1E88E5] cursor-pointer"
+                >
+                  {COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.flag} {c.name} ({c.dialCode})
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8] mb-1">
-                  National ID / Passport #
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 29901011234567"
-                    value={formData.national_id_number}
-                    onChange={(e) => setFormData({ ...formData, national_id_number: e.target.value })}
-                    className="w-full pl-9 pr-3 py-2.5 bg-[#080D19] border border-[#25344A] rounded-xl text-xs font-mono text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6] transition-colors"
-                  />
-                  <ShieldCheck className="absolute left-3 top-3 h-4 w-4 text-[#29C5D9]" />
-                </div>
-              </div>
+              <Input
+                label="Mobile Phone Number"
+                required
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder={selectedCountry.samplePhone}
+              />
             </div>
 
-            {/* Country Selector & Mobile Phone Number */}
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#A7B4C8]">
-                Country &amp; Mobile Phone Number
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
-                {/* Country Dropdown */}
-                <div className="sm:col-span-5 relative">
-                  <select
-                    value={selectedCountry.code}
-                    onChange={(e) => handleCountryChange(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2.5 bg-[#080D19] border border-[#25344A] rounded-xl text-xs text-[#F4F7FC] font-medium focus:outline-none focus:border-[#3978F6] transition-colors cursor-pointer"
-                  >
-                    {COUNTRIES.map((c) => (
-                      <option key={c.code} value={c.code} className="bg-[#101A2B] text-[#F4F7FC]">
-                        {c.flag} {c.name} ({c.dialCode})
-                      </option>
-                    ))}
-                  </select>
-                  <span className="absolute left-2.5 top-2.5 text-sm pointer-events-none">
-                    {selectedCountry.flag}
-                  </span>
-                </div>
+            {/* National ID for KYC */}
+            <Input
+              label="National ID / Passport Number (KYC Compliance)"
+              required
+              value={formData.national_id_number}
+              onChange={(e) => setFormData({ ...formData, national_id_number: e.target.value })}
+              placeholder="e.g. 29801011234567"
+              leftIcon={<ShieldCheck className="w-4 h-4 text-[#002D72]" />}
+            />
 
-                {/* Phone Number Input */}
-                <div className="sm:col-span-7 relative flex">
-                  <span className="inline-flex items-center px-3 bg-[#152238] border border-r-0 border-[#25344A] rounded-l-xl text-xs font-mono font-bold text-[#29C5D9]">
-                    {selectedCountry.dialCode}
-                  </span>
-                  <input
-                    type="tel"
-                    placeholder={selectedCountry.samplePhone}
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-[#080D19] border border-[#25344A] rounded-r-xl text-xs font-mono text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6] transition-colors"
-                  />
-                </div>
-              </div>
-              <p className="text-[11px] text-[#71819A]">
-                Your mobile phone number will be linked for direct transfers.
-              </p>
-            </div>
-
-            {/* SECTION 1: Account Login Password */}
-            <div className="p-3.5 rounded-xl bg-[#080D19]/70 border border-[#25344A]/80 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#3978F6] flex items-center gap-1.5">
-                  <Lock className="h-3.5 w-3.5" />
-                  1. Account Login Password
-                </span>
-                <span className="text-[10px] text-[#71819A]">Used for web login &amp; dashboard</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    placeholder="Min 8 chars login password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full pl-3 pr-9 py-2 bg-[#101A2B] border border-[#25344A] rounded-lg text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6] transition-colors"
-                  />
+            {/* Login Passwords */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2 border-t border-[#E0DDD6]">
+              <Input
+                label="Account Login Password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="Min 8 characters"
+                leftIcon={<Lock className="w-4 h-4 text-[#64748B]" />}
+                rightIcon={
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2.5 top-2.5 text-[#71819A] hover:text-[#F4F7FC]"
+                    className="p-1 text-[#64748B] hover:text-[#002D72] cursor-pointer"
                   >
-                    {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5 text-[#A7B4C8]" />}
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
-                </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  placeholder="Repeat login password"
-                  value={formData.confirm_password}
-                  onChange={(e) => setFormData({ ...formData, confirm_password: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#101A2B] border border-[#25344A] rounded-lg text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#3978F6] transition-colors"
-                />
-              </div>
+                }
+              />
+
+              <Input
+                label="Confirm Login Password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={formData.confirm_password}
+                onChange={(e) => setFormData({ ...formData, confirm_password: e.target.value })}
+                placeholder="Repeat login password"
+              />
             </div>
 
-            {/* SECTION 2: Dedicated Transfer Password */}
-            <div className="p-3.5 rounded-xl bg-[#080D19]/70 border border-[#29C5D9]/30 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#29C5D9] flex items-center gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  2. Money Transfer Password
-                </span>
-                <span className="text-[10px] text-[#29C5D9]/80 font-semibold">Must differ from login password</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="relative">
-                  <input
-                    type={showTransferPassword ? 'text' : 'password'}
-                    required
-                    placeholder="Min 6 chars transfer password"
-                    value={formData.transfer_password}
-                    onChange={(e) => setFormData({ ...formData, transfer_password: e.target.value })}
-                    className="w-full pl-3 pr-9 py-2 bg-[#101A2B] border border-[#25344A] rounded-lg text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#29C5D9] transition-colors"
-                  />
+            {/* Dedicated Transfer Passwords */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2 border-t border-[#E0DDD6]">
+              <Input
+                label="Dedicated Transfer Password (Money Movement)"
+                type={showTransferPassword ? 'text' : 'password'}
+                required
+                value={formData.transfer_password}
+                onChange={(e) => setFormData({ ...formData, transfer_password: e.target.value })}
+                placeholder="Required to send funds"
+                leftIcon={<KeyRound className="w-4 h-4 text-[#F9A825]" />}
+                rightIcon={
                   <button
                     type="button"
                     onClick={() => setShowTransferPassword(!showTransferPassword)}
-                    className="absolute right-2.5 top-2.5 text-[#71819A] hover:text-[#F4F7FC]"
+                    className="p-1 text-[#64748B] hover:text-[#002D72] cursor-pointer"
                   >
-                    {showTransferPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5 text-[#A7B4C8]" />}
+                    {showTransferPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
-                </div>
-                <input
-                  type={showTransferPassword ? 'text' : 'password'}
-                  required
-                  placeholder="Repeat transfer password"
-                  value={formData.confirm_transfer_password}
-                  onChange={(e) => setFormData({ ...formData, confirm_transfer_password: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#101A2B] border border-[#25344A] rounded-lg text-xs text-[#F4F7FC] placeholder-[#71819A] focus:outline-none focus:border-[#29C5D9] transition-colors"
-                />
-              </div>
-              <p className="text-[10px] text-[#71819A]">
-                This password authorizes money movement. Keep it secret and never share it.
-              </p>
-            </div>
-
-            {/* Initial Balance */}
-            <div className="p-4 rounded-xl bg-[#080D19] border border-[#25344A] space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-[#F4F7FC] flex items-center gap-1.5">
-                  <Wallet className="h-4 w-4 text-[#3978F6]" />
-                  <span>Initial Opening Balance</span>
-                </label>
-                <span className="font-mono font-bold text-base text-[#27C58B]">
-                  {formData.initial_balance.toLocaleString()} {formData.preferred_currency}
-                </span>
-              </div>
-
-              <input
-                type="range"
-                min="5000"
-                max="250000"
-                step="5000"
-                value={formData.initial_balance}
-                onChange={(e) => setFormData({ ...formData, initial_balance: parseInt(e.target.value) || 50000 })}
-                className="w-full accent-[#3978F6] cursor-pointer"
+                }
               />
 
-              <div className="flex items-center justify-between text-[11px] text-[#71819A]">
-                <span>5,000 {formData.preferred_currency}</span>
-                <span>100,000 {formData.preferred_currency}</span>
-                <span>250,000 {formData.preferred_currency}</span>
-              </div>
+              <Input
+                label="Confirm Transfer Password"
+                type={showTransferPassword ? 'text' : 'password'}
+                required
+                value={formData.confirm_transfer_password}
+                onChange={(e) => setFormData({ ...formData, confirm_transfer_password: e.target.value })}
+                placeholder="Repeat transfer password"
+              />
             </div>
 
-            {/* Privacy and Security Consent */}
-            <div className="p-3.5 rounded-xl bg-[#080D19] border border-[#25344A] flex items-start gap-2.5">
+            {/* Currency & Demo Balance */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2 border-t border-[#E0DDD6]">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] mb-1.5">
+                  Account Currency
+                </label>
+                <select
+                  value={formData.preferred_currency}
+                  onChange={(e) => setFormData({ ...formData, preferred_currency: e.target.value })}
+                  className="w-full h-11 bg-white border border-[#E0DDD6] rounded-[10px] px-3.5 text-xs text-[#0F172A] font-medium outline-none focus:border-[#1E88E5] cursor-pointer"
+                >
+                  <option value="EGP">EGP — Egyptian Pound</option>
+                  <option value="USD">USD — US Dollar</option>
+                  <option value="SAR">SAR — Saudi Riyal</option>
+                  <option value="AED">AED — UAE Dirham</option>
+                  <option value="EUR">EUR — Euro</option>
+                  <option value="GBP">GBP — British Pound</option>
+                </select>
+              </div>
+
+              <Input
+                label="Initial Demo Deposit Balance"
+                type="number"
+                min="1000"
+                max="500000"
+                step="1000"
+                value={formData.initial_balance}
+                onChange={(e) => setFormData({ ...formData, initial_balance: Number(e.target.value) })}
+                leftIcon={<Wallet className="w-4 h-4 text-[#10B981]" />}
+              />
+            </div>
+
+            {/* Consent Checkbox */}
+            <label className="flex items-start gap-2.5 pt-2 cursor-pointer">
               <input
                 type="checkbox"
-                id="consent-check"
-                required
                 checked={formData.device_consent}
                 onChange={(e) => setFormData({ ...formData, device_consent: e.target.checked })}
-                className="mt-0.5 h-4 w-4 rounded bg-[#101A2B] border-[#25344A] text-[#3978F6] focus:ring-0 cursor-pointer"
+                className="mt-0.5 rounded text-[#002D72] focus:ring-[#1E88E5]"
               />
-              <label htmlFor="consent-check" className="text-[11px] text-[#A7B4C8] leading-tight cursor-pointer">
-                I accept the <span className="text-[#3978F6] font-semibold">Banking Terms of Service</span>, <span className="text-[#3978F6] font-semibold">Privacy Policy</span>, and consent to Omerta.ai collecting device &amp; session security telemetry to safeguard my account and transfers.
-              </label>
-            </div>
+              <span className="text-[11px] text-[#475569] leading-tight">
+                I accept the <span className="font-bold text-[#002D72]">Banking Terms of Service</span>, Privacy Policy, and consent to real-time risk intelligence fingerprinting for fraud protection.
+              </span>
+            </label>
 
-            <button
+            <Button
               type="submit"
-              disabled={isLoading}
-              className="w-full py-3.5 rounded-xl bg-[#3978F6] hover:bg-[#3978F6]/90 disabled:opacity-50 text-sm font-bold text-[#F4F7FC] transition-all shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 cursor-pointer"
+              variant="primary"
+              size="lg"
+              isLoading={isLoading}
+              className="w-full mt-4"
             >
-              {isLoading ? (
-                <span>Opening Account...</span>
-              ) : (
-                <>
-                  <span>Create Account</span>
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </button>
+              <span>Create Account &amp; Access Banking</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
           </form>
 
-          <div className="text-center pt-3 border-t border-[#25344A] space-y-2">
-            <p className="text-xs text-[#A7B4C8]">
-              Already registered?{' '}
-              <Link to="/login" className="text-[#3978F6] hover:underline font-bold">
-                Sign In to Account
+          <div className="pt-4 border-t border-[#E0DDD6] text-center">
+            <p className="text-xs text-[#64748B]">
+              Already have an Omerta.ai account?{' '}
+              <Link to="/login" className="font-bold text-[#002D72] hover:text-[#1E88E5] hover:underline">
+                Sign In
               </Link>
             </p>
-            <div className="flex items-center justify-center gap-1 text-[11px] text-[#71819A]">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#27C58B]" />
-              <span>Verified Banking Security Protocol</span>
-            </div>
           </div>
-        </div>
+        </Card>
       </main>
 
       {/* Footer */}
-      <footer className="px-6 py-4 text-center text-xs text-[#71819A] border-t border-[#1E2D4A] relative z-10">
-        Omerta.ai • Digital Banking &amp; Financial Crime Intelligence Platform
+      <footer className="max-w-6xl w-full mx-auto text-center py-2 text-[11px] text-[#64748B]">
+        Omerta.ai Financial Crime &amp; Banking Operations © 2026. All rights reserved.
       </footer>
     </div>
   );

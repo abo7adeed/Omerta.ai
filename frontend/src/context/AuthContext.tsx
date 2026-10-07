@@ -20,19 +20,17 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('omerta_token') || null);
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('omerta_user');
     return saved ? JSON.parse(saved) : null;
   });
-
   const [customer, setCustomer] = useState<CustomerProfile | null>(() => {
     const saved = localStorage.getItem('omerta_customer');
     return saved ? JSON.parse(saved) : null;
   });
 
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('omerta_token') || null);
-  const [isLoading, setIsLoading] = useState(false);
-
+  const [isLoading, setIsLoading] = useState<boolean>(() => Boolean(localStorage.getItem('omerta_token')));
   const [sessionError, setSessionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,10 +57,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [customer]);
 
+  // Validate active session against backend on startup
+  useEffect(() => {
+    let isMounted = true;
+    const initialToken = localStorage.getItem('omerta_token');
+
+    if (!initialToken) {
+      setIsLoading(false);
+      return;
+    }
+
+    const validateSessionOnBoot = async () => {
+      try {
+        const me = await api.getMe();
+        if (isMounted && me && me.user) {
+          setUser(me.user);
+          if (me.customer) {
+            setCustomer(me.customer);
+          }
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          setUser(null);
+          setCustomer(null);
+          setToken(null);
+          localStorage.removeItem('omerta_token');
+          localStorage.removeItem('omerta_user');
+          localStorage.removeItem('omerta_customer');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    validateSessionOnBoot();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Handle remote session revocation or token expiration
   useEffect(() => {
     const handleUnauthorized = (e: any) => {
-      const msg = e?.detail?.message || 'Your session was terminated because this account signed in elsewhere.';
+      const msg =
+        e?.detail?.message ||
+        'Security Notice: Your session was terminated because this account signed in from another device or location.';
       setSessionError(msg);
       logout();
     };
@@ -217,6 +259,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    api.logout().catch(() => {});
     setUser(null);
     setCustomer(null);
     setToken(null);

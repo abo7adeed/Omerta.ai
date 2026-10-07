@@ -18,7 +18,7 @@ import {
   ShieldCheck,
   Send,
   UserCheck,
-  Building,
+  Building2,
   Bot,
   LifeBuoy,
 } from 'lucide-react';
@@ -43,57 +43,56 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
   const customerNavItems: NavItem[] = [
     { to: '/customer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/customer/accounts', label: 'My Accounts', icon: Wallet },
+    { to: '/customer/accounts', label: 'Accounts', icon: Wallet },
     { to: '/customer/transfer', label: 'Send Money', icon: Send },
     { to: '/customer/transactions', label: 'Transactions', icon: ArrowLeftRight },
-    { to: '/customer/support', label: 'Support & Chat', icon: LifeBuoy },
-    { to: '/customer/security', label: 'Security & Devices', icon: ShieldCheck },
-    { to: '/customer/profile', label: 'Profile', icon: UserCheck },
+    { to: '/customer/support', label: 'Support & Tickets', icon: LifeBuoy },
+    { to: '/customer/security', label: 'Security & Sessions', icon: ShieldCheck },
+    { to: '/customer/profile', label: 'Customer Profile', icon: UserCheck },
   ];
 
   const investigatorNavItems: NavItem[] = [
     { to: '/admin/investigations', label: 'Investigations', icon: FolderSearch },
-    { to: '/admin/support-cases', label: 'Support & Security Cases', icon: LifeBuoy },
-    { to: '/admin/network-analysis', label: 'Network Graph Analysis', icon: Share2 },
-    { to: '/admin/ai-assistant', label: 'AI Copilot & RAG', icon: Bot, badge: 'Coming Soon' },
+    { to: '/admin/support-cases', label: 'Cases & Tickets', icon: LifeBuoy },
+    { to: '/admin/network-analysis', label: 'Network Intelligence', icon: Share2 },
+    { to: '/admin/ai-assistant', label: 'AI Forensics Copilot', icon: Bot, badge: 'RAG' },
     { to: '/admin/audit-logs', label: 'Audit Trail', icon: ScrollText },
   ];
 
   const analystNavItems: NavItem[] = [
-    { to: '/admin/dashboard', label: 'Analyst Overview', icon: LayoutDashboard },
+    { to: '/admin/dashboard', label: 'Executive Dashboard', icon: LayoutDashboard },
+    { to: '/admin/risk-monitoring', label: 'Risk Monitoring', icon: ShieldAlert, badge: '>40%' },
     { to: '/admin/transactions', label: 'Transactions', icon: ArrowLeftRight },
-    { to: '/admin/risk-monitoring', label: 'Risk Queue', icon: ShieldAlert, badge: '>40 Queue' },
-    { to: '/admin/support-cases', label: 'Support & Security Cases', icon: LifeBuoy },
+    { to: '/admin/support-cases', label: 'Cases & Tickets', icon: LifeBuoy },
     { to: '/admin/investigations', label: 'Investigations', icon: FolderSearch },
     { to: '/admin/reports', label: 'Reports', icon: FileBarChart },
-    { to: '/admin/ai-assistant', label: 'AI Copilot & RAG', icon: Bot, badge: 'Coming Soon' },
+    { to: '/admin/ai-assistant', label: 'AI Forensics Copilot', icon: Bot, badge: 'RAG' },
   ];
 
   const auditorNavItems: NavItem[] = [
-    { to: '/admin/support-cases', label: 'Support & Security Cases', icon: LifeBuoy },
+    { to: '/admin/support-cases', label: 'Cases & Tickets', icon: LifeBuoy },
     { to: '/admin/audit-logs', label: 'Audit Logs', icon: ScrollText },
     { to: '/admin/reports', label: 'Compliance Reports', icon: FileBarChart },
-    { to: '/admin/transactions', label: 'Transactions (Read-Only)', icon: ArrowLeftRight },
-    { to: '/admin/investigations', label: 'Investigations (Read-Only)', icon: FolderSearch },
+    { to: '/admin/transactions', label: 'Transactions (Audit)', icon: ArrowLeftRight },
+    { to: '/admin/investigations', label: 'Investigations (Audit)', icon: FolderSearch },
   ];
 
   const adminNavItems: NavItem[] = [
-    { to: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
-    { to: '/admin/support-cases', label: 'Support & Security Cases', icon: LifeBuoy },
+    { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/admin/risk-monitoring', label: 'Risk Monitoring', icon: ShieldAlert, badge: '>40%' },
     { to: '/admin/transactions', label: 'Transactions', icon: ArrowLeftRight },
-    { to: '/admin/risk-monitoring', label: 'Risk Monitoring', icon: ShieldAlert, badge: '>40 Queue' },
     { to: '/admin/investigations', label: 'Investigations', icon: FolderSearch },
-    { to: '/admin/users', label: 'User Management', icon: Users },
+    { to: '/admin/support-cases', label: 'Cases & Tickets', icon: LifeBuoy },
+    { to: '/admin/customers', label: 'Customers', icon: Users },
     { to: '/admin/accounts', label: 'Accounts', icon: Wallet },
-    { to: '/admin/devices', label: 'Devices', icon: Smartphone },
-    { to: '/admin/network-analysis', label: 'Network Analysis', icon: Share2 },
+    { to: '/admin/devices', label: 'Device Intelligence', icon: Smartphone },
+    { to: '/admin/network-analysis', label: 'Network Intelligence', icon: Share2 },
     { to: '/admin/reports', label: 'Reports', icon: FileBarChart },
     { to: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
-    { to: '/admin/audit-logs', label: 'Audit Logs', icon: ScrollText },
-    { to: '/admin/ai-assistant', label: 'AI Copilot & RAG', icon: Bot, badge: 'Coming Soon' },
+    { to: '/admin/audit-logs', label: 'Audit Trail', icon: ScrollText },
+    { to: '/admin/ai-assistant', label: 'AI Forensics Copilot', icon: Bot, badge: 'RAG' },
     { to: '/admin/settings', label: 'Settings', icon: Settings },
   ];
-
 
   let navItems: NavItem[] = customerNavItems;
   if (role === 'ADMINISTRATOR' || role === 'SUB_ADMINISTRATOR') {
@@ -108,78 +107,103 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
   return (
     <aside
-      className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col bg-[#0B1220] border-r border-[#25344A] transition-all duration-300 ${
+      className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col bg-white border-r border-[#E0DDD6] shadow-xs transition-all duration-200 ${
         collapsed ? 'w-20' : 'w-64'
       }`}
     >
       {/* Brand Header */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-[#25344A]">
-        <NavLink to={isCustomer ? '/customer/dashboard' : '/admin/dashboard'} className="flex items-center gap-3 overflow-hidden">
-          <div className="flex items-center justify-center h-10 w-10 min-w-[2.5rem] rounded-xl bg-gradient-to-tr from-[#3978F6] to-[#29C5D9] text-slate-950 font-black shadow-lg shadow-cyan-500/20">
-            {isCustomer ? <Building className="h-5 w-5 text-slate-950 stroke-[2.5]" /> : <ShieldCheck className="h-6 w-6 text-slate-950 stroke-[2.5]" />}
+      <div className="flex items-center justify-between h-16 px-4 border-b border-[#E0DDD6]">
+        <NavLink
+          to={isCustomer ? '/customer/dashboard' : '/admin/dashboard'}
+          className="flex items-center gap-3 overflow-hidden group"
+        >
+          <div className="flex items-center justify-center h-10 w-10 min-w-[2.5rem] rounded-[10px] bg-[#002D72] text-[#F9A825] shadow-xs transition-transform group-hover:scale-105">
+            {isCustomer ? (
+              <Building2 className="h-5 w-5 stroke-[2.2]" />
+            ) : (
+              <ShieldCheck className="h-5 w-5 stroke-[2.2]" />
+            )}
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-lg font-bold tracking-tight text-[#F4F7FC] flex items-center gap-1">
-                OMERTA<span className="text-[#29C5D9]">.AI</span>
+              <span className="text-base font-extrabold tracking-tight text-[#002D72]">
+                OMERTA<span className="text-[#F9A825]">.AI</span>
               </span>
-              <span className="text-[10px] font-semibold tracking-wider text-[#A7B4C8] uppercase">
-                {isCustomer ? 'Customer Banking' : 'Admin Intelligence'}
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">
+                {isCustomer ? 'Corporate Banking' : 'Financial Intelligence'}
               </span>
             </div>
           )}
         </NavLink>
         <button
           onClick={onToggle}
-          className="hidden md:flex p-1.5 text-[#A7B4C8] hover:text-[#F4F7FC] rounded-lg hover:bg-[#1B2B43] transition-colors"
+          className="hidden md:flex p-1.5 text-[#64748B] hover:text-[#002D72] rounded-[8px] hover:bg-[#F4F1EC] transition-colors cursor-pointer"
           title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+          aria-label={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
       </div>
 
       {/* Navigation Links */}
-      <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group relative ${
+              `flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-xs font-semibold transition-all duration-150 group relative ${
                 isActive
-                  ? 'bg-[#3978F6]/20 text-[#29C5D9] border border-[#3978F6]/40 font-bold shadow-sm'
-                  : 'text-[#A7B4C8] hover:text-[#F4F7FC] hover:bg-[#1B2B43]'
-              } ${collapsed ? 'justify-center' : ''}`
+                  ? 'bg-[#FFF9E6] text-[#002D72] font-bold border-l-4 border-l-[#F9A825] shadow-xs'
+                  : 'text-[#475569] hover:text-[#002D72] hover:bg-[#F4F1EC]'
+              } ${collapsed ? 'justify-center px-2' : ''}`
             }
           >
-            <item.icon className="h-5 w-5 min-w-[1.25rem] transition-transform group-hover:scale-110 text-[#A7B4C8] group-hover:text-[#29C5D9]" />
-            {!collapsed && (
-              <span className="flex-1 truncate tracking-tight">{item.label}</span>
-            )}
-            {!collapsed && item.badge && (
-              <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase rounded bg-[#3978F6]/20 text-[#29C5D9] border border-[#3978F6]/30">
-                {item.badge}
-              </span>
+            {({ isActive }) => (
+              <>
+                <item.icon
+                  className={`h-4.5 w-4.5 min-w-[1.125rem] transition-colors ${
+                    isActive ? 'text-[#002D72]' : 'text-[#64748B] group-hover:text-[#002D72]'
+                  }`}
+                />
+                {!collapsed && (
+                  <span className="flex-1 truncate tracking-tight">{item.label}</span>
+                )}
+                {!collapsed && item.badge && (
+                  <span
+                    className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full ${
+                      isActive
+                        ? 'bg-[#F9A825] text-[#002D72]'
+                        : 'bg-[#F4F1EC] text-[#002D72] border border-[#E0DDD6]'
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </>
             )}
           </NavLink>
         ))}
       </nav>
 
       {/* Sidebar Footer */}
-      <div className="p-3 border-t border-[#25344A]">
+      <div className="p-3 border-t border-[#E0DDD6] bg-[#F4F1EC]/60">
         {!collapsed ? (
-          <div className="p-3 rounded-lg bg-[#101A2B] border border-[#25344A]">
-            <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-[#71819A]">Environment</span>
-              <span className="font-bold text-[#27C58B]">SIMULATED DEMO</span>
+          <div className="p-2.5 rounded-[10px] bg-white border border-[#E0DDD6] shadow-xs space-y-1">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-[#64748B] font-bold uppercase tracking-wider">System State</span>
+              <span className="inline-flex items-center gap-1 font-bold text-[#065F46] text-[10px] uppercase bg-[#ECFDF5] px-2 py-0.5 rounded-full border border-[#A7F3D0]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                Protected
+              </span>
             </div>
-            <p className="text-[10px] text-[#71819A] leading-tight">
-              {isCustomer ? 'Demo balances and transfers are simulated for testing.' : 'Compliance & Anti-Financial Crime Platform'}
+            <p className="text-[11px] text-[#475569] font-medium leading-tight truncate">
+              {isCustomer ? 'AML Shield Active' : 'Real-time Risk Engine 24/7'}
             </p>
           </div>
         ) : (
-          <div className="flex justify-center" title="Simulated Demo Platform">
-            <div className="h-2 w-2 rounded-full bg-[#27C58B] animate-pulse" />
+          <div className="flex justify-center" title="Platform Protected">
+            <div className="h-2.5 w-2.5 rounded-full bg-[#10B981] animate-pulse" />
           </div>
         )}
       </div>
