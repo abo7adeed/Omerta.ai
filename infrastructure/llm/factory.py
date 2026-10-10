@@ -34,7 +34,12 @@ def get_llm_provider() -> LLMProvider:
             raise ValueError(f"LLM_PROVIDER={provider_name} requires LLM_BASE_URL")
         model = settings.llm_model
         if not model:
-            raise ValueError(f"LLM_PROVIDER={provider_name} requires LLM_MODEL")
+            if provider_name == "groq":
+                model = "openai/gpt-oss-120b"
+            elif provider_name == "openai":
+                model = "gpt-4o"
+            else:
+                raise ValueError(f"LLM_PROVIDER={provider_name} requires LLM_MODEL")
         return OpenAICompatibleProvider(
             name=provider_name,
             model=model,

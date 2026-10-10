@@ -36,7 +36,7 @@ def upgrade() -> None:
     op.add_column("support_tickets", sa.Column("identity_verification_status", sa.String(length=32), nullable=False, server_default="NOT_REQUIRED"))
     op.add_column("support_tickets", sa.Column("requires_compliance_review", sa.Boolean(), nullable=False, server_default="false"))
     op.add_column("support_tickets", sa.Column("escalated_to_compliance", sa.Boolean(), nullable=False, server_default="false"))
-    op.add_column("support_tickets", sa.Column("related_transaction_id", sa.Integer(), sa.ForeignKey("transfers.id", ondelete="SET NULL"), nullable=True))
+    op.add_column("support_tickets", sa.Column("related_transaction_id", sa.Integer(), sa.ForeignKey("transactions.id", ondelete="SET NULL"), nullable=True))
     op.add_column("support_tickets", sa.Column("related_account_id", sa.Integer(), sa.ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True))
     op.add_column("support_tickets", sa.Column("related_risk_assessment_id", sa.String(length=64), nullable=True))
     op.add_column("support_tickets", sa.Column("restoration_requested", sa.Boolean(), nullable=False, server_default="false"))

@@ -20,12 +20,16 @@ from apps.api.v1.tickets import (
     admin_tickets_router,
     customer_tickets_router,
 )
+from apps.api.v1.agentic_rag import router as agentic_rag_router
 from apps.api.v1.transactions import router as transactions_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
 
 # Authentication & Registration
 api_v1_router.include_router(auth_router)
+
+# Agentic RAG & Financial Analysis
+api_v1_router.include_router(agentic_rag_router)
 
 # Customer Banking Platform (Dedicated Customer Endpoints)
 api_v1_router.include_router(customer_router)

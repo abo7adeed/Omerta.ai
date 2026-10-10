@@ -681,7 +681,7 @@ class SupportTicket(TimestampMixin, Base):
     requires_compliance_review: Mapped[bool] = mapped_column(Boolean, default=False)
     escalated_to_compliance: Mapped[bool] = mapped_column(Boolean, default=False)
     related_transaction_id: Mapped[int | None] = mapped_column(
-        ForeignKey("transfers.id", ondelete="SET NULL"), index=True, nullable=True
+        ForeignKey("transactions.id", ondelete="SET NULL"), index=True, nullable=True
     )
     related_account_id: Mapped[int | None] = mapped_column(
         ForeignKey("accounts.id", ondelete="SET NULL"), index=True, nullable=True

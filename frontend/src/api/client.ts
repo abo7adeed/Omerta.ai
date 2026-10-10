@@ -520,4 +520,128 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(thresholds),
     }),
+
+  // Agentic RAG & AI Financial Analyst
+  queryAgenticRAG: (data: AgenticRAGRequest) =>
+    apiRequest<AgenticRAGResponse>('/agentic-rag/query', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getAgenticRAGStatus: () => apiRequest('/agentic-rag/status'),
+  getChartArtifactUrl: (artifactId: string) => `/api/v1/agentic-rag/artifacts/${artifactId}`,
 };
+
+// ==============================================================================
+// Agentic RAG & AI Financial Analyst TypeScript Definitions
+// ==============================================================================
+
+export type SourceType = 'documents' | 'postgresql' | 'neo4j';
+
+export interface Citation {
+  citation_id: string;
+  evidence_id: string;
+  source_type: SourceType;
+  title: string;
+  locator: string;
+  excerpt?: string;
+  version?: string;
+}
+
+export interface MetricResult {
+  label: string;
+  value: number | string;
+  unit?: string;
+  period?: string;
+  comparison?: string;
+  status?: string;
+  citations: string[];
+}
+
+export interface TableResult {
+  title: string;
+  columns: string[];
+  rows: (string | number | boolean | null)[][];
+  total_rows: number;
+  truncated: boolean;
+  citations: string[];
+}
+
+export interface ChartArtifactReference {
+  chart_id: string;
+  chart_type: string;
+  title: string;
+  artifact_id: string;
+  artifact_url: string;
+  x_axis_label?: string;
+  y_axis_label?: string;
+  data_summary: string;
+  citations: string[];
+}
+
+export interface ResponseBlockText {
+  type: 'text';
+  content: string;
+}
+
+export interface ResponseBlockMetric {
+  type: 'metric';
+  metrics: MetricResult[];
+}
+
+export interface ResponseBlockTable {
+  type: 'table';
+  table: TableResult;
+}
+
+export interface ResponseBlockChart {
+  type: 'chart';
+  chart: ChartArtifactReference;
+}
+
+export interface ResponseBlockCitation {
+  type: 'citation';
+  citations: Citation[];
+}
+
+export interface ResponseBlockWarning {
+  type: 'warning';
+  title: string;
+  message: string;
+}
+
+export interface ResponseBlockReport {
+  type: 'report';
+  report_title: string;
+  executive_summary: string;
+  key_findings: string[];
+  recommended_action: string;
+  evidence_ids: string[];
+}
+
+export type ResponseBlock =
+  | ResponseBlockText
+  | ResponseBlockMetric
+  | ResponseBlockTable
+  | ResponseBlockChart
+  | ResponseBlockCitation
+  | ResponseBlockWarning
+  | ResponseBlockReport;
+
+export interface AgenticRAGRequest {
+  question: string;
+  entity_ids?: string[];
+  conversation_id?: string;
+}
+
+export interface AgenticRAGResponse {
+  status: 'ANSWERED' | 'NEEDS_CLARIFICATION' | 'INSUFFICIENT_EVIDENCE' | 'PARTIAL_RESULT' | 'SOURCE_UNAVAILABLE';
+  answer: string;
+  citations: Citation[];
+  evidence_ids: string[];
+  sources_used: SourceType[];
+  response_blocks: ResponseBlock[];
+  limitations: string[];
+  clarification_question?: string | null;
+  investigation_id: string;
+  execution_time_ms: number;
+}
