@@ -129,6 +129,19 @@ class DeviceService:
 
         devices = (await self.session.scalars(query)).all()
 
+        dev_ids = [d.id for d in devices]
+        dev_txns_map: dict[int, list[Transaction]] = {}
+        if dev_ids:
+            txns_query = (
+                select(Transaction)
+                .options(selectinload(Transaction.account), selectinload(Transaction.recipient_account))
+                .where(Transaction.device_id.in_(dev_ids))
+            )
+            for t in (await self.session.scalars(txns_query)).all():
+                if t.device_id not in dev_txns_map:
+                    dev_txns_map[t.device_id] = []
+                dev_txns_map[t.device_id].append(t)
+
         items = []
         for d in devices:
             unique_accs = {s.account.external_id for s in d.sessions if s.account}
@@ -142,6 +155,8 @@ class DeviceService:
             for s in d.sessions:
                 if s.is_active:
                     active_now = True
+                if s.account:
+                    unique_accs.add(s.account.external_id)
                 if s.customer:
                     user_names.append(s.customer.name)
                     if getattr(s.customer, "accounts", None):
@@ -157,6 +172,15 @@ class DeviceService:
                     last_location = "Cairo, Egypt" if loc_country.upper() in ("EG", "EGYPT") else f"{loc_country} Gateway"
                     if s.ip_address.is_vpn:
                         is_vpn = True
+
+            txns_for_dev = dev_txns_map.get(d.id, [])
+            for t in txns_for_dev:
+                if t.account:
+                    unique_accs.add(t.account.external_id)
+                    if t.account.customer_name and t.account.customer_name not in user_names:
+                        user_names.append(t.account.customer_name)
+                if t.recipient_account:
+                    unique_accs.add(t.recipient_account.external_id)
 
             acc_count = len(unique_accs)
             
@@ -278,11 +302,55 @@ class DeviceService:
         # Fetch recent transactions on this device
         txns_q = (
             select(Transaction)
+            .options(selectinload(Transaction.recipient_account), selectinload(Transaction.account))
             .where(Transaction.device_id == device.id)
             .order_by(desc(Transaction.timestamp))
             .limit(10)
         )
         txns = (await self.session.scalars(txns_q)).all()
+
+        for t in txns:
+            if t.account and t.account.external_id not in associated_accounts:
+                associated_accounts[t.account.external_id] = {
+                    "id": t.account.id,
+                    "external_id": t.account.external_id,
+                    "customer_name": t.account.customer_name,
+                    "currency": t.account.currency,
+                    "balance": float(t.account.balance),
+                    "account_type": t.account.account_type,
+                    "risk_level": t.account.risk_level,
+                }
+
+        # If still no associated accounts directly on device, check linked session user customer accounts
+        if not associated_accounts:
+            for s in device.sessions:
+                if s.user_id:
+                    cust = await self.session.scalar(
+                        select(Customer).options(selectinload(Customer.accounts)).where(Customer.user_id == s.user_id).limit(1)
+                    )
+                    if cust and cust.accounts:
+                        for acc in cust.accounts:
+                            associated_accounts[acc.external_id] = {
+                                "id": acc.id,
+                                "external_id": acc.external_id,
+                                "customer_name": acc.customer_name or cust.name,
+                                "currency": acc.currency,
+                                "balance": float(acc.balance),
+                                "account_type": acc.account_type,
+                                "risk_level": acc.risk_level,
+                            }
+
+        # If no transactions tagged with device_id, load transactions from associated accounts
+        if not txns and associated_accounts:
+            acc_ids = [acc["id"] for acc in associated_accounts.values()]
+            txns_fallback = (
+                select(Transaction)
+                .options(selectinload(Transaction.recipient_account), selectinload(Transaction.account))
+                .where(or_(Transaction.account_id.in_(acc_ids), Transaction.recipient_account_id.in_(acc_ids)))
+                .order_by(desc(Transaction.timestamp))
+                .limit(8)
+            )
+            txns = (await self.session.scalars(txns_fallback)).all()
 
         device_dict = {
             "id": device.id,
@@ -330,6 +398,11 @@ class DeviceService:
                 {
                     "id": t.id,
                     "external_id": t.external_id,
+                    "counterparty": (
+                        t.recipient_account.customer_name
+                        if t.recipient_account
+                        else (t.account.customer_name if t.account else "Counterparty")
+                    ),
                     "amount": float(t.amount),
                     "currency": t.currency,
                     "type": t.transaction_type,
@@ -341,4 +414,5 @@ class DeviceService:
                 for t in txns
             ],
         }
+
 

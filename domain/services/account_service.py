@@ -152,30 +152,46 @@ class AccountService:
                 "created_at": entry.created_at.isoformat(),
             })
 
+        acc_dict = {
+            "id": account.id,
+            "external_id": account.external_id,
+            "customer_id": account.customer_id,
+            "customer_name": account.customer_name,
+            "customer_external_id": account.customer.external_id if account.customer else "N/A",
+            "customer_user_number": account.customer.omerta_user_number if account.customer else "N/A",
+            "account_type": account.account_type,
+            "currency": account.currency,
+            "balance": float(account.balance),
+            "country": account.country,
+            "status": account.status,
+            "risk_level": account.risk_level,
+            "created_at": account.created_at.isoformat() if account.created_at else None,
+        }
+
         return {
-            "account": {
-                "id": account.id,
-                "external_id": account.external_id,
-                "customer_id": account.customer_id,
-                "customer_name": account.customer_name,
-                "customer_external_id": account.customer.external_id if account.customer else "N/A",
-                "customer_user_number": account.customer.omerta_user_number if account.customer else "N/A",
-                "account_type": account.account_type,
-                "currency": account.currency,
-                "balance": float(account.balance),
-                "country": account.country,
-                "status": account.status,
-                "risk_level": account.risk_level,
-                "created_at": account.created_at.isoformat() if account.created_at else None,
-            },
+            **acc_dict,
+            "account": acc_dict,
             "ledger_entries": ledger_records[:30],
             "recent_transactions": [
                 {
                     "id": t.id,
                     "external_id": t.external_id,
                     "direction": "OUTFLOW" if t.account_id == account.id else "INFLOW",
-                    "counterparty": t.recipient_account.customer_name if t.account_id == account.id else t.account.customer_name,
-                    "counterparty_account": t.recipient_account.external_id if t.account_id == account.id else t.account.external_id,
+                    "counterparty": (
+                        t.recipient_account.customer_name
+                        if t.account_id == account.id and t.recipient_account
+                        else (t.account.customer_name if t.account else "Counterparty")
+                    ),
+                    "receiver_name": (
+                        t.recipient_account.customer_name
+                        if t.account_id == account.id and t.recipient_account
+                        else (t.account.customer_name if t.account else "Counterparty")
+                    ),
+                    "counterparty_account": (
+                        t.recipient_account.external_id
+                        if t.account_id == account.id and t.recipient_account
+                        else (t.account.external_id if t.account else "N/A")
+                    ),
                     "amount": float(t.amount),
                     "currency": t.currency,
                     "type": t.transaction_type,
@@ -188,6 +204,7 @@ class AccountService:
             ],
             "counterparties": list(counterparties.values()),
         }
+
 
     async def apply_admin_balance_adjustment(
         self,

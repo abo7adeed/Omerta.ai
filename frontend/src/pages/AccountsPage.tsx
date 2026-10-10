@@ -67,12 +67,27 @@ export const AccountsPage: React.FC = () => {
 
   const handleOpenDetail = async (a: AccountItem) => {
     try {
-      const res = await api.getAccountDetail(a.external_id);
-      setSelectedAccount(res);
+      const res: any = await api.getAccountDetail(a.external_id);
+      const acc = res.account || res;
+      setSelectedAccount({
+        ...a,
+        ...acc,
+        external_id: acc.external_id || a.external_id,
+        customer_name: acc.customer_name || a.customer_name,
+        balance: acc.balance !== undefined ? acc.balance : a.balance,
+        currency: acc.currency || a.currency,
+        account_type: acc.account_type || a.account_type,
+        risk_level: acc.risk_level || a.risk_level,
+        status: acc.status || a.status,
+        recent_transactions: res.recent_transactions || (a as any).recent_transactions || [],
+        ledger_entries: res.ledger_entries || (a as any).ledger_entries || [],
+      });
     } catch (err) {
       console.error('Failed to load account detail', err);
+      setSelectedAccount(a);
     }
   };
+
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -256,8 +271,8 @@ export const AccountsPage: React.FC = () => {
         <Modal
           isOpen={Boolean(selectedAccount)}
           onClose={() => setSelectedAccount(null)}
-          title={`Account Ledger: ${selectedAccount.external_id}`}
-          subtitle={`Customer: ${selectedAccount.customer_name || 'Account Holder'}`}
+          title={`Account Ledger: ${selectedAccount.external_id || selectedAccount.account?.external_id || 'ACC'}`}
+          subtitle={`Customer: ${selectedAccount.customer_name || selectedAccount.account?.customer_name || 'Account Holder'}`}
           maxWidth="2xl"
         >
           <div className="space-y-4 text-xs">
@@ -265,12 +280,12 @@ export const AccountsPage: React.FC = () => {
               <div>
                 <span className="text-[10px] uppercase font-bold text-[#64748B]">Available Balance</span>
                 <p className="font-mono font-bold text-sm text-[#002D72] mt-0.5">
-                  {Number(selectedAccount.balance || 0).toLocaleString()} {selectedAccount.currency || 'EGP'}
+                  {Number(selectedAccount.balance ?? selectedAccount.account?.balance ?? 0).toLocaleString()} {selectedAccount.currency || selectedAccount.account?.currency || 'EGP'}
                 </p>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-[#64748B]">Account Type</span>
-                <p className="font-bold text-[#002D72] mt-0.5">{selectedAccount.account_type || 'CHECKING'}</p>
+                <p className="font-bold text-[#002D72] mt-0.5">{selectedAccount.account_type || selectedAccount.account?.account_type || 'CHECKING'}</p>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-[#64748B]">Risk Level</span>
@@ -302,7 +317,7 @@ export const AccountsPage: React.FC = () => {
                         <ArrowRightLeft className="h-4 w-4 text-[#002D72]" />
                         <div>
                           <p className="font-mono font-bold text-[#002D72]">{tx.external_id || tx.id}</p>
-                          <p className="text-[11px] text-[#64748B]">{tx.receiver_name || 'Counterparty'}</p>
+                          <p className="text-[11px] text-[#64748B]">{tx.counterparty || tx.receiver_name || 'Counterparty'}</p>
                         </div>
                       </div>
                       <div className="text-right">

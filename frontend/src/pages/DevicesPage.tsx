@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Smartphone,
   Search,
@@ -6,6 +7,7 @@ import {
   AlertTriangle,
   CheckCircle,
   ArrowUpRight,
+  ArrowRightLeft,
   ShieldAlert,
   Globe,
   Monitor,
@@ -25,6 +27,7 @@ import { Modal } from '../components/ui/Modal';
 import { TableContainer, Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '../components/ui/Table';
 
 export const DevicesPage: React.FC = () => {
+  const navigate = useNavigate();
   const [devices, setDevices] = useState<DeviceItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -289,8 +292,16 @@ export const DevicesPage: React.FC = () => {
 
                       {/* Shared Accounts */}
                       <TableCell>
-                        <span className={`font-bold font-mono px-2 py-0.5 rounded-full text-xs ${(d.account_count || 1) > 1 ? 'bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]' : 'bg-[#F1F5F9] text-[#002D72]'}`}>
-                          {d.account_count || 1} Linked
+                        <span
+                          className={`font-bold font-mono px-2 py-0.5 rounded-full text-xs ${
+                            (d.account_count || 0) > 1
+                              ? 'bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]'
+                              : (d.account_count || 0) === 1
+                              ? 'bg-[#F1F5F9] text-[#002D72]'
+                              : 'bg-[#F8FAFC] text-[#64748B]'
+                          }`}
+                        >
+                          {(d.account_count || 0) > 0 ? `${d.account_count} Linked` : 'Standalone'}
                         </span>
                       </TableCell>
 
@@ -490,7 +501,58 @@ export const DevicesPage: React.FC = () => {
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-3 pt-2">
+            {/* Recent Transactions Conducted on Device */}
+            {selectedDevice.recent_transactions && selectedDevice.recent_transactions.length > 0 && (
+              <div className="p-4 bg-white rounded-[12px] border border-[#E0DDD6] space-y-2">
+                <h5 className="font-bold text-[#002D72] uppercase text-[11px] tracking-wider flex items-center gap-1.5">
+                  <ArrowRightLeft className="w-3.5 h-3.5 text-[#002D72]" />
+                  Transactions Conducted on Hardware ({selectedDevice.recent_transactions.length})
+                </h5>
+                <div className="divide-y divide-[#E0DDD6] max-h-44 overflow-y-auto">
+                  {selectedDevice.recent_transactions.map((tx: any) => (
+                    <div key={tx.external_id || tx.id} className="py-2 flex items-center justify-between text-xs">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-[#002D72]">{tx.external_id}</span>
+                          <span className="text-[#64748B] text-[11px]">→</span>
+                          <span className="font-medium text-[#0F172A]">{tx.counterparty || 'Counterparty'}</span>
+                        </div>
+                        {tx.timestamp && (
+                          <div className="text-[10px] text-[#64748B] font-mono mt-0.5">
+                            {new Date(tx.timestamp).toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className="font-mono font-bold text-[#002D72] text-xs">
+                          {Number(tx.amount || 0).toLocaleString()} {tx.currency || 'EGP'}
+                        </span>
+                        <div className="mt-0.5">
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#ECFDF5] text-[#065F46]">
+                            {tx.status || 'COMPLETED'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#E0DDD6]">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const devId = selectedDevice.external_id || selectedDevice.device_id || selectedDevice.id;
+                  setSelectedDevice(null);
+                  navigate(`/admin/network-analysis?entity=${encodeURIComponent(devId)}`);
+                }}
+              >
+                <span>Inspect in Network Topology</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </Button>
               <Button
                 type="button"
                 variant="primary"
