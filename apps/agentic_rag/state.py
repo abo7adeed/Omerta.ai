@@ -44,6 +44,12 @@ class AgenticRAGState(BaseModel):
     stats: StatisticalSummary | None = None
     chart_spec: ChartSpecification | None = None
     chart_artifact: ChartArtifactReference | None = None
+    charts: list[ChartArtifactReference] = Field(default_factory=list)
+
+    # Conversational memory and guardrail tracking
+    conversation_context: str = ""
+    thought_steps: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
 
     # Final synthesis
     answer: str = ""
@@ -60,3 +66,4 @@ class AgenticRAGState(BaseModel):
     errors: list[str] = Field(default_factory=list)
     node_timings_ms: dict[str, float] = Field(default_factory=dict)
     start_time: float = Field(default_factory=lambda: datetime.now(UTC).timestamp())
+

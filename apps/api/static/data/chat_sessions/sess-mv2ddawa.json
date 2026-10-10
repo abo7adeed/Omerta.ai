@@ -1,0 +1,72 @@
+{
+  "session_id": "sess-mv2ddawa",
+  "user_id": "USR-1002",
+  "title": "Hi",
+  "created_at": "2026-10-10T12:27:33.932391+00:00",
+  "updated_at": "2026-10-10T12:27:33.932391+00:00",
+  "turns": [
+    {
+      "turn_id": "turn-85d2026c",
+      "sender": "user",
+      "text": "hi",
+      "timestamp": "2026-10-10T12:27:33.932391+00:00",
+      "rag_response": null,
+      "thought_steps": [],
+      "charts": [],
+      "warnings": []
+    },
+    {
+      "turn_id": "turn-fde3ce33",
+      "sender": "assistant",
+      "text": "## REQUEST FOR ADDITIONAL INFORMATION\n\nI\u2019m ready to assist you, but I need more context or specific details to provide a comprehensive, cited response. Please share the relevant facts, documents, or questions you\u2019d like me to address.",
+      "timestamp": "2026-10-10T12:27:33.932391+00:00",
+      "rag_response": {
+        "status": "ANSWERED",
+        "answer": "## REQUEST FOR ADDITIONAL INFORMATION\n\nI\u2019m ready to assist you, but I need more context or specific details to provide a comprehensive, cited response. Please share the relevant facts, documents, or questions you\u2019d like me to address.",
+        "citations": [],
+        "evidence_ids": [],
+        "sources_used": [
+          "documents"
+        ],
+        "response_blocks": [
+          {
+            "type": "warning",
+            "title": "Evidence Grounding Notice",
+            "message": "All presented metrics, transaction tallies, and policy references are cryptographically verified against authoritative banking ledgers and compliance knowledge documents."
+          },
+          {
+            "type": "text",
+            "content": "## REQUEST FOR ADDITIONAL INFORMATION\n\nI\u2019m ready to assist you, but I need more context or specific details to provide a comprehensive, cited response. Please share the relevant facts, documents, or questions you\u2019d like me to address."
+          }
+        ],
+        "limitations": [],
+        "clarification_question": null,
+        "investigation_id": "rag-inv-a23c94aa0a",
+        "execution_time_ms": 722.66,
+        "charts": [],
+        "thought_steps": [
+          "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+          "[02/07] Intent Decomposition & Source Selection: Extracted intents [QUESTION_ANSWERING]. Routing to authoritative tiers: [documents].",
+          "[03/07] Multi-Source Evidence Retrieval: Retrieved 0 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+          "[04/07] Deterministic Analytical Execution: Computed zero-hallucination metrics (0 verified KPIs and tabular projections with zero-division safety guards).",
+          "[05/07] Visual Analytics Generation: Generated 0 vector charts (Types: [None]) with Omerta Corporate Palette.",
+          "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+          "[07/07] Cryptographic Provenance Sealing: Verified 100% SHA-256 evidence integrity hashes and closed forensic investigation audit trail."
+        ],
+        "warnings": [],
+        "conversation_id": "sess-mv2ddawa"
+      },
+      "thought_steps": [
+        "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+        "[02/07] Intent Decomposition & Source Selection: Extracted intents [QUESTION_ANSWERING]. Routing to authoritative tiers: [documents].",
+        "[03/07] Multi-Source Evidence Retrieval: Retrieved 0 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+        "[04/07] Deterministic Analytical Execution: Computed zero-hallucination metrics (0 verified KPIs and tabular projections with zero-division safety guards).",
+        "[05/07] Visual Analytics Generation: Generated 0 vector charts (Types: [None]) with Omerta Corporate Palette.",
+        "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+        "[07/07] Cryptographic Provenance Sealing: Verified 100% SHA-256 evidence integrity hashes and closed forensic investigation audit trail."
+      ],
+      "charts": [],
+      "warnings": []
+    }
+  ]
+}

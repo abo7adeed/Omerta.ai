@@ -19,9 +19,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 
 from apps.agentic_rag.graph import execute_agentic_rag
+from domain.agentic_rag.memory import AgenticMemoryManager
 from domain.agentic_rag.schemas import (
     AgenticRAGRequest,
     AgenticRAGResponse,
+    CreateSessionRequest,
+    SessionSummary,
 )
 from domain.agentic_rag.visualization import ARTIFACTS_DIR
 from infrastructure.security.jwt_auth import get_current_user
@@ -43,9 +46,12 @@ async def query_agentic_rag(
     request: AgenticRAGRequest,
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> AgenticRAGResponse:
-    """Execute authenticated Agentic RAG query."""
+    """Execute authenticated Agentic RAG query with session memory."""
     user_role = current_user.get("role", "INVESTIGATOR")
-    user_id = current_user.get("sub")
+    user_id = str(current_user.get("sub", "default_investigator"))
+
+    session_id = request.conversation_id or f"sess-{user_id[:8]}"
+    request.conversation_id = session_id
 
     try:
         response = await execute_agentic_rag(
@@ -53,6 +59,22 @@ async def query_agentic_rag(
             user_role=user_role,
             user_id=user_id,
         )
+        response.conversation_id = session_id
+
+        # Persist conversation turn into session memory
+        try:
+            AgenticMemoryManager.add_turn(
+                session_id=session_id,
+                user_id=user_id,
+                user_query=request.question,
+                response_data=response.model_dump(),
+                thought_steps=response.thought_steps,
+                charts=[c.model_dump() for c in response.charts],
+                warnings=response.warnings,
+            )
+        except Exception as mem_exc:
+            logger.warning("Could not persist session turn: %s", mem_exc)
+
         return response
     except Exception as exc:
         logger.exception("Agentic RAG execution failed: %s", exc)
@@ -60,6 +82,76 @@ async def query_agentic_rag(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"error": "AGENTIC_RAG_FAILURE", "message": str(exc)},
         )
+
+
+@router.get(
+    "/sessions",
+    response_model=list[SessionSummary],
+    summary="List Chat Sessions",
+    description="Returns all conversation sessions for the authenticated investigator, sorted by last updated.",
+)
+async def list_chat_sessions(
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    """List chat sessions for the active user."""
+    user_id = str(current_user.get("sub", "default_investigator"))
+    return AgenticMemoryManager.list_user_sessions(user_id=user_id)
+
+
+@router.get(
+    "/sessions/{session_id}",
+    summary="Get Chat Session Detail",
+    description="Returns full sequential messages, metrics, charts, and reasoning traces for a specific session.",
+)
+async def get_chat_session(
+    session_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Retrieve full session detail including message turns."""
+    session = AgenticMemoryManager.get_session(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "SESSION_NOT_FOUND", "message": f"Session '{session_id}' does not exist."},
+        )
+    return session.model_dump()
+
+
+@router.post(
+    "/sessions",
+    summary="Create New Chat Session",
+    description="Initializes a new empty investigation session like ChatGPT New Chat.",
+)
+async def create_chat_session(
+    payload: CreateSessionRequest | None = None,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Initialize a new chat session."""
+    user_id = str(current_user.get("sub", "default_investigator"))
+    title = payload.title if payload else None
+    new_sess = AgenticMemoryManager.create_session(user_id=user_id, title=title)
+    return new_sess.model_dump()
+
+
+@router.delete(
+    "/sessions/{session_id}",
+    summary="Delete Chat Session",
+    description="Permanently removes a conversation session and its stored history.",
+)
+async def delete_chat_session(
+    session_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Delete a chat session."""
+    user_id = str(current_user.get("sub", "default_investigator"))
+    success = AgenticMemoryManager.delete_session(session_id, user_id=user_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "SESSION_NOT_FOUND", "message": f"Session '{session_id}' not found or could not be deleted."},
+        )
+    return {"status": "DELETED", "session_id": session_id}
+
 
 
 @router.get(

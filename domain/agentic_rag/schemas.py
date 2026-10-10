@@ -55,7 +55,9 @@ class ChartType(StrEnum):
     SCATTER = "scatter"
     PIE = "pie"
     DONUT = "donut"
+    AREA = "area"
     HEATMAP = "heatmap"
+
 
 
 # --- Request Contracts ---
@@ -247,6 +249,10 @@ class AgenticRAGResponse(BaseModel):
     clarification_question: str | None = None
     investigation_id: str = Field(default_factory=lambda: f"rag-inv-{uuid4().hex[:10]}")
     execution_time_ms: float = 0.0
+    charts: list[ChartArtifactReference] = Field(default_factory=list, description="All rendered visualization artifacts")
+    thought_steps: list[str] = Field(default_factory=list, description="Trace of reasoning and audit milestones")
+    warnings: list[str] = Field(default_factory=list, description="Forensic guardrail notices and advisories")
+    conversation_id: str | None = None
 
     @model_validator(mode="after")
     def validate_citation_evidence_referential_integrity(self) -> "AgenticRAGResponse":
@@ -259,3 +265,19 @@ class AgenticRAGResponse(BaseModel):
                     valid_ids.add(cit.evidence_id)
             self.evidence_ids = sorted(valid_ids)
         return self
+
+
+# --- Chat Session Schemas ---
+
+class SessionSummary(BaseModel):
+    session_id: str
+    title: str
+    created_at: str
+    updated_at: str
+    message_count: int
+    last_preview: str = ""
+
+
+class CreateSessionRequest(BaseModel):
+    title: str | None = None
+

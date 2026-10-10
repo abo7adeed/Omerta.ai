@@ -12,3 +12,4 @@ export * from './Skeleton';
 export * from './EmptyState';
 export * from './Alert';
 export * from './StatCard';
+export * from './FormattedMarkdown';

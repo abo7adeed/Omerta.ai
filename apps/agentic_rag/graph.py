@@ -92,6 +92,11 @@ async def execute_agentic_rag(
         clarification_question=final_dict.get("clarification_question"),
         investigation_id=final_dict.get("investigation_id", f"rag-{uuid4().hex[:8]}"),
         execution_time_ms=round(elapsed_ms, 2),
+        charts=final_dict.get("charts", []),
+        thought_steps=final_dict.get("thought_steps", []),
+        warnings=final_dict.get("warnings", []),
+        conversation_id=request.conversation_id,
     )
 
     return response
+

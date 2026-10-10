@@ -85,13 +85,30 @@ class VisualizationEngine:
                 if len(spec.series) > 1:
                     ax.legend(frameon=True, facecolor="#F8FAFC", edgecolor=GRID_COLOR, fontsize=9)
 
+            elif spec.chart_type == ChartType.AREA:
+                import numpy as np
+                x_vals = spec.categories if spec.categories else [f"T{i+1}" for i in range(len(spec.series[0].data if spec.series else []))]
+                for idx, s in enumerate(spec.series):
+                    color = s.color or colors[idx % len(colors)]
+                    x_indices = np.arange(len(x_vals))
+                    ax.plot(x_indices, s.data, marker="o", markersize=4, linewidth=2.2, label=s.name, color=color)
+                    ax.fill_between(x_indices, s.data, color=color, alpha=0.25)
+                ax.set_xticks(range(len(x_vals)))
+                ax.set_xticklabels(x_vals, rotation=20 if len(x_vals) > 5 else 0, ha="right" if len(x_vals) > 5 else "center")
+                if len(spec.series) > 1 or (spec.series and spec.series[0].name != "Values"):
+                    ax.legend(frameon=True, facecolor="#F8FAFC", edgecolor=GRID_COLOR, fontsize=9)
+
             elif spec.chart_type == ChartType.HORIZONTAL_BAR:
                 import numpy as np
                 y = np.arange(len(spec.categories))
                 s = spec.series[0] if spec.series else None
                 if s:
                     color = s.color or colors[0]
-                    ax.barh(y, s.data, color=color, edgecolor="#CBD5E1", height=0.6)
+                    bars = ax.barh(y, s.data, color=color, edgecolor="#CBD5E1", height=0.55)
+                    # Add data labels
+                    for bar in bars:
+                        w = bar.get_width()
+                        ax.text(w + (max(s.data) * 0.02 if s.data else 1), bar.get_y() + bar.get_height() / 2, f"{w:,.0f}", va="center", ha="left", fontsize=9, fontweight="bold", color="#1E293B")
                 ax.set_yticks(y)
                 ax.set_yticklabels(spec.categories)
                 ax.invert_yaxis()
@@ -104,13 +121,17 @@ class VisualizationEngine:
                         labels=spec.categories if spec.categories else None,
                         colors=colors[:len(s.data)],
                         autopct="%1.1f%%",
+                        pctdistance=0.75 if spec.chart_type == ChartType.DONUT else 0.6,
                         startangle=140,
-                        wedgeprops=dict(width=0.4 if spec.chart_type == ChartType.DONUT else 1.0, edgecolor="#FFFFFF", linewidth=1.5),
+                        wedgeprops=dict(width=0.45 if spec.chart_type == ChartType.DONUT else 1.0, edgecolor="#FFFFFF", linewidth=1.8),
                     )
                     for at in autotexts:
                         at.set_fontsize(9)
                         at.set_fontweight("bold")
                         at.set_color("#1E293B")
+                    for t in texts:
+                        t.set_fontsize(9)
+                        t.set_color("#334155")
 
             elif spec.chart_type == ChartType.HISTOGRAM:
                 s = spec.series[0] if spec.series else None

@@ -529,6 +529,19 @@ export const api = {
     }),
   getAgenticRAGStatus: () => apiRequest('/agentic-rag/status'),
   getChartArtifactUrl: (artifactId: string) => `/api/v1/agentic-rag/artifacts/${artifactId}`,
+  listAgenticRAGSessions: () => apiRequest<ChatSessionSummary[]>('/agentic-rag/sessions'),
+  getAgenticRAGSession: (sessionId: string) =>
+    apiRequest<ChatSessionDetail>(`/agentic-rag/sessions/${encodeURIComponent(sessionId)}`),
+  createAgenticRAGSession: (title?: string) =>
+    apiRequest<ChatSessionDetail>('/agentic-rag/sessions', {
+      method: 'POST',
+      body: JSON.stringify({ title }),
+    }),
+  deleteAgenticRAGSession: (sessionId: string) =>
+    apiRequest<{ status: string; session_id: string }>(
+      `/agentic-rag/sessions/${encodeURIComponent(sessionId)}`,
+      { method: 'DELETE' }
+    ),
 };
 
 // ==============================================================================
@@ -644,4 +657,38 @@ export interface AgenticRAGResponse {
   clarification_question?: string | null;
   investigation_id: string;
   execution_time_ms: number;
+  charts?: ChartArtifactReference[];
+  thought_steps?: string[];
+  warnings?: string[];
+  conversation_id?: string;
 }
+
+export interface ChatSessionSummary {
+  session_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+  last_preview?: string;
+}
+
+export interface ChatTurn {
+  turn_id: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  timestamp: string;
+  rag_response?: AgenticRAGResponse;
+  thought_steps?: string[];
+  charts?: ChartArtifactReference[];
+  warnings?: string[];
+}
+
+export interface ChatSessionDetail {
+  session_id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  turns: ChatTurn[];
+}
+
