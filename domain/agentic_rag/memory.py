@@ -58,22 +58,30 @@ class AgenticMemoryManager:
 
     @classmethod
     def _get_session_path(cls, session_id: str) -> Path:
-        # Sanitize session_id to avoid path traversal
-        clean_id = re.sub(r"[^a-zA-Z0-9_\-]", "", session_id)
-        return SESSIONS_DIR / f"{clean_id}.json"
+        # Strictly validate session_id to prevent path traversal
+        if not session_id or not re.match(r"^[a-zA-Z0-9_\-]+$", session_id):
+            raise ValueError(f"Invalid session_id format: {session_id}")
+        return SESSIONS_DIR / f"{session_id}.json"
 
     @classmethod
-    def get_session(cls, session_id: str) -> ChatSessionRecord | None:
-        """Load session record from disk."""
+    def get_session(cls, session_id: str, user_id: str | None = None) -> ChatSessionRecord | None:
+        """Load session record from disk, enforcing user ownership if user_id is provided."""
         if not session_id:
             return None
-        path = cls._get_session_path(session_id)
+        try:
+            path = cls._get_session_path(session_id)
+        except ValueError:
+            return None
         if not path.exists():
             return None
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            return ChatSessionRecord.model_validate(data)
+            record = ChatSessionRecord.model_validate(data)
+            if user_id and record.user_id != user_id:
+                logger.warning("Access denied: session %s belongs to %s, not %s", session_id, record.user_id, user_id)
+                return None
+            return record
         except Exception as exc:
             logger.warning("Failed to load session %s: %s", session_id, exc)
             return None
@@ -82,7 +90,11 @@ class AgenticMemoryManager:
     def save_session(cls, session: ChatSessionRecord) -> None:
         """Persist session record to disk."""
         session.updated_at = datetime.now(UTC).isoformat()
-        path = cls._get_session_path(session.session_id)
+        try:
+            path = cls._get_session_path(session.session_id)
+        except ValueError as val_err:
+            logger.error("Cannot save session with invalid ID: %s", val_err)
+            return
         try:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(session.model_dump(), f, indent=2)
@@ -109,9 +121,9 @@ class AgenticMemoryManager:
             try:
                 with open(file, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                # Filter by user if specified
                 sess_user = data.get("user_id", "")
-                if user_id and sess_user and sess_user != user_id and sess_user != "default_investigator":
+                # Strictly isolate sessions by authenticated user_id
+                if user_id and sess_user != user_id:
                     continue
 
                 turns = data.get("turns", [])
@@ -137,15 +149,24 @@ class AgenticMemoryManager:
     @classmethod
     def delete_session(cls, session_id: str, user_id: str | None = None) -> bool:
         """Delete session file if authorized."""
-        path = cls._get_session_path(session_id)
-        if path.exists():
-            try:
-                path.unlink()
-                return True
-            except Exception as exc:
-                logger.error("Failed to delete session %s: %s", session_id, exc)
+        try:
+            path = cls._get_session_path(session_id)
+        except ValueError:
+            return False
+        if not path.exists():
+            return False
+        # Enforce user authorization before deletion
+        if user_id:
+            session = cls.get_session(session_id, user_id=user_id)
+            if not session:
+                logger.warning("Unauthorized attempt to delete session %s by %s", session_id, user_id)
                 return False
-        return False
+        try:
+            path.unlink()
+            return True
+        except Exception as exc:
+            logger.error("Failed to delete session %s: %s", session_id, exc)
+            return False
 
     @classmethod
     def add_turn(

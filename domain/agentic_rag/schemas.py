@@ -24,14 +24,27 @@ class SourceType(StrEnum):
 
 class AnalysisIntent(StrEnum):
     """Categorized analytical intent of the user inquiry."""
+    DOCUMENT_SEARCH = "DOCUMENT_SEARCH"
+    TRANSACTION_LOOKUP = "TRANSACTION_LOOKUP"
+    ACCOUNT_LOOKUP = "ACCOUNT_LOOKUP"
+    CUSTOMER_LOOKUP = "CUSTOMER_LOOKUP"
+    FINANCIAL_AGGREGATION = "FINANCIAL_AGGREGATION"
+    PERIOD_COMPARISON = "PERIOD_COMPARISON"
+    TREND_ANALYSIS = "TREND_ANALYSIS"
+    GRAPH_EXPLORATION = "GRAPH_EXPLORATION"
+    RISK_ANALYSIS = "RISK_ANALYSIS"
+    VISUALIZATION = "VISUALIZATION"
+    MULTI_SOURCE_INVESTIGATION = "MULTI_SOURCE_INVESTIGATION"
+    GENERAL_BANKING_QUESTION = "GENERAL_BANKING_QUESTION"
+    NEEDS_CLARIFICATION = "NEEDS_CLARIFICATION"
+
+    # Backwards-compatible aliases
     QUESTION_ANSWERING = "QUESTION_ANSWERING"
     DATA_RETRIEVAL = "DATA_RETRIEVAL"
     AGGREGATION = "AGGREGATION"
     STATISTICAL_ANALYSIS = "STATISTICAL_ANALYSIS"
     COMPARISON = "COMPARISON"
-    TREND_ANALYSIS = "TREND_ANALYSIS"
     ANOMALY_ANALYSIS = "ANOMALY_ANALYSIS"
-    VISUALIZATION = "VISUALIZATION"
     GRAPH_ANALYSIS = "GRAPH_ANALYSIS"
     DOCUMENT_RESEARCH = "DOCUMENT_RESEARCH"
     REPORT_GENERATION = "REPORT_GENERATION"
@@ -256,14 +269,12 @@ class AgenticRAGResponse(BaseModel):
 
     @model_validator(mode="after")
     def validate_citation_evidence_referential_integrity(self) -> "AgenticRAGResponse":
-        """Enforces that every citation references a verified evidence_id."""
+        """Enforces that every citation strictly references an authorized evidence_id from current request."""
         if self.citations:
             valid_ids = set(self.evidence_ids)
-            for cit in self.citations:
-                if cit.evidence_id not in valid_ids:
-                    # Self-repair: append to evidence_ids if citation is authentic
-                    valid_ids.add(cit.evidence_id)
-            self.evidence_ids = sorted(valid_ids)
+            filtered = [c for c in self.citations if c.evidence_id in valid_ids]
+            self.citations = filtered
+            self.evidence_ids = sorted(list({c.evidence_id for c in filtered}))
         return self
 
 

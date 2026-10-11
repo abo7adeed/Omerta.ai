@@ -29,3 +29,8 @@ Thumbs.db
 
 # --- Dev server logs ---
 *.log
+
+# --- Dynamic Artifacts & Scratch ---
+scratch/
+apps/api/static/artifacts/charts/*.png
+apps/api/static/data/chat_sessions/sess-mv*.json

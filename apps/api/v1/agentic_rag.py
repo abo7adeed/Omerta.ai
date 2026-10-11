@@ -15,7 +15,7 @@ from pathlib import Path
 import re
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from fastapi.responses import FileResponse
 
 from apps.agentic_rag.graph import execute_agentic_rag
@@ -108,11 +108,12 @@ async def get_chat_session(
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Retrieve full session detail including message turns."""
-    session = AgenticMemoryManager.get_session(session_id)
+    user_id = str(current_user.get("sub", "default_investigator"))
+    session = AgenticMemoryManager.get_session(session_id, user_id=user_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "SESSION_NOT_FOUND", "message": f"Session '{session_id}' does not exist."},
+            detail={"error": "SESSION_NOT_FOUND", "message": f"Session '{session_id}' does not exist or access is denied."},
         )
     return session.model_dump()
 
@@ -247,3 +248,138 @@ async def get_system_status(
         "analytics_engine": "ACTIVE",
         "visualization_engine": "ACTIVE",
     }
+
+
+@router.get(
+    "/documents",
+    summary="List Knowledge Base Documents",
+    description="Returns all ingested policy and governance documents in the vector knowledge store.",
+)
+async def list_knowledge_documents(
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    """List all indexed documents with chunk statistics."""
+    from infrastructure.database.session import get_engine
+    from sqlalchemy import select, func
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from infrastructure.database.models import KnowledgeDocument, KnowledgeChunk
+
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        docs = (await session.scalars(select(KnowledgeDocument).order_by(KnowledgeDocument.document_id))).all()
+        result = []
+        for d in docs:
+            chunk_cnt = await session.scalar(
+                select(func.count(KnowledgeChunk.id)).where(KnowledgeChunk.document_id == d.document_id)
+            ) or 0
+            result.append({
+                "document_id": d.document_id,
+                "title": d.title,
+                "document_type": d.document_type,
+                "jurisdiction": d.jurisdiction,
+                "effective_date": d.effective_date,
+                "version": d.version,
+                "source": d.source,
+                "chunk_count": chunk_cnt,
+            })
+        return result
+
+
+@router.post(
+    "/documents/upload",
+    summary="Upload Document to Knowledge Base Vector Store",
+    description="Uploads a PDF, Markdown, DOCX, or text file into the knowledge base, chunks and indexes it into the vector database.",
+)
+async def upload_knowledge_document(
+    file: UploadFile = File(...),
+    category: str = Form("General"),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Upload and index a new document into the knowledge store."""
+    import shutil
+    from infrastructure.database.session import get_engine
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from infrastructure.knowledge.ingest import load_any_document, ingest_document_into_db
+
+    allowed_exts = {".md", ".txt", ".pdf", ".docx"}
+    filename = file.filename or "uploaded_document.txt"
+    file_ext = Path(filename).suffix.lower()
+    if file_ext not in allowed_exts:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "INVALID_FILE_TYPE", "message": f"Unsupported file type '{file_ext}'. Allowed formats: {list(allowed_exts)}"},
+        )
+
+    docs_dir = Path("infrastructure/knowledge/documents")
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    clean_stem = re.sub(r"[^a-zA-Z0-9_\-]", "_", Path(filename).stem)
+    target_path = docs_dir / f"{clean_stem}{file_ext}"
+
+    try:
+        with open(target_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as exc:
+        logger.error("Failed to save uploaded file: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": "SAVE_FAILED", "message": f"Could not save uploaded file: {str(exc)}"},
+        )
+
+    try:
+        doc = load_any_document(target_path)
+        if category:
+            doc.category = category
+        async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+            chunks_count = await ingest_document_into_db(session, doc)
+            await session.commit()
+
+        logger.info("Successfully uploaded and indexed document %s (%d chunks)", doc.document_id, chunks_count)
+        return {
+            "success": True,
+            "document_id": doc.document_id,
+            "title": doc.title,
+            "category": doc.category,
+            "document_type": doc.document_type,
+            "version": doc.version,
+            "chunks_indexed": chunks_count,
+            "content_hash": doc.content_hash,
+            "message": f"Document '{doc.document_id}' successfully parsed, chunked, and stored in vector database ({chunks_count} chunks).",
+        }
+    except Exception as exc:
+        logger.exception("Failed to parse and index uploaded document: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": "INGESTION_FAILED", "message": f"Failed to parse and index document: {str(exc)}"},
+        )
+
+
+@router.delete(
+    "/documents/{document_id}",
+    summary="Delete Knowledge Base Document",
+    description="Deletes an indexed document and its chunks from PostgreSQL, TF-IDF vector index, and disk.",
+)
+async def delete_knowledge_document(
+    document_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Delete a document from the vector store."""
+    from infrastructure.database.session import get_engine
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from infrastructure.knowledge.ingest import delete_document_from_db
+
+    clean_id = document_id.strip()
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        deleted = await delete_document_from_db(session, clean_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": "NOT_FOUND", "message": f"Document '{clean_id}' was not found in knowledge store."},
+            )
+        await session.commit()
+
+    logger.info("Successfully deleted document %s from knowledge store", clean_id)
+    return {
+        "success": True,
+        "document_id": clean_id,
+        "message": f"Document '{clean_id}' and all associated chunks were successfully deleted from vector database.",
+    }
+

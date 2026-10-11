@@ -337,19 +337,45 @@ async def ingest_document_into_db(session: AsyncSession, doc: ParsedDocument) ->
     return chunk_count
 
 
-async def ingest_starter_corpus(session: AsyncSession, docs_dir: Path) -> dict[str, int]:
-    """Ingest all documents found in docs_dir."""
-    results = {}
-    if not docs_dir.exists():
-        return results
+async def delete_document_from_db(session: AsyncSession, document_id: str) -> bool:
+    """Delete an indexed document and its vector chunks from PostgreSQL and local disk."""
+    doc_id = document_id.strip()
+    if not doc_id:
+        return False
 
-    for file_path in docs_dir.glob("*.*"):
+    # Delete all associated chunks
+    await session.execute(delete(KnowledgeChunk).where(KnowledgeChunk.document_id == doc_id))
+    # Delete document record
+    res = await session.execute(delete(KnowledgeDocument).where(KnowledgeDocument.document_id == doc_id))
+
+    # Remove file from disk if present in knowledge directory
+    docs_dir = Path("infrastructure/knowledge/documents")
+    if docs_dir.exists():
+        for pat in [f"{doc_id}.*", f"{doc_id.lower()}.*", f"{doc_id.upper()}.*"]:
+            for f in docs_dir.glob(pat):
+                try:
+                    f.unlink(missing_ok=True)
+                except Exception:
+                    pass
+
+    await session.flush()
+    return bool(res.rowcount and res.rowcount > 0)
+
+
+async def ingest_starter_corpus(session: AsyncSession, docs_dir: Path | str) -> int:
+    """Ingest all policy and starter documents in directory into the database."""
+    target_dir = Path(docs_dir)
+    if not target_dir.exists():
+        return 0
+    total_chunks = 0
+    for file_path in sorted(target_dir.iterdir()):
         if file_path.suffix.lower() in {".md", ".txt", ".pdf", ".docx"}:
             try:
                 doc = load_any_document(file_path)
-                count = await ingest_document_into_db(session, doc)
-                results[doc.document_id] = count
-                logger.info("Ingested %s (%d chunks)", doc.document_id, count)
-            except Exception as exc:
-                logger.error("Failed to ingest %s: %s", file_path.name, exc)
-    return results
+                chunks = await ingest_document_into_db(session, doc)
+                total_chunks += chunks
+            except Exception as e:
+                logger.warning("Failed to ingest %s: %s", file_path, e)
+    await session.flush()
+    return total_chunks
+

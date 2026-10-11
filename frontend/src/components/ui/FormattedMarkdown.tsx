@@ -31,12 +31,12 @@ export const FormattedMarkdown: React.FC<FormattedMarkdownProps> = ({
       }
 
       // Inline Citation badge: [DOC-OPS-001, v2, §4] or [TRANSACTION: TXN-001]
-      if (part.startsWith('[') && part.endsWith(']') && (part.includes('DOC-') || part.includes('TRANSACTION:') || part.includes('ACCOUNT:') || part.includes('GRAPH-'))) {
+      if (part.startsWith('[') && part.endsWith(']') && (part.includes('DOC-') || part.includes('TRANSACTION:') || part.includes('ACCOUNT:') || part.includes('CUSTOMER:') || part.includes('TRANSACTIONS:') || part.includes('GRAPH-') || part.includes('LEDGER-'))) {
         return (
           <span
             key={`cit-${idx}`}
             onClick={() => onCitationClick && onCitationClick(part)}
-            className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded text-[10px] font-mono font-bold bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] shadow-2xs cursor-pointer hover:bg-[#FDE68A] transition-colors align-baseline"
+            className="inline-flex items-center px-2 py-0.5 mx-0.5 rounded text-[11.5px] font-mono font-bold bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] shadow-2xs cursor-pointer hover:bg-[#FDE68A] transition-colors align-baseline"
             title="Verified Forensic Citation"
           >
             {part}
@@ -56,7 +56,7 @@ export const FormattedMarkdown: React.FC<FormattedMarkdownProps> = ({
       // Inline Code: `text`
       if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
         return (
-          <code key={`c-${idx}`} className="px-1 py-0.5 rounded bg-[#F1F5F9] text-[#002D72] font-mono text-[11px] font-semibold border border-[#E2E8F0]">
+          <code key={`c-${idx}`} className="px-1.5 py-0.5 rounded bg-[#F1F5F9] text-[#002D72] font-mono text-xs font-semibold border border-[#E2E8F0]">
             {part.slice(1, -1)}
           </code>
         );
@@ -147,7 +147,7 @@ export const FormattedMarkdown: React.FC<FormattedMarkdownProps> = ({
     // 3. Main Headings: #, ##, ###
     if (trimmed.startsWith('# ')) {
       blocks.push(
-        <h2 key={`h1-${blocks.length}`} className="text-base font-extrabold text-[#002D72] mt-4 mb-2 pb-1 border-b border-[#E2E8F0] uppercase tracking-wide">
+        <h2 key={`h1-${blocks.length}`} className="text-2xl font-extrabold text-[#002D72] mt-6 mb-3 pb-2 border-b border-[#E2E8F0] uppercase tracking-wide">
           {renderInline(trimmed.slice(2))}
         </h2>
       );
@@ -157,8 +157,8 @@ export const FormattedMarkdown: React.FC<FormattedMarkdownProps> = ({
 
     if (trimmed.startsWith('## ')) {
       blocks.push(
-        <h3 key={`h2-${blocks.length}`} className="text-sm font-bold text-[#002D72] mt-3.5 mb-1.5 flex items-center gap-1.5 uppercase tracking-wide">
-          <span className="w-1.5 h-3.5 rounded-full bg-[#F9A825]" />
+        <h3 key={`h2-${blocks.length}`} className="text-xl font-bold text-[#002D72] mt-5 mb-2.5 flex items-center gap-2 uppercase tracking-wide">
+          <span className="w-2.5 h-4.5 rounded-full bg-[#F9A825]" />
           {renderInline(trimmed.slice(3))}
         </h3>
       );
@@ -168,7 +168,7 @@ export const FormattedMarkdown: React.FC<FormattedMarkdownProps> = ({
 
     if (trimmed.startsWith('### ')) {
       blocks.push(
-        <h4 key={`h3-${blocks.length}`} className="text-xs font-bold text-[#0F172A] mt-2.5 mb-1">
+        <h4 key={`h3-${blocks.length}`} className="text-lg font-bold text-[#0F172A] mt-4 mb-2">
           {renderInline(trimmed.slice(4))}
         </h4>
       );
@@ -180,8 +180,8 @@ export const FormattedMarkdown: React.FC<FormattedMarkdownProps> = ({
     if (trimmed.startsWith('**') && trimmed.endsWith('**') && !trimmed.slice(2, -2).includes('**')) {
       const titleText = trimmed.slice(2, -2);
       blocks.push(
-        <div key={`title-banner-${blocks.length}`} className="mt-3 mb-2 p-2.5 bg-[#F4F1EC] border-l-4 border-[#002D72] rounded-r-[8px]">
-          <h3 className="text-xs font-extrabold text-[#002D72] uppercase tracking-wide">
+        <div key={`title-banner-${blocks.length}`} className="mt-4 mb-3 p-3.5 bg-[#F4F1EC] border-l-4 border-[#002D72] rounded-r-[8px]">
+          <h3 className="text-base font-extrabold text-[#002D72] uppercase tracking-wide">
             {titleText}
           </h3>
         </div>
@@ -198,7 +198,7 @@ export const FormattedMarkdown: React.FC<FormattedMarkdownProps> = ({
         i++;
       }
       blocks.push(
-        <ul key={`ul-${blocks.length}`} className="my-2 space-y-1.5 pl-4 list-disc text-xs text-[#1E293B]">
+        <ul key={`ul-${blocks.length}`} className="my-3 space-y-2.5 pl-5 list-disc text-[16px] text-[#1E293B]">
           {listItems.map((item, lIdx) => (
             <li key={`li-${lIdx}`} className="leading-relaxed">
               {renderInline(item)}
@@ -217,7 +217,7 @@ export const FormattedMarkdown: React.FC<FormattedMarkdownProps> = ({
         i++;
       }
       blocks.push(
-        <ol key={`ol-${blocks.length}`} className="my-2 space-y-1.5 pl-4 list-decimal text-xs text-[#1E293B]">
+        <ol key={`ol-${blocks.length}`} className="my-3 space-y-2.5 pl-5 list-decimal text-[16px] text-[#1E293B]">
           {listItems.map((item, lIdx) => (
             <li key={`oli-${lIdx}`} className="leading-relaxed font-normal">
               {renderInline(item)}
@@ -236,7 +236,7 @@ export const FormattedMarkdown: React.FC<FormattedMarkdownProps> = ({
         i++;
       }
       blocks.push(
-        <blockquote key={`quote-${blocks.length}`} className="my-2.5 p-3 bg-[#F8FAFC] border-l-3 border-[#F9A825] rounded-r-[8px] text-xs text-[#334155] italic">
+        <blockquote key={`quote-${blocks.length}`} className="my-3.5 p-4 bg-[#F8FAFC] border-l-3 border-[#F9A825] rounded-r-[8px] text-[15px] text-[#334155] italic">
           {renderInline(quoteLines.join(' '))}
         </blockquote>
       );
@@ -245,12 +245,12 @@ export const FormattedMarkdown: React.FC<FormattedMarkdownProps> = ({
 
     // 8. Standard Paragraph
     blocks.push(
-      <p key={`p-${blocks.length}`} className="text-xs text-[#1E293B] leading-relaxed my-1.5">
+      <p key={`p-${blocks.length}`} className="text-[16px] text-[#1E293B] leading-relaxed my-3 font-normal">
         {renderInline(trimmed)}
       </p>
     );
     i++;
   }
 
-  return <div className={`space-y-1 ${className}`}>{blocks}</div>;
+  return <div className={`space-y-1.5 ${className}`}>{blocks}</div>;
 };

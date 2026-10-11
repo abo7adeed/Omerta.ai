@@ -1,4 +1,4 @@
-# Omerta.ai — Agentic RAG Operations & Deployment Guide
+# Omerta.ai — Agentic RAG Operations, Verification & Testing Guide
 
 ## 1. Prerequisites and Infrastructure
 
@@ -45,9 +45,10 @@ ARTIFACTS_DIR=apps/api/static/artifacts/charts
 docker compose up -d postgres neo4j
 ```
 
-### 3.2 Run Database Migrations
+### 3.2 Run Database Migrations & Seed
 ```powershell
 uv run alembic upgrade head
+uv run python -m infrastructure.database.seed
 ```
 
 ### 3.3 Ingest Starter Knowledge Documents
@@ -60,41 +61,39 @@ uv run python -m infrastructure.knowledge.ingest
 uv run uvicorn apps.api.main:app --reload --port 8000
 ```
 
-### 3.5 Start Investigator Frontend
+### 3.5 Start React Frontend
 ```powershell
 cd frontend
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:5173`, connecting to the backend at `http://localhost:8000`.
+---
+
+## 4. Verification & Automated Test Procedures
+
+### 4.1 Run Agentic RAG Regression Suite
+Execute the dedicated 38-test Agentic RAG suite covering all security, routing, retrieval, citation, and graph guarantees:
+
+```powershell
+uv run pytest tests/test_agentic_rag.py -v
+```
+
+### 4.2 Run Frontend Production Build
+Validate TypeScript typings and bundle compilation:
+
+```powershell
+cd frontend
+npm run build
+```
 
 ---
 
-## 4. Operational Health & Diagnostics
+## 5. API Endpoints Reference
 
-The Agentic RAG service exposes a dedicated status and telemetry endpoint:
-
-```http
-GET /api/v1/agentic-rag/status
-```
-
-Response format:
-```json
-{
-  "status": "OPERATIONAL",
-  "version": "1.0.0",
-  "sources": {
-    "postgresql": "ONLINE",
-    "neo4j": "ONLINE",
-    "document_kb": {
-      "status": "ONLINE",
-      "indexed_documents": 6
-    }
-  },
-  "modules": {
-    "analytics_engine": "ACTIVE",
-    "visualization_engine": "ACTIVE",
-    "langgraph_orchestrator": "ACTIVE"
-  }
-}
-```
+- `POST /api/v1/agentic-rag/query`: Processes natural-language questions through LangGraph orchestrator with session memory.
+- `GET /api/v1/agentic-rag/sessions`: Lists conversation sessions belonging strictly to the authenticated user.
+- `GET /api/v1/agentic-rag/sessions/{session_id}`: Retrieves full message history and thought steps for an authorized session.
+- `POST /api/v1/agentic-rag/sessions`: Initializes a new empty investigation session.
+- `DELETE /api/v1/agentic-rag/sessions/{session_id}`: Deletes an owned session.
+- `GET /api/v1/agentic-rag/artifacts/{artifact_id}`: Delivers authenticated Matplotlib chart PNG images with traversal defenses.
+- `GET /api/v1/agentic-rag/status`: Operational telemetry for RAG sources and database connectivity.

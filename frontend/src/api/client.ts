@@ -19,12 +19,15 @@ export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = localStorage.getItem('omerta_token');
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
 
+  if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const token = localStorage.getItem('omerta_token');
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -542,11 +545,43 @@ export const api = {
       `/agentic-rag/sessions/${encodeURIComponent(sessionId)}`,
       { method: 'DELETE' }
     ),
+  listKnowledgeDocuments: () => apiRequest<KnowledgeDocumentSummary[]>('/agentic-rag/documents'),
+  deleteKnowledgeDocument: (documentId: string) =>
+    apiRequest<{ success: boolean; document_id: string; message: string }>(
+      `/agentic-rag/documents/${encodeURIComponent(documentId)}`,
+      { method: 'DELETE' }
+    ),
+  uploadKnowledgeDocument: (formData: FormData) =>
+    apiRequest<{
+      success: boolean;
+      document_id: string;
+      title: string;
+      category: string;
+      document_type: string;
+      version: number;
+      chunks_indexed: number;
+      content_hash: string;
+      message: string;
+    }>('/agentic-rag/documents/upload', {
+      method: 'POST',
+      body: formData,
+    }),
 };
 
 // ==============================================================================
 // Agentic RAG & AI Financial Analyst TypeScript Definitions
 // ==============================================================================
+
+export interface KnowledgeDocumentSummary {
+  document_id: string;
+  title: string;
+  document_type: string;
+  jurisdiction: string;
+  effective_date: string;
+  version: number;
+  source: string;
+  chunk_count: number;
+}
 
 export type SourceType = 'documents' | 'postgresql' | 'neo4j';
 

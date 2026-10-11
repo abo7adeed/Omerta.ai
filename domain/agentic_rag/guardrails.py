@@ -89,8 +89,22 @@ class ForensicGuardrails:
                 )
 
         # 2. Destructive SQL / Command Pattern Check
+        # Distinguish between asking about SQL security topics versus executing destructive commands
+        is_educational_discussion = any(
+            re.search(r"(?i)\b" + kw + r"\b", q)
+            for kw in [
+                "protect", "prevention", "prevent", "vulnerability", "security",
+                "explain", "what is", "how does", "policy regarding", "defense",
+                "educational", "architecture", "guardrail", "safeguard", "safe against",
+            ]
+        )
+
         for pat in DESTRUCTIVE_PATTERNS:
             if re.search(pat, q):
+                # If it's a legitimate inquiry discussing SQL security without execution syntax
+                if is_educational_discussion and not re.search(r"(;|--|\bexec\b|\brun\b)", q):
+                    warnings.append("Inquiry mentions database operations in security analysis context.")
+                    break
                 logger.warning("Destructive SQL syntax detected in question: %s", pat)
                 return GuardrailResult(
                     is_safe=False,

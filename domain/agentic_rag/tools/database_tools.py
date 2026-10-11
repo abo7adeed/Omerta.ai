@@ -93,15 +93,239 @@ class DatabaseTools:
             return {
                 "id": cust.id,
                 "external_id": cust.external_id,
-                "full_name": cust.full_name,
+                "name": getattr(cust, "name", getattr(cust, "full_name", "")),
                 "omerta_user_number": cust.omerta_user_number,
                 "email": cust.email,
                 "declared_country": cust.declared_country,
                 "transfer_status": cust.transfer_status,
                 "identity_status": cust.identity_status,
-                "risk_rating": cust.risk_rating,
+                "risk_level": getattr(cust, "risk_level", "LOW"),
                 "transfer_failed_attempts": cust.transfer_failed_attempts,
             }
+
+    @staticmethod
+    async def find_customers_by_name(name_query: str, limit: int = 5) -> list[dict[str, Any]]:
+        """Search customers by name with intelligent sanitization and multi-token fallback match."""
+        import re
+        from sqlalchemy import or_
+
+        limit = min(max(limit, 1), 20)
+        raw = (name_query or "").strip()
+        if not raw:
+            return []
+
+        # 1. Clean quotes and punctuation
+        clean = re.sub(r"[\"“'‘”’]", "", raw).strip()
+
+        # 2. Extract significant tokens (filter out common conversational words and typo variants)
+        stop_words = {
+            "user", "users", "customer", "customers", "client", "clients", "person", "persons",
+            "and", "their", "thier", "his", "her", "its", "the", "a", "an", "in", "of", "for", "with",
+            "transication", "transications", "transaction", "transactions", "transfers", "transfer",
+            "history", "profile", "account", "accounts", "balance", "details", "record", "records",
+            "database", "data", "info", "information", "authorized", "show", "find", "search", "lookup",
+            "status", "stauts", "statue", "statu", "staus", "statuss", "state", "active", "tier", "level",
+            "score", "risk", "tell", "me", "about", "give", "gave", "get", "who", "is", "this", "was",
+            "all", "please", "list"
+        }
+        tokens = [w for w in re.split(r"[\s,\-_]+", clean) if w and w.lower() not in stop_words]
+        cleaned_term = " ".join(tokens).strip()
+
+        async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+            # Step A: Try cleaned term first if present, otherwise clean raw
+            search_str = cleaned_term if cleaned_term else clean
+            stmt = select(Customer).where(Customer.name.ilike(f"%{search_str}%")).limit(limit)
+            rows = (await session.scalars(stmt)).all()
+
+            # Step B: If no match and multiple tokens exist, require ALL tokens to match (AND logic)
+            if not rows and len(tokens) >= 2:
+                from sqlalchemy import and_
+                and_filters = [Customer.name.ilike(f"%{tok}%") for tok in tokens if len(tok) >= 3]
+                if and_filters:
+                    stmt_and = select(Customer).where(and_(*and_filters)).limit(limit)
+                    rows = (await session.scalars(stmt_and)).all()
+
+            # Step C: If still no match and tokens exist, try token-based matching with fuzzy ranking
+            if not rows and tokens:
+                token_filters = [Customer.name.ilike(f"%{tok}%") for tok in tokens if len(tok) >= 3]
+                if token_filters:
+                    stmt_tokens = select(Customer).where(or_(*token_filters)).limit(20)
+                    rows = (await session.scalars(stmt_tokens)).all()
+
+            # Step D: Fallback to raw string partial match
+            if not rows and clean != search_str:
+                stmt_raw = select(Customer).where(Customer.name.ilike(f"%{clean}%")).limit(limit)
+                rows = (await session.scalars(stmt_raw)).all()
+
+            # Step E: Rank candidates with SequenceMatcher to eliminate false ambiguity
+            if len(rows) > 1 and search_str:
+                from difflib import SequenceMatcher
+                scored = []
+                for c in rows:
+                    sim = SequenceMatcher(None, search_str.lower(), c.name.lower()).ratio()
+                    c_name_words = set(c.name.lower().split())
+                    q_words = set(tok.lower() for tok in tokens) if tokens else set(search_str.lower().split())
+                    overlap = len(c_name_words.intersection(q_words)) / max(len(q_words), 1)
+                    total_score = (sim * 0.6) + (overlap * 0.4)
+                    scored.append((total_score, c))
+                scored.sort(key=lambda x: x[0], reverse=True)
+                best_score, best_cand = scored[0]
+                second_score = scored[1][0]
+                if best_score >= 0.70 and (best_score - second_score >= 0.15):
+                    rows = [best_cand]
+                else:
+                    rows = [c for _, c in scored][:limit]
+
+            return [
+                {
+                    "id": c.id,
+                    "external_id": c.external_id,
+                    "name": c.name,
+                    "omerta_user_number": c.omerta_user_number,
+                    "email": c.email,
+                    "declared_country": c.declared_country,
+                    "transfer_status": c.transfer_status,
+                    "identity_status": c.identity_status,
+                    "risk_level": getattr(c, "risk_level", "LOW"),
+                    "transfer_failed_attempts": c.transfer_failed_attempts,
+                }
+                for c in rows
+            ]
+
+    @staticmethod
+    async def get_all_customers(limit: int = 20) -> list[dict[str, Any]]:
+        """Fetch all registered customers from PostgreSQL (bounded to limit)."""
+        limit = min(max(limit, 1), 100)
+        async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+            stmt = select(Customer).order_by(Customer.id).limit(limit)
+            rows = (await session.scalars(stmt)).all()
+            return [
+                {
+                    "id": c.id,
+                    "external_id": c.external_id,
+                    "name": c.name,
+                    "omerta_user_number": c.omerta_user_number,
+                    "email": c.email,
+                    "declared_country": c.declared_country,
+                    "transfer_status": c.transfer_status,
+                    "identity_status": c.identity_status,
+                    "risk_level": getattr(c, "risk_level", "LOW"),
+                    "transfer_failed_attempts": c.transfer_failed_attempts,
+                }
+                for c in rows
+            ]
+
+    @staticmethod
+    async def execute_read_only_sql(sql_query: str, limit: int = 50) -> list[dict[str, Any]]:
+        """Execute a dynamic read-only SELECT query against PostgreSQL with strict security validation."""
+        import re
+        from decimal import Decimal
+        from datetime import datetime
+        from sqlalchemy import text
+
+        clean_sql = (sql_query or "").strip()
+        if not clean_sql:
+            return []
+
+        upper_sql = clean_sql.upper()
+        # Strictly require SELECT or WITH ... SELECT
+        if not (upper_sql.startswith("SELECT") or upper_sql.startswith("WITH")):
+            raise ValueError("Only read-only SELECT statements are permitted.")
+
+        # Prohibit any data modification syntax
+        blocked = [
+            "INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "TRUNCATE",
+            "CREATE", "GRANT", "REVOKE", "EXEC", "EXECUTE", "INTO",
+        ]
+        for kw in blocked:
+            if re.search(rf"\b{kw}\b", upper_sql):
+                raise ValueError(f"Prohibited SQL keyword detected: {kw}. Modifications are rejected.")
+
+        if ";" in clean_sql.rstrip(";"):
+            raise ValueError("Multiple SQL queries separated by semicolons are prohibited.")
+
+        limit = min(max(limit, 1), 50)
+        if "LIMIT" not in upper_sql:
+            clean_sql = f"{clean_sql.rstrip(';')} LIMIT {limit}"
+
+        async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+            result = await session.execute(text(clean_sql))
+            keys = list(result.keys())
+            rows = []
+            for r in result.fetchall():
+                row_dict = {}
+                for idx, col in enumerate(keys):
+                    val = r[idx]
+                    if isinstance(val, Decimal):
+                        row_dict[col] = float(val)
+                    elif isinstance(val, datetime):
+                        row_dict[col] = val.isoformat()
+                    else:
+                        row_dict[col] = val
+                rows.append(row_dict)
+            return rows
+
+    @staticmethod
+    async def get_customer_accounts_and_transactions(customer_id: str | int) -> dict[str, Any]:
+        """Fetch all accounts and recent transaction records linked to a customer."""
+        from sqlalchemy import or_
+
+        async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+            # 1. Resolve customer internal ID
+            c_str = str(customer_id).strip()
+            c_stmt = select(Customer.id).where(
+                (Customer.external_id == c_str)
+                | (Customer.omerta_user_number == c_str)
+                | (Customer.id == int(c_str) if c_str.isdigit() else False)
+            )
+            internal_c_id = await session.scalar(c_stmt)
+            if not internal_c_id and c_str.isdigit():
+                internal_c_id = int(c_str)
+            if not internal_c_id:
+                return {"accounts": [], "transactions": []}
+
+            # 2. Query linked accounts
+            acc_stmt = select(Account).where(Account.customer_id == internal_c_id)
+            acc_rows = (await session.scalars(acc_stmt)).all()
+            accounts = [
+                {
+                    "id": a.id,
+                    "external_id": a.external_id,
+                    "account_type": a.account_type,
+                    "balance": float(a.balance) if a.balance is not None else 0.0,
+                    "currency": a.currency,
+                    "status": a.status,
+                }
+                for a in acc_rows
+            ]
+
+            # 3. Query transactions linked to those accounts
+            acc_ids = [a.id for a in acc_rows]
+            transactions = []
+            if acc_ids:
+                txn_stmt = (
+                    select(Transaction)
+                    .where(or_(Transaction.account_id.in_(acc_ids), Transaction.recipient_account_id.in_(acc_ids)))
+                    .order_by(desc(Transaction.timestamp))
+                    .limit(20)
+                )
+                txn_rows = (await session.scalars(txn_stmt)).all()
+                transactions = [
+                    {
+                        "external_id": t.external_id,
+                        "account_id": t.account_id,
+                        "recipient_account_id": t.recipient_account_id,
+                        "amount": float(t.amount),
+                        "currency": t.currency,
+                        "status": t.status,
+                        "risk_score": float(t.risk_score) if t.risk_score is not None else 0.0,
+                        "risk_level": t.risk_level,
+                        "timestamp": t.timestamp.isoformat(),
+                    }
+                    for t in txn_rows
+                ]
+
+            return {"accounts": accounts, "transactions": transactions}
 
     @staticmethod
     async def get_recent_transactions(account_id: str, limit: int = 10) -> list[dict[str, Any]]:

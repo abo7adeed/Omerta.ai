@@ -28,6 +28,8 @@ import {
   Trash2,
   PanelLeftClose,
   PanelLeftOpen,
+  Upload,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Card } from '../components/ui/Card';
@@ -44,6 +46,7 @@ import type {
   ChartArtifactReference,
   SourceType,
   ChatSessionSummary,
+  KnowledgeDocumentSummary,
 } from '../api/client';
 
 interface ChatMessage {
@@ -78,6 +81,48 @@ export const AiAssistantPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [uploadNotification, setUploadNotification] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Document Management Modal State
+  const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+  const [docList, setDocList] = useState<KnowledgeDocumentSummary[]>([]);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+
+  const handleOpenDocModal = async () => {
+    setIsDocModalOpen(true);
+    setIsLoadingDocs(true);
+    try {
+      const list = await api.listKnowledgeDocuments();
+      setDocList(list);
+    } catch (err) {
+      console.error('Failed to load documents:', err);
+    } finally {
+      setIsLoadingDocs(false);
+    }
+  };
+
+  const handleDeleteDoc = async (docId: string) => {
+    if (!confirm(`Are you sure you want to delete document "${docId}" from the vector database?`)) return;
+    setDeletingDocId(docId);
+    try {
+      await api.deleteKnowledgeDocument(docId);
+      setDocList((prev) => prev.filter((d) => d.document_id !== docId));
+      const tel = await api.getAgenticRAGStatus();
+      setTelemetry(tel);
+      setUploadNotification({
+        type: 'success',
+        text: `Document "${docId}" successfully removed from Vector Database.`,
+      });
+    } catch (err: any) {
+      console.error('Failed to delete document:', err);
+      alert(err?.message || 'Failed to delete document.');
+    } finally {
+      setDeletingDocId(null);
+    }
+  };
 
   // Fetch live system status & initial session list
   useEffect(() => {
@@ -88,6 +133,51 @@ export const AiAssistantPage: React.FC = () => {
 
     loadSessions();
   }, []);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingDoc(true);
+    setUploadNotification(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('category', 'Uploaded Compliance Guidelines');
+
+      const res = await api.uploadKnowledgeDocument(formData);
+      setUploadNotification({
+        type: 'success',
+        text: `Indexed ${res.document_id}: "${res.title}" (${res.chunks_indexed} chunks stored into Vector Database).`,
+      });
+
+      // Refresh telemetry
+      const tel = await api.getAgenticRAGStatus();
+      setTelemetry(tel);
+
+      // Add notification directly into the message feed
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `upload-${Date.now()}`,
+          sender: 'assistant',
+          text: `📄 **Knowledge Base Document Indexed into Vector Store**\n\n- **Document ID:** \`${res.document_id}\`\n- **Title:** ${res.title}\n- **Chunks Indexed into Vector Database:** **${res.chunks_indexed}**\n- **Integrity SHA-256:** \`${res.content_hash.slice(0, 16)}...\`\n\n*The vector database and TF-IDF index have been updated. You can immediately ask questions or reference policies from this document.*`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } catch (err: any) {
+      console.error('Failed to upload knowledge document:', err);
+      setUploadNotification({
+        type: 'error',
+        text: err?.message || 'Failed to upload document.',
+      });
+    } finally {
+      setIsUploadingDoc(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   // Auto-scroll on new message
   useEffect(() => {
@@ -376,7 +466,35 @@ export const AiAssistantPage: React.FC = () => {
           </div>
 
           {/* Telemetry Pills & History Toggle */}
-          <div className="flex items-center gap-2.5 self-start md:self-auto">
+          <div className="flex items-center gap-2.5 self-start md:self-auto flex-wrap">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept=".md,.txt,.pdf,.docx"
+              className="hidden"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isUploadingDoc}
+              onClick={() => fileInputRef.current?.click()}
+              className="h-9 px-3 text-xs border-[#CBD5E1] text-[#002D72] hover:bg-[#F8FAFC] flex items-center gap-1.5 shadow-xs"
+              title="Upload PDF, Markdown, DOCX, or text file directly into Vector Store"
+            >
+              <Upload className={`w-4 h-4 text-[#F9A825] ${isUploadingDoc ? 'animate-bounce' : ''}`} />
+              <span>{isUploadingDoc ? 'Indexing...' : 'Upload Doc to Vector DB'}</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenDocModal}
+              className="h-9 px-3 text-xs border-[#CBD5E1] text-[#002D72] hover:bg-[#F8FAFC] flex items-center gap-1.5 shadow-xs"
+              title="View, inspect, and delete indexed documents from Vector Store"
+            >
+              <FileText className="w-4 h-4 text-[#002D72]" />
+              <span>Manage Docs</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -386,14 +504,21 @@ export const AiAssistantPage: React.FC = () => {
               {isSidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
               <span>{isSidebarOpen ? 'Hide History' : 'Chat History'}</span>
             </Button>
-            <div className="flex items-center gap-2 bg-white p-2 rounded-[12px] border border-[#E2E8F0] shadow-xs text-[11px]">
+            <div
+              onClick={handleOpenDocModal}
+              className="flex items-center gap-2 bg-white p-2 rounded-[12px] border border-[#E2E8F0] shadow-xs text-[11px] cursor-pointer hover:border-[#002D72] transition-colors"
+              title="Click to view and delete knowledge base documents"
+            >
               <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#F0FDF4] rounded-[8px] text-[#166534] font-medium">
                 <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
                 <span>Guardrails: Active</span>
               </div>
               <div className="text-[#94A3B8]">•</div>
-              <div className="text-[#475569] font-medium">
-                Docs: <strong className="text-[#002D72]">{telemetry?.sources?.document_kb?.indexed_documents || 6}</strong>
+              <div className="text-[#475569] font-medium flex items-center gap-1">
+                <span>Docs:</span>
+                <strong className="text-[#002D72] underline font-bold">
+                  {telemetry?.sources?.document_kb?.indexed_documents || docList.length || 6}
+                </strong>
               </div>
             </div>
           </div>
@@ -611,7 +736,7 @@ export const AiAssistantPage: React.FC = () => {
                       {isAi ? (
                         <FormattedMarkdown content={m.text} />
                       ) : (
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.text}</p>
+                        <p className="text-[16px] font-medium leading-relaxed whitespace-pre-wrap">{m.text}</p>
                       )}
 
                       {/* Multi-Chart Grid (Variety of chart types, not tables only) */}
@@ -974,6 +1099,127 @@ export const AiAssistantPage: React.FC = () => {
                 alt="Analytical Chart"
                 className="max-h-[75vh] w-auto object-contain rounded"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal for Knowledge Base Document Management & Deletion */}
+      {isDocModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+          onClick={() => setIsDocModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-[16px] max-w-2xl w-full p-6 shadow-2xl relative space-y-4 max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-[8px] bg-[#002D72] text-[#F9A825] flex items-center justify-center">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#002D72]">
+                    Knowledge Base Vector Documents
+                  </h3>
+                  <p className="text-[11px] text-[#64748B]">
+                    Active documents indexed in PostgreSQL and TF-IDF Vector Database
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs text-[#002D72] border-[#CBD5E1] flex items-center gap-1.5"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingDoc}
+                >
+                  <Upload className="w-3.5 h-3.5 text-[#F9A825]" />
+                  <span>Upload Doc</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-[#64748B] hover:text-[#002D72]"
+                  onClick={() => setIsDocModalOpen(false)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+              {isLoadingDocs ? (
+                <div className="flex items-center justify-center py-12 text-[#64748B] text-xs gap-2">
+                  <RefreshCw className="w-4 h-4 animate-spin text-[#002D72]" />
+                  <span>Loading indexed knowledge documents...</span>
+                </div>
+              ) : docList.length === 0 ? (
+                <div className="text-center py-12 text-xs text-[#64748B]">
+                  No documents found in knowledge base. Click "Upload Doc" above to index new files.
+                </div>
+              ) : (
+                docList.map((doc) => (
+                  <div
+                    key={doc.document_id}
+                    className="flex items-center justify-between p-3.5 rounded-[12px] border border-[#E2E8F0] hover:border-[#CBD5E1] bg-[#F8FAFC] transition-colors gap-3"
+                  >
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-xs text-[#002D72] truncate">
+                          {doc.title}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-[#E0E7FF] text-[#3730A3] border border-[#C7D2FE]">
+                          {doc.document_type || 'DOCUMENT'}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]">
+                          ID: {doc.document_id}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px] text-[#64748B]">
+                        <span>
+                          Chunks Indexed: <strong className="text-[#002D72]">{doc.chunk_count}</strong>
+                        </span>
+                        <span>•</span>
+                        <span>Version: {doc.version}</span>
+                        {doc.jurisdiction && (
+                          <>
+                            <span>•</span>
+                            <span>{doc.jurisdiction}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteDoc(doc.document_id)}
+                      disabled={deletingDocId === doc.document_id}
+                      className="h-8 px-2.5 text-xs text-[#DC2626] border-[#FECACA] hover:bg-[#FEE2E2] hover:border-[#FCA5A5] flex items-center gap-1 shrink-0 cursor-pointer"
+                      title={`Delete ${doc.document_id} from vector store`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{deletingDocId === doc.document_id ? 'Deleting...' : 'Delete'}</span>
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="border-t border-[#E2E8F0] pt-3 flex items-center justify-between text-[11px] text-[#64748B]">
+              <span>
+                Total Indexed Documents: <strong className="text-[#002D72]">{docList.length}</strong>
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setIsDocModalOpen(false)}
+              >
+                Close
+              </Button>
             </div>
           </div>
         </div>
