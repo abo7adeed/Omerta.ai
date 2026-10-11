@@ -523,4 +523,7 @@ export interface TransactionDetail {
     risk_factors?: string[];
     generated_at?: string;
   };
+  preceding_transactions?: any[];
+  subsequent_transactions?: any[];
+  persisted_investigation?: any;
 }

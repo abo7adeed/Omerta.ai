@@ -566,6 +566,66 @@ export const api = {
       method: 'POST',
       body: formData,
     }),
+  investigateAccount: (params: {
+    account_id: string;
+    time_range_days?: number;
+    investigation_reason?: string;
+    reason_notes?: string;
+    persist?: boolean;
+  }) =>
+    apiRequest<AccountInvestigationReport>('/investigations/account', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+  investigateTransaction: (params: {
+    transaction_id: string;
+    time_range_days?: number;
+    investigation_reason?: string;
+    reason_notes?: string;
+    persist?: boolean;
+  }) =>
+    apiRequest<AccountInvestigationReport>('/investigations/transaction', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+  getTransactionInvestigation: (transactionId: string) =>
+    apiRequest<AccountInvestigationReport>(`/investigations/transaction/${encodeURIComponent(transactionId)}`, {
+      method: 'GET',
+    }),
+  simulateWithdrawal: (params: {
+    account_id: string;
+    amount: number | string;
+    currency?: string;
+    idempotency_key: string;
+    is_sandbox_confirmed: boolean;
+    note?: string;
+  }) =>
+    apiRequest<SimulatedWithdrawalResponse>('/investigations/simulate-withdrawal', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+  getSandboxFixtures: () =>
+    apiRequest<Array<{
+      account_id: string;
+      name: string;
+      type: string;
+      initial_balance: number;
+      current_balance: number;
+      currency: string;
+      description: string;
+      transaction_count: number;
+    }>>('/investigations/sandbox-fixtures', {
+      method: 'GET',
+    }),
+  resetSandbox: () =>
+    apiRequest<{
+      success: boolean;
+      deleted_transactions: number;
+      reset_fixtures: string[];
+      message: string;
+    }>('/investigations/reset-sandbox', {
+      method: 'POST',
+    }),
 };
 
 // ==============================================================================
@@ -726,4 +786,181 @@ export interface ChatSessionDetail {
   updated_at: string;
   turns: ChatTurn[];
 }
+
+// ==============================================================================
+// Account Forensic Investigation & Reporting Interfaces
+// ==============================================================================
+
+export interface TriggeredRuleAlert {
+  rule_id: string;
+  rule_name: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  reference_type?: 'STATUTORY_REGULATION' | 'REGULATORY_GUIDANCE' | 'INTERNAL_BANKING_HEURISTIC';
+  regulatory_reference: string;
+  applicable_window: string;
+  observed_values: Record<string, any>;
+  threshold_value: Record<string, any>;
+  explanation: string;
+  evidence_references: string[];
+}
+
+export interface BehavioralMetrics {
+  total_transactions: number;
+  withdrawal_count: number;
+  withdrawal_volume: number | string;
+  deposit_count: number;
+  deposit_volume: number | string;
+  net_flow: number | string;
+  average_withdrawal_amount: number | string;
+  median_withdrawal_amount: number | string;
+  max_withdrawal_amount: number | string;
+  min_withdrawal_amount: number | string;
+  velocity_5m_max_count: number;
+  velocity_5m_max_volume: number | string;
+  velocity_15m_max_count: number;
+  velocity_15m_max_volume: number | string;
+  velocity_60m_max_count: number;
+  velocity_60m_max_volume: number | string;
+  has_amount_escalation: boolean;
+  escalation_sequences: number[][];
+  completed_count: number;
+  failed_count: number;
+  reversed_count: number;
+  pending_count: number;
+  off_hours_count: number;
+  weekend_count: number;
+  ledger_reconciled: boolean;
+  ledger_discrepancy: number | string;
+}
+
+export interface MLRiskOutput {
+  model_version: string;
+  feature_version: string;
+  model_source: string;
+  risk_score: number;
+  risk_tier: string;
+  explanation_method?: string;
+  top_feature_contributions: Record<string, number>;
+  model_evaluation_metrics: Record<string, any>;
+  features_complete: boolean;
+  missing_features: string[];
+  model_loaded: boolean;
+  error_message?: string | null;
+}
+
+export interface GraphIntelligenceOutput {
+  available: boolean;
+  shared_device_count: number;
+  shared_devices: any[];
+  shared_ip_count: number;
+  shared_ips: any[];
+  connected_accounts_count: number;
+  connected_accounts: any[];
+  fraud_ring_detected: boolean;
+  fraud_ring_details: Record<string, any>;
+  graph_disclaimer: string;
+}
+
+export interface AccountFacts {
+  account_id: string;
+  customer_id: string;
+  customer_name: string;
+  customer_email?: string | null;
+  omerta_user_number?: string | null;
+  account_type: string;
+  status: string;
+  currency: string;
+  ledger_balance: number | string;
+  available_balance: number | string;
+  risk_level: string;
+  created_at: string;
+  verified_identity: boolean;
+  is_sandbox: boolean;
+}
+
+export interface PipelineStageTrace {
+  stage_id: string;
+  stage_name: string;
+  description: string;
+  source_tier: string;
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'SKIPPED' | 'PARTIAL' | 'FAILED';
+  started_at?: string | null;
+  completed_at?: string | null;
+  duration_ms: number;
+  input_summary: Record<string, any>;
+  output_summary: Record<string, any>;
+  evidence_ids: string[];
+  error_message?: string | null;
+}
+
+export interface AccountInvestigationReport {
+  investigation_id: string;
+  account_id: string;
+  transaction_id?: string | null;
+  target_transaction?: any | null;
+  preceding_transactions?: any[];
+  subsequent_transactions?: any[];
+  time_range_days: number;
+  generated_at: string;
+  caller_role: string;
+  investigation_reason: string;
+  executive_summary: string;
+  account_facts?: AccountFacts | null;
+  transaction_facts_count: number;
+  recent_transactions: any[];
+  behavioral_metrics: BehavioralMetrics;
+  triggered_rules: TriggeredRuleAlert[];
+  rules_score: number;
+  ml_risk: MLRiskOutput;
+  combined_risk_score: number;
+  operational_alert_threshold: number;
+  threshold_exceeded: boolean;
+  threshold_rationale: string;
+  graph_intelligence: GraphIntelligenceOutput;
+  risk_assessment_explanation: string;
+  factor_explanations: string[];
+  missing_data_and_limitations: string[];
+  recommended_action: string;
+  recommended_action_justification: string;
+  evidence_ids: string[];
+  audit_events: any[];
+  charts: ChartArtifactReference[];
+  execution_time_ms: number;
+  pipeline_stages?: PipelineStageTrace[];
+}
+
+export interface SimulatedWithdrawalResponse {
+  success: boolean;
+  transaction_id: string;
+  account_id: string;
+  amount: number | string;
+  currency: string;
+  new_balance: number | string;
+  status: string;
+  idempotency_key: string;
+  timestamp: string;
+  audit_event_id: string;
+  triggered_rules: string[];
+  risk_score?: number | null;
+  message: string;
+}
+
+export interface CaseItem {
+  id?: number | string;
+  external_id: string;
+  title: string;
+  summary?: string;
+  description?: string;
+  severity: string;
+  status: string;
+  assigned_to?: string;
+  assigned_to_name?: string;
+  alert_id?: string;
+  related_alert_id?: string;
+  customer_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: any;
+}
+
 

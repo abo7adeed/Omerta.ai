@@ -1,0 +1,170 @@
+"""Investigation & Forensic Workbench Router for Omerta.ai.
+
+Exposes endpoints for:
+- Account forensic investigations (LangGraph multi-source pipeline)
+- Transaction forensic investigations (LangGraph with pipeline tracing & preceding/subsequent context)
+- Transaction investigation retrieval & verification
+- Sandbox withdrawal simulation (isolated, atomic, concurrency-locked)
+- Sandbox fixtures and safe sandbox reset
+"""
+
+import logging
+from typing import Any
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select, or_, desc
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from domain.investigation.schemas import (
+    AccountInvestigationReport,
+    AccountInvestigationRequest,
+    SimulatedWithdrawalRequest,
+    SimulatedWithdrawalResponse,
+    TransactionInvestigationRequest,
+)
+from domain.errors import ValidationError
+from domain.investigation.simulation import get_sandbox_withdrawal_service
+from infrastructure.database.models import InvestigationCase, Transaction, Account
+from infrastructure.database.session import get_engine
+from infrastructure.security.jwt_auth import get_current_user
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/investigations", tags=["Forensic Investigations"])
+
+
+@router.post(
+    "/account",
+    response_model=AccountInvestigationReport,
+    summary="Run Account Forensic Investigation (LangGraph)",
+    description="Executes the full multi-tier LangGraph forensic investigation across PostgreSQL, Neo4j, LightGBM, and banking rules.",
+)
+async def investigate_account_endpoint(
+    body: AccountInvestigationRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> AccountInvestigationReport:
+    """Execute LangGraph account investigation workflow."""
+    from apps.investigator.account_workflow import run_account_investigation
+
+    role = current_user.get("role", "INVESTIGATOR")
+    user_id = current_user.get("id") or current_user.get("sub")
+    return await run_account_investigation(
+        body,
+        caller_role=role,
+        caller_id=str(user_id) if user_id else None,
+    )
+
+
+@router.post(
+    "/transaction",
+    response_model=AccountInvestigationReport,
+    summary="Run Transaction Forensic Investigation (LangGraph)",
+    description="Executes a transaction-grounded LangGraph investigation workflow with 9 real execution stages and temporal preceding/subsequent context.",
+)
+async def investigate_transaction_endpoint(
+    body: TransactionInvestigationRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> AccountInvestigationReport:
+    """Execute LangGraph transaction investigation workflow."""
+    from apps.investigator.account_workflow import run_transaction_investigation
+
+    role = current_user.get("role", "INVESTIGATOR")
+    user_id = current_user.get("id") or current_user.get("sub")
+    return await run_transaction_investigation(
+        body,
+        caller_role=role,
+        caller_id=str(user_id) if user_id else None,
+    )
+
+
+@router.get(
+    "/transaction/{transaction_id}",
+    summary="Get Existing Transaction Investigation Report",
+    description="Retrieve the persisted forensic investigation report and execution pipeline trace for a specific transaction.",
+)
+async def get_transaction_investigation_endpoint(
+    transaction_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Retrieve persisted report for a transaction or return 404."""
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        # 1. Check if transaction exists
+        txn = await session.scalar(
+            select(Transaction).where(
+                or_(
+                    Transaction.external_id == transaction_id,
+                    Transaction.id == int(transaction_id) if transaction_id.isdigit() else False,
+                )
+            )
+        )
+        if not txn:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Transaction '{transaction_id}' not found.",
+            )
+
+        # 2. Check for persisted InvestigationCase
+        case = await session.scalar(
+            select(InvestigationCase).where(
+                or_(
+                    InvestigationCase.transaction_id == txn.id,
+                    InvestigationCase.external_id == f"INV-TXN-{txn.external_id}",
+                )
+            ).order_by(desc(InvestigationCase.id))
+        )
+
+        if not case or not case.report:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No forensic investigation report currently persisted for transaction '{transaction_id}'.",
+            )
+
+        return case.report
+
+
+@router.post(
+    "/simulate-withdrawal",
+    response_model=SimulatedWithdrawalResponse,
+    summary="Simulate Sandbox Withdrawal Operation",
+    description="Simulates an atomic withdrawal on synthetic test accounts to evaluate concurrency, idempotency, and velocity monitoring controls.",
+)
+async def simulate_withdrawal_endpoint(
+    body: SimulatedWithdrawalRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> SimulatedWithdrawalResponse:
+    """Execute sandbox simulated withdrawal."""
+    service = get_sandbox_withdrawal_service()
+    role = current_user.get("role", "INVESTIGATOR")
+    try:
+        return await service.execute_simulated_withdrawal(body, caller_role=role)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "SIMULATION_VALIDATION_ERROR", "message": str(exc)},
+        )
+
+
+@router.get(
+    "/sandbox-fixtures",
+    summary="Get Authorized Sandbox Fixtures",
+    description="Returns authorized synthetic accounts available for simulation and their current simulated balances.",
+)
+async def get_sandbox_fixtures_endpoint(
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    """List available sandbox fixture accounts."""
+    service = get_sandbox_withdrawal_service()
+    return service.get_fixture_accounts()
+
+
+@router.post(
+    "/reset-sandbox",
+    summary="Safely Reset Sandbox Test Data",
+    description="Resets all synthetic test balances, purges synthetic test transactions, and clears idempotency caches without touching production data.",
+)
+async def reset_sandbox_endpoint(
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Safely reset sandbox environment."""
+    service = get_sandbox_withdrawal_service()
+    return await service.reset_sandbox()

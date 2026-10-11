@@ -20,6 +20,7 @@ from infrastructure.database.models import (
 )
 from infrastructure.database.session import get_engine
 from infrastructure.security.jwt_auth import get_current_user
+from domain.investigation.schemas import AccountInvestigationRequest, SimulatedWithdrawalRequest
 
 router = APIRouter(prefix="/cases", tags=["Investigation Cases"])
 
@@ -289,3 +290,46 @@ async def record_case_disposition(
             "case_status": case.status,
             "message": "Disposition recorded and immutable audit trail updated.",
         }
+
+
+@router.post(
+    "/investigate-account",
+    summary="Run Account Forensic Investigation (LangGraph)",
+    description="Executes the 8-stage LangGraph forensic account investigation workflow.",
+)
+async def investigate_account_endpoint(
+    body: AccountInvestigationRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Execute LangGraph account investigation workflow."""
+    from apps.investigator.account_workflow import run_account_investigation
+
+    role = current_user.get("role", "INVESTIGATOR")
+    user_id = current_user.get("id") or current_user.get("sub")
+    report = await run_account_investigation(body, caller_role=role, caller_id=str(user_id) if user_id else None)
+    return report.model_dump(mode="json")
+
+
+@router.post(
+    "/simulate-withdrawal",
+    summary="Simulate Sandbox Withdrawal Operation",
+    description="Simulates an atomic withdrawal on synthetic test accounts to evaluate concurrency, idempotency, and velocity monitoring controls.",
+)
+async def simulate_withdrawal_endpoint(
+    body: SimulatedWithdrawalRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Execute sandbox simulated withdrawal."""
+    from domain.investigation.simulation import get_sandbox_withdrawal_service
+    from domain.errors import ValidationError
+
+    service = get_sandbox_withdrawal_service()
+    role = current_user.get("role", "INVESTIGATOR")
+    try:
+        res = await service.execute_simulated_withdrawal(body, caller_role=role)
+        return res.model_dump(mode="json")
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "SIMULATION_VALIDATION_ERROR", "message": str(exc)},
+        )

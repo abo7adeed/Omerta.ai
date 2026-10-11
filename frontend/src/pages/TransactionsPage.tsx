@@ -122,7 +122,7 @@ export const TransactionsPage: React.FC = () => {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search TXN-ID, account #, sender or receiver..."
+              placeholder="Search user name (e.g. Abdo Haaland), account ID, or TXN-ID..."
               leftIcon={<Search className="h-4 w-4 text-[#64748B]" />}
               className="h-10 text-xs"
             />
@@ -191,6 +191,30 @@ export const TransactionsPage: React.FC = () => {
             )}
           </div>
         </form>
+
+        {/* Quick User Investigation Chips */}
+        <div className="mt-3.5 pt-3 border-t border-[#F1EFEA] flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+            Quick User Investigation:
+          </span>
+          {['Abdo Haaland', 'Ziad Karim', 'Abdo Belli', 'Mohamed El-Sayed', 'Ahmed Shawky'].map((name) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => {
+                setSearch(name);
+                setPage(1);
+              }}
+              className={`text-xs px-2.5 py-1 rounded-full font-medium transition-all ${
+                search === name
+                  ? 'bg-[#002D72] text-white shadow-sm'
+                  : 'bg-[#F4F1EC] text-[#002D72] hover:bg-[#EAE5DE]'
+              }`}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
       </Card>
 
       {/* Main Transactions Table */}
@@ -226,14 +250,14 @@ export const TransactionsPage: React.FC = () => {
                     const sAccount = txn.source_account || txn.sender_account_number || txn.account_number || 'ACC-Monitored';
                     const sName = txn.customer_name || txn.sender_name || 'Account Holder';
                     const rAccount = txn.recipient_account || txn.receiver_account_number || 'Beneficiary Account';
-                    const rName = txn.receiver_name || 'Beneficiary';
+                    const rName = txn.receiver_name || (rAccount !== 'Beneficiary Account' && rAccount !== 'N/A' ? rAccount : 'Beneficiary');
                     const txTime = txn.timestamp || txn.created_at;
 
                     return (
                       <TableRow
                         key={txn.external_id || txn.id}
                         onClick={() => navigate(`/admin/transactions/${txn.external_id || txn.id}`)}
-                        className="cursor-pointer"
+                        className="cursor-pointer hover:bg-[#FAF9F6] transition-colors"
                       >
                         <TableCell>
                           <div className="font-mono font-bold text-[#002D72]">
@@ -264,7 +288,7 @@ export const TransactionsPage: React.FC = () => {
                         </TableCell>
 
                         <TableCell>
-                          <div className="font-medium text-[#0F172A] truncate max-w-[150px]">
+                          <div className="font-bold text-[#0F172A] truncate max-w-[150px]">
                             {rName}
                           </div>
                           <div className="text-[11px] font-mono text-[#64748B]">
@@ -306,11 +330,12 @@ export const TransactionsPage: React.FC = () => {
                               e.stopPropagation();
                               navigate(`/admin/transactions/${txn.external_id || txn.id}`);
                             }}
-                            variant="ghost"
+                            variant="secondary"
                             size="sm"
-                            className="h-8 px-2 text-[#002D72]"
+                            className="h-8 px-2.5 text-xs text-[#002D72] bg-[#F4F1EC] hover:bg-[#002D72] hover:text-white transition-all font-semibold"
                           >
-                            <ArrowUpRight className="h-4 w-4" />
+                            Investigate
+                            <ArrowUpRight className="h-3.5 w-3.5 ml-1" />
                           </Button>
                         </TableCell>
                       </TableRow>

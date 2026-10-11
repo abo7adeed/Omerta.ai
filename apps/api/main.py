@@ -51,6 +51,10 @@ app.add_middleware(
 # Mount v1 REST API routes
 app.include_router(api_v1_router)
 
+# Mount investigations router at root /investigations as well for compatibility
+from apps.api.v1.investigations import router as investigations_root_router
+app.include_router(investigations_root_router)
+
 # --------------------------------------------------------------------------- #
 # Security middleware (Phase 17): API-key auth + rate limiting.
 # Both are OFF by default in development/test (no keys configured, limit 0)

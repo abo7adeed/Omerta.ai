@@ -125,19 +125,15 @@ async def _upsert_case(
         alert_pk = await session.scalar(select(Alert.id).where(Alert.external_id == alert_id))
     if alert_pk is None:
         alert_pk = await session.scalar(select(Alert.id).where(Alert.transaction_id == txn_pk))
-    if alert_pk is None:
-        raise ValueError(
-            "cannot persist a case without an alert linkage; the schema requires "
-            "alert_id on investigation_cases"
-        )
 
     existing = await session.scalar(
         select(InvestigationCase).where(InvestigationCase.external_id == investigation_id)
     )
     values = {
         "alert_id": alert_pk,
+        "transaction_id": txn_pk,
         "status": PENDING_REVIEW_STATUS,
-        "severity": report.get("risk_level", "MEDIUM"),
+        "severity": (report or {}).get("risk_level", "MEDIUM"),
         "assigned_to": None,
         "report": report or None,
     }

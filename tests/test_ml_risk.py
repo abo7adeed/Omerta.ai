@@ -263,7 +263,7 @@ async def test_risk_service_uses_ml_provider_end_to_end(
     settings = get_settings()
     monkeypatch.setattr(settings, "risk_provider", "ml")
     service = RiskService(db_session)
-    result = await service.get_risk_score("TXN-001")
+    result = await service.get_risk_score("TXN-003")
 
     assert result.source == "ML"
     assert result.model_version == MODEL_VERSION
@@ -271,8 +271,8 @@ async def test_risk_service_uses_ml_provider_end_to_end(
     assert result.risk_level in {"LOW", "MEDIUM", "HIGH"}
     # Seeded alert stays a separate fact, untouched by the ML provider.
     assert result.seeded_alert is not None
-    assert result.seeded_alert.alert_id == "ALERT-001"
-    assert result.seeded_alert.risk_score == "0.87"
+    assert result.seeded_alert.alert_id == "ALT-TXN-003"
+    assert result.seeded_alert.risk_score == "82.50"
 
 
 @pytest.mark.asyncio
