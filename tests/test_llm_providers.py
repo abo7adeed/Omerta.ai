@@ -11,8 +11,9 @@ from infrastructure.llm.fake_provider import FakeLLMProvider
 from infrastructure.llm.openai_provider import OpenAICompatibleProvider
 
 
-def test_factory_defaults_to_fake() -> None:
+def test_factory_defaults_to_fake(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = get_settings()
+    monkeypatch.setattr(settings, "llm_provider", "fake", raising=False)
     assert (settings.llm_provider or "fake") in {"", "fake", None}
     provider = get_llm_provider()
     assert provider.name == "fake"
@@ -32,6 +33,7 @@ def test_factory_requires_api_key_for_openai(monkeypatch: pytest.MonkeyPatch) ->
     settings = get_settings()
     monkeypatch.setattr(settings, "llm_provider", "openai", raising=False)
     monkeypatch.setattr(settings, "llm_api_key", None, raising=False)
+    monkeypatch.setattr(settings, "llm_api_keys", None, raising=False)
     monkeypatch.setattr(settings, "llm_model", "gpt-test", raising=False)
     with pytest.raises(ValueError, match="LLM_API_KEY"):
         get_llm_provider()
@@ -122,3 +124,40 @@ async def test_openai_provider_malformed_response_raises() -> None:
         pytest.raises(RuntimeError, match="missing expected content"),
     ):
         await provider.complete("s", "u")
+
+
+async def test_openai_provider_key_rotation_and_wrap_around() -> None:
+    keys = ["key-alpha", "key-beta", "key-gamma"]
+    provider = OpenAICompatibleProvider(
+        name="groq",
+        model="gpt-test",
+        api_keys=keys,
+        base_url="https://api.groq.com/openai/v1",
+    )
+
+    seen_auths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        auth = request.headers.get("Authorization", "")
+        seen_auths.append(auth)
+        # First key fails with 429 Rate Limit
+        if "key-alpha" in auth:
+            return httpx.Response(429, json={"error": "Rate limit reached"})
+        # Second key fails with 401 Unauthorized / quota expired
+        if "key-beta" in auth:
+            return httpx.Response(401, json={"error": "Expired key"})
+        # Third key succeeds
+        return httpx.Response(200, json={"choices": [{"message": {"content": "Rotated successfully"}}]})
+
+    transport = httpx.MockTransport(handler)
+    real_client = httpx.AsyncClient
+    import unittest.mock as mock
+
+    with mock.patch("httpx.AsyncClient", side_effect=lambda **kw: real_client(transport=transport, **kw)):
+        res = await provider.complete("system", "user")
+
+    assert res.content == "Rotated successfully"
+    assert seen_auths == ["Bearer key-alpha", "Bearer key-beta", "Bearer key-gamma"]
+    # Verify active key
+    assert provider._api_key == "key-gamma"
+

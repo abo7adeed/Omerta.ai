@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Wallet,
   PlusCircle,
@@ -6,6 +7,7 @@ import {
   FileText,
   AlertCircle,
   Loader2,
+  ArrowDownToLine,
 } from 'lucide-react';
 import { api } from '../../api/client';
 import type { CustomerAccount } from '../../types';
@@ -20,6 +22,7 @@ import {
 } from '../../components/ui';
 
 export const CustomerAccountsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [accounts, setAccounts] = useState<CustomerAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -158,14 +161,24 @@ export const CustomerAccountsPage: React.FC = () => {
                 <ShieldCheck className="h-4 w-4 text-emerald-600" /> Audited
               </span>
 
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => setActiveLedgerAccount(acc)}
-              >
-                <FileText className="h-4 w-4 text-[var(--color-sapphire)] mr-1.5" />
-                <span>Statement</span>
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => navigate('/customer/dashboard')}
+                >
+                  <ArrowDownToLine className="h-4 w-4 mr-1.5" />
+                  <span>Withdraw</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setActiveLedgerAccount(acc)}
+                >
+                  <FileText className="h-4 w-4 text-[var(--color-sapphire)] mr-1.5" />
+                  <span>Statement</span>
+                </Button>
+              </div>
             </div>
           </Card>
         ))}

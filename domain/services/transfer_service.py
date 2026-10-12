@@ -9,7 +9,7 @@ import asyncio
 from collections import defaultdict
 from contextlib import asynccontextmanager
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 import secrets
 from typing import Any
@@ -34,6 +34,7 @@ from infrastructure.database.models import (
     Transaction,
     Transfer,
     User,
+    InvestigationCase,
 )
 
 
@@ -111,6 +112,7 @@ class TransferService:
 
         conditions = [
             Customer.omerta_user_number == clean_upper,
+            Customer.accounts.any(Account.external_id == clean_upper),
         ]
         if digits_only:
             conditions.append(Customer.phone == digits_only)
@@ -399,18 +401,71 @@ class TransferService:
         )
         self.session.add_all([debit_entry, credit_entry])
 
-        # 11. Mock Risk Assessment Engine (> 40 Human Review Rule)
+        # 11. Multi-signal Dynamic Risk Assessment Engine (> 40 Human Review Rule)
         base_risk = Decimal("8.00")
         signals = []
 
+        # A. Large transfer thresholds
         if amount >= Decimal("50000.00"):
-            base_risk += Decimal("35.00")
+            base_risk += Decimal("40.00")
             signals.append({
                 "name": "HIGH_VALUE_TRANSFER",
                 "severity": "HIGH",
-                "description": f"Transfer amount of {amount:,.2f} {currency} exceeds routine threshold.",
+                "description": f"Transfer amount of {amount:,.2f} {currency} exceeds routine operational threshold.",
                 "source": "TRANSACTION_RULE",
             })
+        elif amount >= Decimal("20000.00"):
+            base_risk += Decimal("25.00")
+            signals.append({
+                "name": "ELEVATED_VALUE_TRANSFER",
+                "severity": "MEDIUM",
+                "description": f"Elevated single-transfer value of {amount:,.2f} {currency}.",
+                "source": "TRANSACTION_RULE",
+            })
+
+        # B. Structuring / Smurfing just under 25,000 or 50,000 statutory reporting boundaries
+        if (Decimal("24000.00") <= amount < Decimal("25000.00")) or (Decimal("45000.00") <= amount < Decimal("50000.00")):
+            base_risk += Decimal("40.00")
+            signals.append({
+                "name": "STRUCTURING_THRESHOLD_EVASION",
+                "severity": "CRITICAL",
+                "description": f"Transfer amount of {amount:,.2f} {currency} placed intentionally just below the 25,000/50,000 statutory reporting limit.",
+                "source": "AML_TYPOLOGY",
+            })
+
+        # C. High-risk beneficiary counterparty evaluation
+        if recipient_customer.risk_level in ("HIGH", "CRITICAL") or recipient_account.risk_level in ("HIGH", "CRITICAL"):
+            base_risk += Decimal("35.00")
+            signals.append({
+                "name": "HIGH_RISK_BENEFICIARY_ENTITY",
+                "severity": "CRITICAL",
+                "description": f"Beneficiary customer {recipient_customer.name} ({recipient_customer.omerta_user_number}) carries an elevated {recipient_customer.risk_level} risk classification.",
+                "source": "COUNTERPARTY_INTELLIGENCE",
+            })
+
+        # D. Rapid velocity & aggregation lookback (transfers in last 2 hours)
+        two_hours_ago = now - timedelta(hours=2)
+        recent_transfers_stmt = (
+            select(Transfer)
+            .where(
+                and_(
+                    Transfer.sender_customer_id == sender_customer.id,
+                    Transfer.created_at >= two_hours_ago,
+                    Transfer.id != transfer.id,
+                )
+            )
+        )
+        recent_txs = (await self.session.scalars(recent_transfers_stmt)).all()
+        if recent_txs:
+            recent_sum = sum((t.amount for t in recent_txs), Decimal("0.00"))
+            if recent_sum + amount >= Decimal("40000.00") or len(recent_txs) >= 2:
+                base_risk += Decimal("30.00")
+                signals.append({
+                    "name": "RAPID_TRANSFER_BURST_AGGREGATION",
+                    "severity": "HIGH",
+                    "description": f"Multiple transfers within 2 hours aggregating to {(recent_sum + amount):,.2f} {currency} across {len(recent_txs) + 1} operations.",
+                    "source": "VELOCITY_ANALYSIS",
+                })
 
         if is_vpn:
             base_risk += Decimal("25.00")
@@ -513,10 +568,67 @@ class TransferService:
             )
             self.session.add(alert)
 
+            sig_names = ", ".join(s["name"] for s in signals) if signals else "Elevated risk score"
+            await self.session.flush()
+
+            # Dynamic Investigation Case Registration
+            case_id = f"CASE-{txn.external_id}"
+            case = InvestigationCase(
+                external_id=case_id,
+                alert_id=alert.id,
+                transaction_id=txn.id,
+                title=f"Forensic Investigation: High-Risk Transfer {txn.external_id}",
+                severity=risk_lvl,
+                status="UNDER_INVESTIGATION",
+                assigned_to="Compliance Review Queue",
+                report={
+                    "investigation_id": f"INV-{txn.external_id}",
+                    "transaction_id": txn.external_id,
+                    "account_id": sender_account.external_id,
+                    "executive_summary": f"Automated risk detection flagged transfer {txn.external_id} with risk score {final_risk:.1f}%. Signals: {sig_names}. Account placed on security hold pending human investigation.",
+                    "combined_risk_score": float(final_risk) / 100.0,
+                    "rules_score": float(final_risk) / 100.0,
+                    "recommended_action": "HUMAN_REVIEW",
+                    "recommended_action_justification": "Risk score exceeds 40% threshold. Account held for compliance officer validation.",
+                    "generated_at": now.isoformat(),
+                },
+            )
+            self.session.add(case)
+
+            # Automated Human-in-the-Loop Security Block
+            sender_account.status = "BLOCKED"
+            sender_customer.status = "BLOCKED"
+            sender_customer.transfer_status = "BLOCKED"
+            sender_customer.transfer_blocked_at = now
+
+            # Deactivate login session
+            user_to_lock = await self.session.scalar(select(User).where(User.id == sender_customer.user_id))
+            if user_to_lock:
+                user_to_lock.is_active = False
+
+            # Record Security Block Audit Event
+            self.session.add(
+                AuditEvent(
+                    event_id=f"EVT-BLOCKED-{txn.external_id}",
+                    event_type="ACCOUNT_SECURITY_HOLD_TRIGGERED",
+                    actor_type="SYSTEM_RISK_ENGINE",
+                    actor_id=str(sender_user_id),
+                    source="TransferService",
+                    transaction_id=txn.external_id,
+                    metadata_={
+                        "reason": "HIGH_RISK_TRANSFER_DETECTED",
+                        "risk_score": float(final_risk),
+                        "account_id": sender_account.external_id,
+                        "customer_id": sender_customer.external_id,
+                        "action": "ACCOUNT_AND_TRANSFER_BLOCKED",
+                        "case_id": case_id,
+                    },
+                )
+            )
+
             try:
                 from domain.services.ticket_service import TicketService
                 tkt_svc = TicketService(self.session)
-                sig_names = ", ".join(s["name"] for s in signals) if signals else "Elevated risk score"
                 await tkt_svc.create_ticket(
                     customer=sender_customer,
                     title=f"Risk Review: Automated Alert for Transfer {transfer_ref}",
@@ -597,6 +709,10 @@ class TransferService:
             "fee": "0.00 DEMO",
             "is_demo": True,
             "disclaimer": "This is a simulated demo transfer for testing and compliance training purposes.",
+            "security_hold": transfer.transaction.review_status == "REQUIRES_REVIEW" if transfer.transaction else False,
+            "account_status": transfer.sender_account.status if transfer.sender_account else "ACTIVE",
+            "support_phone": "+20 2 19876",
+            "support_email": "compliance@omerta.ai",
         }
 
     async def list_customer_transfers(

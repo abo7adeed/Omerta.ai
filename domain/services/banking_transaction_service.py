@@ -190,6 +190,7 @@ class BankingTransactionService:
                 "customer_name": txn.account.customer_name if txn.account else "N/A",
                 "account_type": txn.account.account_type if txn.account else "N/A",
                 "balance": float(txn.account.balance) if txn.account else 0.0,
+                "status": txn.account.status if txn.account else "ACTIVE",
             },
             "recipient_account": {
                 "id": txn.recipient_account.id if txn.recipient_account else None,

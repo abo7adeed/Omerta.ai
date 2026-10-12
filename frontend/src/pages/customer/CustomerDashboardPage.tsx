@@ -21,6 +21,7 @@ import {
   KeyRound,
   Lock,
   ArrowRight,
+  ArrowDownToLine,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
@@ -54,6 +55,16 @@ export const CustomerDashboardPage: React.FC = () => {
   const [passwordModalLoading, setPasswordModalLoading] = useState(false);
   const [passwordModalError, setPasswordModalError] = useState<string | null>(null);
   const [passwordModalSuccess, setPasswordModalSuccess] = useState(false);
+
+  // Withdrawal Modal State
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawMethod, setWithdrawMethod] = useState('ATM_CASH_OUT');
+  const [withdrawPassword, setWithdrawPassword] = useState('');
+  const [withdrawDetails, setWithdrawDetails] = useState('');
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const [withdrawReceipt, setWithdrawReceipt] = useState<any | null>(null);
 
   const fetchDashboard = async () => {
     setIsLoading(true);
@@ -158,6 +169,37 @@ export const CustomerDashboardPage: React.FC = () => {
       return;
     }
     navigate('/customer/transfer');
+  };
+
+  const handleExecuteWithdraw = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setWithdrawError(null);
+    if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
+      setWithdrawError('Please enter a valid withdrawal amount.');
+      return;
+    }
+    if (!withdrawPassword) {
+      setWithdrawError('Please enter your transfer password to authorize this withdrawal.');
+      return;
+    }
+
+    setWithdrawLoading(true);
+    try {
+      const res = await api.withdrawCustomerFunds({
+        amount: parseFloat(withdrawAmount),
+        account_id: primaryAccount.account_id,
+        currency: primaryAccount.currency,
+        method: withdrawMethod,
+        destination_details: withdrawDetails.trim() || undefined,
+        password: withdrawPassword,
+      });
+      setWithdrawReceipt(res);
+      fetchDashboard();
+    } catch (err: any) {
+      setWithdrawError(err.message || 'Withdrawal operation failed.');
+    } finally {
+      setWithdrawLoading(false);
+    }
   };
 
   if (isLoading && !data) {
@@ -346,6 +388,21 @@ export const CustomerDashboardPage: React.FC = () => {
             >
               <Send className="h-4 w-4 mr-1.5" />
               <span>{isTransferBlocked ? 'Transfers Blocked (Click for Info)' : 'Send Money'}</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="sapphire"
+              onClick={() => {
+                setWithdrawError(null);
+                setWithdrawReceipt(null);
+                setWithdrawAmount('');
+                setWithdrawPassword('');
+                setShowWithdrawModal(true);
+              }}
+            >
+              <ArrowDownToLine className="h-4 w-4 mr-1.5 text-[var(--color-gold)]" />
+              <span>Withdraw Funds</span>
             </Button>
 
             <Button
@@ -649,6 +706,174 @@ export const CustomerDashboardPage: React.FC = () => {
               </Button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* Customer Withdrawal Modal */}
+      {showWithdrawModal && (
+        <Modal
+          isOpen={showWithdrawModal}
+          onClose={() => {
+            setShowWithdrawModal(false);
+            setWithdrawReceipt(null);
+          }}
+          title="Withdraw Funds"
+          subtitle={`From Account: ${primaryAccount.account_id} (Available: ${primaryAccount.balance.toLocaleString()} ${primaryAccount.currency})`}
+          maxWidth="md"
+        >
+          {withdrawReceipt ? (
+            <div className="space-y-4 text-xs">
+              <div className={`p-4 rounded-xl border ${
+                withdrawReceipt.requires_review
+                  ? 'bg-rose-50 border-rose-300 text-rose-950'
+                  : 'bg-emerald-50 border-emerald-300 text-emerald-950'
+              }`}>
+                <div className="flex items-center gap-2 font-bold text-sm">
+                  {withdrawReceipt.requires_review ? (
+                    <AlertTriangle className="w-5 h-5 text-rose-600" />
+                  ) : (
+                    <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                  )}
+                  <span>{withdrawReceipt.requires_review ? 'Withdrawal Flagged for Security Hold' : 'Withdrawal Processed Successfully'}</span>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed">
+                  {withdrawReceipt.message}
+                </p>
+              </div>
+
+              <div className="p-3.5 bg-[var(--color-secondary-surface)] rounded-xl border border-[var(--color-border)] space-y-2 font-mono">
+                <div className="flex justify-between">
+                  <span className="text-[var(--color-text-secondary)]">Transaction Ref:</span>
+                  <span className="font-bold text-[var(--color-sapphire)]">{withdrawReceipt.transaction_id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--color-text-secondary)]">Amount:</span>
+                  <span className="font-bold text-[var(--color-sapphire)]">{withdrawReceipt.amount.toLocaleString()} {withdrawReceipt.currency}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--color-text-secondary)]">Remaining Balance:</span>
+                  <span className="font-bold text-emerald-700">{withdrawReceipt.balance_after.toLocaleString()} {withdrawReceipt.currency}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--color-text-secondary)]">Evaluated Risk Score:</span>
+                  <span className={`font-bold ${withdrawReceipt.risk_score >= 40 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {withdrawReceipt.risk_score.toFixed(1)}% ({withdrawReceipt.risk_level})
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => {
+                    setShowWithdrawModal(false);
+                    setWithdrawReceipt(null);
+                  }}
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleExecuteWithdraw} className="space-y-4 text-xs">
+              {withdrawError && (
+                <div className="p-3 rounded-lg bg-rose-50 border border-rose-300 text-rose-800 font-medium">
+                  {withdrawError}
+                </div>
+              )}
+
+              <div>
+                <label className="block font-bold text-[var(--color-sapphire)] mb-1">
+                  Withdrawal Amount ({primaryAccount.currency})
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="e.g. 5000.00"
+                  disabled={withdrawLoading}
+                />
+                <div className="flex gap-2 mt-2">
+                  {[500, 2000, 10000, 24900].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setWithdrawAmount(String(preset))}
+                      className="px-2.5 py-1 text-[11px] font-mono font-bold rounded bg-[var(--color-secondary-surface)] border border-[var(--color-border)] text-[var(--color-sapphire)] hover:bg-[var(--color-border)]"
+                    >
+                      {preset.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-[var(--color-sapphire)] mb-1">
+                  Withdrawal Method
+                </label>
+                <select
+                  value={withdrawMethod}
+                  onChange={(e) => setWithdrawMethod(e.target.value)}
+                  className="w-full p-2.5 rounded-lg border border-[var(--color-border)] bg-white text-xs font-medium text-[var(--color-sapphire)]"
+                >
+                  <option value="ATM_CASH_OUT">ATM Direct Cash-Out (Instant Code)</option>
+                  <option value="BRANCH_TELLER">Bank Branch Counter Teller</option>
+                  <option value="EXTERNAL_IBAN">External Bank Wire (IBAN Transfer)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-[var(--color-sapphire)] mb-1">
+                  Terminal / IBAN / Destination (Optional)
+                </label>
+                <Input
+                  type="text"
+                  value={withdrawDetails}
+                  onChange={(e) => setWithdrawDetails(e.target.value)}
+                  placeholder="e.g. ATM-CAI-042 or EG1234..."
+                  disabled={withdrawLoading}
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-[var(--color-sapphire)] mb-1">
+                  Transfer Password (Authorization)
+                </label>
+                <Input
+                  type="password"
+                  required
+                  value={withdrawPassword}
+                  onChange={(e) => setWithdrawPassword(e.target.value)}
+                  placeholder="Enter your transfer password"
+                  disabled={withdrawLoading}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowWithdrawModal(false)}
+                  disabled={withdrawLoading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="sapphire"
+                  size="sm"
+                  isLoading={withdrawLoading}
+                >
+                  <ArrowDownToLine className="w-4 h-4 mr-1.5" />
+                  <span>Confirm Withdrawal</span>
+                </Button>
+              </div>
+            </form>
+          )}
         </Modal>
       )}
 

@@ -26,6 +26,11 @@ import {
   AlertTriangle,
   History,
   Lock,
+  Unlock,
+  Phone,
+  Mail,
+  UserCheck,
+  UserX,
 } from 'lucide-react';
 import { api, type AccountInvestigationReport, type PipelineStageTrace } from '../api/client';
 import type { TransactionDetail } from '../types';
@@ -52,6 +57,10 @@ export const TransactionDetailPage: React.FC = () => {
   const [investigationError, setInvestigationError] = useState<string | null>(null);
   const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({});
 
+  // Human-in-the-Loop Security Hold State
+  const [accountStatus, setAccountStatus] = useState<string>('ACTIVE');
+  const [actionLoading, setActionLoading] = useState(false);
+
   // Quick Disposition Modal State
   const [dispositionModalOpen, setDispositionModalOpen] = useState(false);
   const [disposition, setDisposition] = useState('LEGITIMATE_ACTIVITY');
@@ -65,6 +74,9 @@ export const TransactionDetailPage: React.FC = () => {
     try {
       const res = await api.getTransactionDetail(id);
       setDetail(res);
+
+      const accStatus = res?.overview?.source_account?.status || (res as any)?.sender_account_status || (res as any)?.account_status || 'ACTIVE';
+      setAccountStatus(accStatus);
 
       // Check if an investigation report was persisted in the detail payload
       if (res.persisted_investigation) {
@@ -145,6 +157,40 @@ export const TransactionDetailPage: React.FC = () => {
       setInvestigationError(err?.message || 'Failed to complete transaction investigation.');
     } finally {
       setInvestigationRunning(false);
+    }
+  };
+
+  // Human-in-the-Loop: Unblock Account
+  const handleUnblockAccount = async () => {
+    if (!sourceAccount || sourceAccount === 'N/A') return;
+    setActionLoading(true);
+    try {
+      await api.unblockAccount(sourceAccount);
+      setAccountStatus('ACTIVE');
+      setActionSuccess(`Account ${sourceAccount} unblocked! User active status and transfer capabilities restored.`);
+      setTimeout(() => setActionSuccess(''), 4000);
+      fetchDetail();
+    } catch (err: any) {
+      setInvestigationError(err?.message || 'Failed to unblock account.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Human-in-the-Loop: Contain / Block Account
+  const handleBlockAccount = async () => {
+    if (!sourceAccount || sourceAccount === 'N/A') return;
+    setActionLoading(true);
+    try {
+      await api.blockAccount(sourceAccount);
+      setAccountStatus('BLOCKED');
+      setActionSuccess(`Account ${sourceAccount} placed under security containment hold (BLOCKED). Login access revoked.`);
+      setTimeout(() => setActionSuccess(''), 4000);
+      fetchDetail();
+    } catch (err: any) {
+      setInvestigationError(err?.message || 'Failed to block account.');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -276,6 +322,28 @@ export const TransactionDetailPage: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2.5">
+          {accountStatus === 'BLOCKED' ? (
+            <Button
+              onClick={handleUnblockAccount}
+              disabled={actionLoading}
+              size="sm"
+              className="bg-[#2E7D32] hover:bg-[#1B5E20] text-white font-bold border-none shadow-sm"
+            >
+              <Unlock className={`w-4 h-4 mr-1.5 ${actionLoading ? 'animate-spin' : ''}`} />
+              {actionLoading ? 'Unblocking...' : 'Unblock Account (HITL)'}
+            </Button>
+          ) : (
+            <Button
+              onClick={handleBlockAccount}
+              disabled={actionLoading}
+              size="sm"
+              className="bg-[#DC2626] hover:bg-[#B91C1C] text-white font-bold border-none shadow-sm"
+            >
+              <Lock className={`w-4 h-4 mr-1.5 ${actionLoading ? 'animate-spin' : ''}`} />
+              {actionLoading ? 'Freezing...' : 'Contain / Block Account'}
+            </Button>
+          )}
+
           <Button
             onClick={handleRunInvestigation}
             disabled={investigationRunning}
@@ -306,6 +374,47 @@ export const TransactionDetailPage: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Security Hold Containment Banner */}
+      {accountStatus === 'BLOCKED' && (
+        <div className="p-4 rounded-[12px] bg-[#FEF2F2] border-2 border-[#DC2626] shadow-sm space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <ShieldAlert className="w-5 h-5 text-[#DC2626] shrink-0" />
+              <div>
+                <span className="font-extrabold text-[#991B1B] text-sm tracking-tight uppercase">
+                  Human-in-the-Loop Security Containment Active
+                </span>
+                <span className="ml-2 px-2 py-0.5 rounded text-[10px] font-bold bg-[#DC2626] text-white">
+                  ACCOUNT BLOCKED
+                </span>
+              </div>
+            </div>
+            <Button
+              onClick={handleUnblockAccount}
+              disabled={actionLoading}
+              size="sm"
+              className="bg-[#2E7D32] hover:bg-[#1B5E20] text-white font-bold text-xs shadow-xs"
+            >
+              <Unlock className="w-3.5 h-3.5 mr-1" />
+              Unblock Account & Restore Login
+            </Button>
+          </div>
+          <p className="text-xs text-[#7F1D1D] leading-relaxed">
+            Originating Account <strong className="font-mono">{sourceAccount}</strong> ({customerName}) is placed under security containment following an automated high-risk transaction evaluation. The user is currently restricted from logging in or initiating new transfers until an investigator verifies facts and unblocks access.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
+            <div className="p-2.5 bg-white rounded-[8px] border border-[#FECACA] flex items-center gap-2 text-[#991B1B]">
+              <Phone className="w-4 h-4 text-[#DC2626] shrink-0" />
+              <span>Customer Support Hotline: <strong className="font-mono text-sm">+20 2 19876</strong></span>
+            </div>
+            <div className="p-2.5 bg-white rounded-[8px] border border-[#FECACA] flex items-center gap-2 text-[#991B1B]">
+              <Mail className="w-4 h-4 text-[#DC2626] shrink-0" />
+              <span>Compliance Desk: <strong>compliance@omerta.ai</strong></span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Primary 3 Overview Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

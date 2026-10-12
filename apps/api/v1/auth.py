@@ -370,12 +370,18 @@ async def login(body: LoginRequest, request: Request) -> AuthResponse:
                     )
                     await session.commit()
 
-        if not user.is_active or (user.customer and user.customer.status in ["SUSPENDED", "LOCKED"]):
+        if not user.is_active or (user.customer and user.customer.status in ["SUSPENDED", "LOCKED", "BLOCKED"]):
+            support_phone = "+20 2 19876"
+            support_email = "compliance@omerta.ai"
+            cust_num = user.customer.omerta_user_number if user.customer else "N/A"
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
-                    "error": "ACCOUNT_INACTIVE_LOCKED",
-                    "message": "Account Inactive: Your account has been suspended due to security policy flags (3 failed password attempts or security lockout). An Administrator must review and reactivate your account in the Admin Control Center to restore access.",
+                    "error": "ACCOUNT_BLOCKED_SECURITY_HOLD",
+                    "message": f"Account Security Hold: Your account is temporarily blocked due to a high-risk transaction review. Contact Compliance Support at {support_phone} or email {support_email} quoting customer #{cust_num} to restore access.",
+                    "support_phone": support_phone,
+                    "support_email": support_email,
+                    "customer_number": cust_num,
                 },
             )
 

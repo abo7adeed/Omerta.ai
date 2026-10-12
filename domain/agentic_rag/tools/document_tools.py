@@ -111,28 +111,36 @@ class DocumentTools:
 
             # Deterministic Reranker: Score based on:
             # 1. Base TF-IDF score
-            # 2. Query words in section title (+0.25 boost per significant word)
-            # 3. Exact query substring in content (+0.5 boost)
+            # 2. Exact Document ID matching boost (+1.0)
+            # 3. Query words in section title (+0.3 boost per significant word)
+            # 4. Exact query substring in content (+0.5 boost)
             scored = []
-            query_lower = query.lower()
-            query_words = set(query_lower.split())
+            query_lower = query.lower().strip()
+            # Normalize query words (exclude generic conversational stop words)
+            stop_words = {"what", "are", "our", "the", "a", "an", "in", "of", "for", "with", "is", "tell", "me", "about"}
+            query_words = set(w for w in query_lower.split() if w not in stop_words and len(w) >= 3)
 
             for chunk, doc in filtered_candidates:
                 score = float(chunk.score)
                 sec_lower = chunk.section.lower()
                 content_lower = chunk.content.lower()
 
+                # Boost if exact document ID is mentioned in query
+                if chunk.document_id.lower() in query_lower or chunk.document_id.replace("-", " ").lower() in query_lower:
+                    score += 1.0
+
                 # Boost if section title matches query terms
-                title_overlap = sum(1 for w in query_words if len(w) > 3 and w in sec_lower)
+                title_overlap = sum(1 for w in query_words if w in sec_lower)
                 if title_overlap:
-                    score += 0.25 * title_overlap
+                    score += 0.3 * title_overlap
 
                 # Boost if exact phrase is present
                 if len(query_lower) > 5 and query_lower in content_lower:
                     score += 0.5
 
-                # Require minimum relevance threshold to avoid returning irrelevant padding
-                if score >= min_relevance_score:
+                # Require meaningful relevance: base score must be non-zero or have strong title/doc_id match
+                effective_min = max(min_relevance_score, 0.10)
+                if score >= effective_min:
                     scored.append((score, chunk, doc))
 
             # Sort descending by adjusted score

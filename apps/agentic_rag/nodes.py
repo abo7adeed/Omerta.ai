@@ -167,7 +167,44 @@ NON_NAME_SYSTEM_KEYWORDS = {
     "banking operations", "suspicious activity", "read-only", "overview", "what does",
     "accounts", "account", "devices", "device", "shared", "connected", "transactions", "transaction",
     "plot", "chart", "volume", "bar", "line", "donut", "histogram", "month", "months", "month as",
+    "names", "customer names", "our customer names", "customer name", "all customers", "our customers",
+    "mohamed salah", "salah", "celebrity", "born", "how many",
 }
+
+OUT_OF_DOMAIN_PATTERNS = [
+    r"\bborn\b",
+    r"\bborn in\b",
+    r"\bbirthplace\b",
+    r"\bwhere (?:was|were|is)\b.*\bborn\b",
+    r"\bwho (?:won|played|starred|directed|founded|invented)\b",
+    r"\bcapital of\b",
+    r"\bweather in\b",
+    r"\bpresident of\b",
+    r"\bprime minister\b",
+    r"\bcelebrity\b",
+    r"\bfootball(?:er)?\b",
+    r"\bsoccer\b",
+    r"\bpremier league\b",
+    r"\bchampions league\b",
+    r"\bworld cup\b",
+    r"\bmovies?\b",
+    r"\bsongs?\b",
+    r"\bactor\b",
+    r"\bactress\b",
+    r"\bmohamed salah\b",
+    r"\bsalah\b",
+]
+
+
+def _is_out_of_domain_query(text: str) -> bool:
+    """Detect general trivia or questions unrelated to banking, accounts, transactions, or fraud."""
+    t = text.lower().strip()
+    if any(k in t for k in ["omerta", "acc-", "txn-", "cust-", "dev-", "omr-", "bank", "account", "transaction", "transfer", "kyc", "aml", "deposit", "ledger", "neo4j"]):
+        return False
+    for pat in OUT_OF_DOMAIN_PATTERNS:
+        if re.search(pat, t, re.I):
+            return True
+    return False
 
 
 def _clean_name_string(val: str) -> str:
@@ -183,18 +220,21 @@ def _clean_name_string(val: str) -> str:
         val,
         flags=re.I,
     ).strip()
-    # Strip leading "status of", "account of", "profile of"
+    # Strip leading "i want balance for", "balance for", "balance of", etc.
     val = re.sub(
-        r"^(?:status|stauts|statue|statu|staus|state|account|details|info|profile)\s+of\s+(?:the\s+)?(?:customer|user|client|person)?\s*",
+        r"^(?:i\s+(?:want|need)\s+)?(?:the\s+)?(?:balance|status|stauts|statue|statu|staus|state|account|details|info|profile)\s+(?:of|for)\s+(?:the\s+)?(?:customer|user|client|person)?\s*",
         "",
         val,
         flags=re.I,
     ).strip()
     # Strip leading "the user", "the customer", "user", "customer", "client", "person"
     val = re.sub(r"^(?:the\s+)?(?:customer|client|person|user)\s+", "", val, flags=re.I).strip()
-    # Strip trailing conversational phrases like "user and their status", "customer and their transactions", "and his account", etc.
+    # Strip trailing conversational phrases like "'s balance"
+    val = re.sub(r"(?i)(?:'s|’s)\s+balance.*$", "", val).strip()
+    val = re.sub(r"(?i)\s+(?:account\s+)?balance.*$", "", val).strip()
+    # Strip trailing phrases like "user and their status", etc.
     val = re.sub(
-        r"(?i)\s+(?:user|customer|client|person)?\s*(?:and\s+)?(?:their|thier|his|her|its)?\s*(?:status|stauts|statue|statu|staus|statuss|state|tier|level|score|risk|transications?|transactions?|transfers?|history|activity|account|accounts|profile|balance|records?|data|details).*$",
+        r"(?i)\s+(?:user|customer|client|person)?\s*(?:and\s+)?(?:their|thier|his|her|its)?\s*(?:status|stauts|statue|statu|staus|statuss|state|tier|level|score|risk|transications?|transactions?|transfers?|history|activity|account|accounts|profile|records?|data|details).*$",
         "",
         val,
     ).strip()
@@ -205,20 +245,62 @@ def _clean_name_string(val: str) -> str:
     return val.strip("?.! ,;:")
 
 
-
 def _extract_customer_name_query(text: str) -> str | None:
     """Extract person name query from natural language lookup prompts, supporting quotes and variants."""
     if not text:
         return None
 
-    # 1. Quoted names after person/customer/client/user
+    # Do not treat out-of-domain trivia queries as customer name lookups
+    if _is_out_of_domain_query(text):
+        return None
+
+    t_low = text.lower()
+    # If the inquiry is about aggregate account counts or listing all customer names, do not extract a single person name
+    if any(phrase in t_low for phrase in ["how many accounts", "account count", "customer names", "all customers", "list customers", "our customer names", "show customers"]):
+        if not re.search(r"(?:who is|who was|who's|customer named|person named)\s+[A-Za-z]", text, re.I):
+            return None
+
+    # 1. Balance patterns: "balance for <Name>", "balance of <Name>", "<Name>'s balance", "<Name> balance"
+    m_bal = re.search(r"(?:(?:i\s+want\s+)?balance\s+(?:for|of)|show\s+balance\s+for|get\s+balance\s+for)\s+([A-Za-z0-9_\- ]+?)(?:\s+in|\s+with|\?|\.|$)", text, re.I)
+    if m_bal:
+        val = _clean_name_string(m_bal.group(1))
+        if val and len(val) <= 60 and not any(k in val.lower() for k in NON_NAME_SYSTEM_KEYWORDS):
+            return val
+
+    m_bal_poss = re.search(r"([A-Za-z0-9_\- ]+?)(?:'s|’s)\s+balance", text, re.I)
+    if m_bal_poss:
+        val = _clean_name_string(m_bal_poss.group(1))
+        if val and len(val) <= 60 and not any(k in val.lower() for k in NON_NAME_SYSTEM_KEYWORDS):
+            return val
+
+    # Direct balance inquiry: "what is <Name> balance?", "<Name> balance", "check <Name> balance"
+    m_bal_direct = re.search(
+        r"(?:(?:what\s+(?:is|\'s)|check|show|get|tell\s+me)\s+(?:the\s+)?)?([A-Za-z0-9_\- ]+?)\s+(?:account\s+)?balance(?:\?|\.|$)",
+        text,
+        re.I,
+    )
+    if m_bal_direct:
+        val = _clean_name_string(m_bal_direct.group(1))
+        if val and len(val) <= 60 and not any(k in val.lower() for k in NON_NAME_SYSTEM_KEYWORDS):
+            if val.lower() not in {"account", "customer", "user", "client", "the", "my", "our", "total", "overall", "ledger", "available"}:
+                return val
+
+    # Prefix balance inquiry: "balance <Name>"
+    m_bal_pref = re.search(r"\bbalance\s+(?:for|of)?\s*([A-Za-z0-9_\- ]+?)(?:\?|\.|$)", text, re.I)
+    if m_bal_pref:
+        val = _clean_name_string(m_bal_pref.group(1))
+        if val and len(val) <= 60 and not any(k in val.lower() for k in NON_NAME_SYSTEM_KEYWORDS):
+            if val.lower() not in {"account", "customer", "user", "client", "the", "my", "our", "total", "overall", "ledger", "available", "sheet"}:
+                return val
+
+    # 2. Quoted names after person/customer/client/user
     m_quoted = re.search(r"(?:person|customer|client|user)\s+(?:named\s+)?[\"“'‘]([^\"”'’]+)[\"”'’]", text, re.I)
     if m_quoted:
         val = _clean_name_string(m_quoted.group(1))
         if val and len(val) <= 60 and not any(k in val.lower() for k in NON_NAME_SYSTEM_KEYWORDS):
             return val
 
-    # 2. General quoted name in a lookup prompt (e.g. “Abdo Haaland”)
+    # 3. General quoted name in a lookup prompt (e.g. “Abdo Haaland”)
     if any(w in text.lower() for w in ["look up", "lookup", "find", "search", "who is", "who this", "person", "user"]):
         m_q = re.search(r"[\"“'‘]([^\"”'’]{2,50})[\"”'’]", text)
         if m_q:
@@ -226,14 +308,23 @@ def _extract_customer_name_query(text: str) -> str | None:
             if val and not any(k in val.lower() for k in NON_NAME_SYSTEM_KEYWORDS):
                 return val
 
-    # 3. Explicit named pattern: "person named <Name>" or "customer named <Name>" unquoted
+    # 4. Explicit named pattern: "person named <Name>" or "customer named <Name>" unquoted
     m_named = re.search(r"(?:person|customer|client|user)\s+named\s+([A-Za-z0-9_\- ]+?)(?:\s+in|\s+with|\?|\.|$)", text, re.I)
     if m_named:
         val = _clean_name_string(m_named.group(1))
         if val and len(val) <= 60 and not any(k in val.lower() for k in NON_NAME_SYSTEM_KEYWORDS):
             return val
 
-    # 4. Inquiries with explicit person / identity indicators
+    # 5. Who is / Who was <Name>
+    m_who = re.search(r"(?:who\s+is|who\s+was|who\'s|who\s+this)\s+(?:the\s+)?(?:customer\s+|user\s+|person\s+)?([A-Za-z0-9_\- ]+?)(?:\?|\.|$)", text, re.I)
+    if m_who:
+        val = _clean_name_string(m_who.group(1))
+        if val and len(val) <= 60 and not any(k in val.lower() for k in NON_NAME_SYSTEM_KEYWORDS):
+            words = val.split()
+            if 1 <= len(words) <= 4 and all(len(w) >= 2 for w in words):
+                return val
+
+    # 6. Inquiries with explicit person / identity indicators
     has_person_indicator = any(
         w in text.lower()
         for w in [
@@ -255,14 +346,14 @@ def _extract_customer_name_query(text: str) -> str | None:
                 if not any(w.lower() in generic for w in words):
                     return cleaned
 
-    # 5. Standard unquoted lookup patterns
-    m_pat = re.search(r"(?:find|search|lookup|look up|who is|who this|who's|show|tell me about)\s+(?:the\s+)?(?:customer|client|person|user)\s+([A-Za-z0-9_\- ]+?)(?:\s+in|\s+with|\?|\.|$)", text, re.I)
+    # 7. Standard unquoted lookup patterns
+    m_pat = re.search(r"(?:find|search|lookup|look up|show|tell me about)\s+(?:the\s+)?(?:customer|client|person|user)\s+([A-Za-z0-9_\- ]+?)(?:\s+in|\s+with|\?|\.|$)", text, re.I)
     if m_pat:
         val = _clean_name_string(m_pat.group(1))
         if val and len(val) <= 60 and not any(k in val.lower() for k in NON_NAME_SYSTEM_KEYWORDS):
             return val
 
-    # 6. Check for capitalized 2-word proper noun (e.g. "Abdo Haaland", "Ziad Karim")
+    # 8. Check for capitalized 2-word proper noun (e.g. "Abdo Haaland", "Ziad Karim", "Abdo Belli")
     m_cap = re.search(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b", text)
     if m_cap:
         cand = m_cap.group(1).strip()
@@ -275,73 +366,140 @@ def _extract_customer_name_query(text: str) -> str | None:
 def understand_query_and_intent(state: AgenticRAGState) -> dict[str, Any]:
     """Classify the user inquiry into required sources, analytical intents, and visual formats."""
     t0 = time.perf_counter()
-    q = state.question.lower()
+    q = state.question.lower().strip()
 
     selected_sources: list[SourceType] = []
     analysis_intents: list[AnalysisIntent] = []
     reasons = []
     requires_clarification = False
 
-    # Inquiries about system permissions, restrictions, policies, or operations on customers are POLICY inquiries
-    is_system_governance_query = any(phrase in q for phrase in [
+    # 0. Out-of-Domain Classification (Prompt Intent K & Scenario 3)
+    if _is_out_of_domain_query(state.question):
+        analysis_intents.append(AnalysisIntent.OUT_OF_DOMAIN)
+        reasons.append("External general knowledge inquiry outside authorized Omerta banking scope.")
+        routing = AgenticRAGRouting(
+            selected_sources=[],
+            analysis_intents=analysis_intents,
+            reason="; ".join(reasons),
+            requires_clarification=False,
+            time_range_days=None,
+            chart_requested=False,
+        )
+        thought_steps = list(state.thought_steps)
+        thought_steps.append("[02/07] Intent Decomposition & Source Selection: Query classified as OUT_OF_DOMAIN. No tools dispatched.")
+        timings = dict(state.node_timings_ms)
+        timings["understand_query_and_intent"] = round((time.perf_counter() - t0) * 1000, 2)
+        return {
+            "routing": routing,
+            "thought_steps": thought_steps,
+            "node_timings_ms": timings,
+        }
+
+    # 1. Visualization Intent (Prompt Intent I & Scenarios 6, 7, 15)
+    chart_keywords = ["plot", "chart", "charts", "visualize", "visualization", "histogram", "bar", "line", "donut", "area", "multi chart"]
+    chart_requested = _has_keyword(q, chart_keywords)
+    if chart_requested:
+        selected_sources.append(SourceType.POSTGRESQL)
+        analysis_intents.append(AnalysisIntent.VISUALIZATION)
+        if any(w in q for w in ["trend", "trajectory", "volume", "timeline", "day", "month"]):
+            analysis_intents.append(AnalysisIntent.TREND_ANALYSIS)
+            analysis_intents.append(AnalysisIntent.FINANCIAL_AGGREGATION)
+        reasons.append("Chart generation and time-series visual analytics requested.")
+
+    # 2. Internal Banking Policies & Governance (Prompt Intent G & Scenarios 4, 16)
+    is_policy_query = any(phrase in q for phrase in [
+        "what are our policies", "what are our banking policies", "our policies", "banking policies",
+        "operational policies", "compliance policies", "aml policy", "aml policies",
+        "restoration policy", "restoring policy", "internal policy", "internal policies",
+        "system documentation", "governance policy", "strike policy", "travel rule policy",
+    ]) or any(phrase in q for phrase in [
         "permitted to", "are permitted to", "is the agent permitted", "is the system permitted",
         "permitted to modify", "permitted to delete", "permitted to change", "permitted to execute",
         "read-only tools", "approved read-only", "read-only boundary", "read-only restriction",
         "application-level restriction", "application-level restrictions", "enforced restrictions",
         "tool constraints", "boundaries of autonomous ai", "can the agent modify", "can the agent delete",
-    ]) or (
-        ("permitted" in q or "allowed" in q)
-        and any(action in q for action in ["modify", "delete", "alter", "execute", "change an account", "change a customer"])
-    )
+    ])
+    if is_policy_query:
+        selected_sources.append(SourceType.DOCUMENTS)
+        analysis_intents.append(AnalysisIntent.INTERNAL_POLICIES)
+        analysis_intents.append(AnalysisIntent.DOCUMENT_SEARCH)
+        reasons.append("Internal banking operations policies, operational procedures, or compliance manuals requested.")
 
-    # Check if user asked to list all customers
-    is_customer_list_query = any(phrase in q for phrase in [
+    # 3. Customer Balance & Linked Accounts (Prompt Intent B & Scenario 2)
+    cust_name = _extract_customer_name_query(state.question)
+    is_balance_query = (
+        any(phrase in q for phrase in [
+            "balance for", "'s balance", "’s balance", "customer balance", "account balance",
+            "his balance", "her balance", "their balance", "i want balance", "want balance",
+            "show balance", "get balance", "check balance",
+        ])
+        or ("balance" in q and not is_policy_query and not chart_requested)
+    )
+    if is_balance_query:
+        selected_sources.append(SourceType.POSTGRESQL)
+        analysis_intents.append(AnalysisIntent.CUSTOMER_BALANCE)
+        reasons.append("Customer balance and linked accounts lookup requested.")
+
+    # 4. Account Count, Customer Listing & Mixed Inquiries (Prompt Intents C, D, J & Scenario 5)
+    has_account_count = any(phrase in q for phrase in ["how many accounts", "account count", "count of accounts", "number of accounts"])
+    has_customer_count = any(phrase in q for phrase in ["how many customers", "customer count", "count of customers", "number of customers"])
+    has_customer_names = any(phrase in q for phrase in [
+        "customer names", "names of our customers", "what are our customer names",
         "all customer", "all customers", "list customer", "list customers",
         "show customer", "show customers", "get customer", "get customers",
         "gave me all customer", "give me all customer", "give me all customers",
-        "gave me all customers", "all users", "list users", "show users",
-        "customer in database", "customers in database", "all clients", "list clients",
+        "all users", "list users", "show users", "all clients", "list clients",
     ])
 
-    # Check for Customer / Person identity lookup
-    cust_name = _extract_customer_name_query(state.question)
-    is_identity_lookup = False
-    if not is_system_governance_query:
-        if is_customer_list_query:
-            is_identity_lookup = True
-        elif cust_name is not None:
-            is_identity_lookup = True
-        elif any(e.startswith("CUST-") for e in state.entity_ids):
-            is_identity_lookup = True
-        elif any(w in q for w in ["find customer", "lookup customer", "look up customer", "search customer", "who is customer", "person named", "customer named"]):
-            is_identity_lookup = True
-
-    # 1. Customer Lookup Intent (Person name lookup or full directory)
-    if is_identity_lookup:
+    if has_account_count and has_customer_names:
         selected_sources.append(SourceType.POSTGRESQL)
-        analysis_intents.append(AnalysisIntent.CUSTOMER_LOOKUP)
-        reasons.append("Inquiry targets customer profile and identity records.")
-        if not is_customer_list_query and not cust_name and not any(e.startswith("CUST-") for e in state.entity_ids):
+        analysis_intents.append(AnalysisIntent.MULTI_TOOL_MIXED)
+        analysis_intents.append(AnalysisIntent.ACCOUNT_COUNT)
+        analysis_intents.append(AnalysisIntent.CUSTOMER_LISTING)
+        reasons.append("Combined account count and customer directory listing requested.")
+    elif has_account_count:
+        selected_sources.append(SourceType.POSTGRESQL)
+        analysis_intents.append(AnalysisIntent.ACCOUNT_COUNT)
+        reasons.append("Bank accounts count requested.")
+    elif has_customer_count:
+        selected_sources.append(SourceType.POSTGRESQL)
+        analysis_intents.append(AnalysisIntent.CUSTOMER_COUNT)
+        reasons.append("Bank customers count requested.")
+    elif has_customer_names:
+        selected_sources.append(SourceType.POSTGRESQL)
+        analysis_intents.append(AnalysisIntent.CUSTOMER_LISTING)
+        reasons.append("Customer names directory listing requested.")
+
+    # 5. Customer Profile & Identity Lookup (Prompt Intent A & Scenario 1)
+    if not is_balance_query and not has_customer_names and not is_policy_query:
+        if cust_name is not None or any(e.startswith("CUST-") for e in state.entity_ids):
+            selected_sources.append(SourceType.POSTGRESQL)
+            analysis_intents.append(AnalysisIntent.CUSTOMER_PROFILE)
+            analysis_intents.append(AnalysisIntent.CUSTOMER_LOOKUP)
+            reasons.append("Customer identity and profile inspection requested.")
+        elif any(w in q for w in ["find customer", "lookup customer", "look up customer", "search customer", "who is customer", "person named", "customer named"]):
+            selected_sources.append(SourceType.POSTGRESQL)
+            analysis_intents.append(AnalysisIntent.CUSTOMER_LOOKUP)
+            reasons.append("Customer profile lookup requested.")
             requires_clarification = True
 
-    # 2. Account Lookup Intent
+    # 6. Account Lookup Intent (Prompt Intent C)
     has_explicit_acc = "ACC-" in q.upper()
-    has_acc_keyword = any(w in q for w in ["account", "bank account", "checking account", "savings account", "ledger balance", "available balance"])
-    if (has_explicit_acc or has_acc_keyword or (_is_conversational_followup(q) and any(e.startswith("ACC-") for e in state.entity_ids))) and not is_identity_lookup and not is_system_governance_query:
-        if any(w in q for w in ["who is associated", "details", "lookup", "info", "record", "owner", "status", "balance"]) or has_explicit_acc or _is_conversational_followup(q):
-            selected_sources.append(SourceType.POSTGRESQL)
-            analysis_intents.append(AnalysisIntent.ACCOUNT_LOOKUP)
-            reasons.append("Inquiry targets specific bank account records.")
+    has_acc_keyword = any(w in q for w in ["account", "bank account", "checking account", "savings account"])
+    if (has_explicit_acc or (has_acc_keyword and not has_account_count)) and not is_balance_query and not is_policy_query:
+        selected_sources.append(SourceType.POSTGRESQL)
+        analysis_intents.append(AnalysisIntent.ACCOUNT_LOOKUP)
+        reasons.append("Inquiry targets specific bank account records.")
 
-    # 3. Transaction Lookup Intent
+    # 7. Transaction Lookup Intent (Prompt Intent E)
     has_explicit_txn = "TXN-" in q.upper()
     has_txn_keyword = any(w in q for w in ["transaction", "transactions", "transfer", "transfers", "payment", "payments"])
-    if (has_explicit_txn or has_txn_keyword or (_is_conversational_followup(q) and any(e.startswith("TXN-") for e in state.entity_ids))) and not is_identity_lookup and not is_system_governance_query:
+    if (has_explicit_txn or (has_txn_keyword and not chart_requested and not has_account_count)) and not is_balance_query and not is_policy_query:
         selected_sources.append(SourceType.POSTGRESQL)
         analysis_intents.append(AnalysisIntent.TRANSACTION_LOOKUP)
         reasons.append("Inquiry targets specific transaction fact.")
 
-    # 4. Neo4j Graph Exploration & Risk
+    # 8. Neo4j Graph Exploration & Investigation (Prompt Intent H)
     graph_keywords = [
         "connect", "connected", "connection", "shared device", "shared ip", "ip cluster",
         "network", "ring", "counterparty", "link", "topology", "circular",
@@ -349,8 +507,9 @@ def understand_query_and_intent(state: AgenticRAGState) -> dict[str, Any]:
         "what does this graph represent", "path", "paths", "fraud ring", "fraud signal",
         "neo4j", "cypher", "graph database",
     ]
-    if (_has_keyword(q, graph_keywords) or any(e.startswith("DEV-") for e in state.entity_ids)) and not is_system_governance_query:
+    if (_has_keyword(q, graph_keywords) or any(e.startswith("DEV-") for e in state.entity_ids)) and not is_policy_query:
         selected_sources.append(SourceType.NEO4J)
+        analysis_intents.append(AnalysisIntent.GRAPH_INVESTIGATION)
         if any(w in q for w in ["risk", "threat", "anomaly", "suspicious", "fraud", "mule", "takeover"]):
             analysis_intents.append(AnalysisIntent.RISK_ANALYSIS)
             reasons.append("Graph topology and relationship risk analysis requested.")
@@ -358,9 +517,9 @@ def understand_query_and_intent(state: AgenticRAGState) -> dict[str, Any]:
             analysis_intents.append(AnalysisIntent.GRAPH_EXPLORATION)
             reasons.append("Graph entity connectivity and topology inspection requested.")
 
-    # 5. Financial Aggregation, Period Comparison & Trend
-    if not is_system_governance_query and not is_identity_lookup:
-        if _has_keyword(q, ["how many", "count", "volume", "amount", "balance", "total", "sum", "highest", "lowest", "average", "recent transactions", "transaction history", "ledger"]):
+    # 9. Financial Aggregations & Analytics (Prompt Intent F) - ONLY when not account/customer count
+    if not is_policy_query and not has_account_count and not has_customer_count and not has_customer_names and not is_balance_query:
+        if _has_keyword(q, ["volume", "total volume", "amount", "sum", "highest", "lowest", "average", "recent transactions", "transaction history", "ledger summary"]):
             selected_sources.append(SourceType.POSTGRESQL)
             analysis_intents.append(AnalysisIntent.FINANCIAL_AGGREGATION)
             reasons.append("Authoritative relational ledger aggregations and transaction metrics requested.")
@@ -370,38 +529,32 @@ def understand_query_and_intent(state: AgenticRAGState) -> dict[str, Any]:
             analysis_intents.append(AnalysisIntent.PERIOD_COMPARISON)
             reasons.append("Deterministic multi-period financial comparison requested.")
 
-        if _has_keyword(q, ["trend", "trajectory", "over time", "monthly", "daily", "timeline"]):
+        if _has_keyword(q, ["trend", "trajectory", "over time", "monthly", "daily", "timeline"]) and not chart_requested:
             selected_sources.append(SourceType.POSTGRESQL)
             analysis_intents.append(AnalysisIntent.TREND_ANALYSIS)
             reasons.append("Financial velocity and temporal trend analysis requested.")
 
-    # 6. Visualization
-    chart_keywords = ["plot", "chart", "charts", "visualize", "visualization", "histogram", "bar", "line", "donut", "area", "multi chart"]
-    chart_requested = _has_keyword(q, chart_keywords)
-    if chart_requested and not is_system_governance_query:
-        analysis_intents.append(AnalysisIntent.VISUALIZATION)
-
-    # 7. Document / Knowledge Base Signals
+    # 10. General Knowledge Base Document Search (Prompt Intent G)
     doc_keywords = [
         "policy", "procedure", "rule", "rules", "restore", "restoring", "hold", "kyc",
         "guideline", "aml", "fatf", "regulation", "regulations", "standard", "manual",
         "status definition", "travel rule", "strike", "structuring", "indicator", "indicators",
         "governance", "classification", "audit requirements", "reconciliation", "settlement",
         "double-entry", "exception", "exceptions", "doc-ops", "doc-sys", "doc-gov",
-        "document", "doc", "documents", "vector", "file", "text", "article", "born", "born in",
-        "where", "when", "who wrote", "what is", "explain", "tell me about", "biography", "information",
+        "document", "doc", "documents",
     ]
-    if (is_system_governance_query or _has_keyword(q, doc_keywords)) and not is_identity_lookup:
+    if _has_keyword(q, doc_keywords) and not is_balance_query and not has_account_count and not has_customer_names:
         selected_sources.append(SourceType.DOCUMENTS)
         analysis_intents.append(AnalysisIntent.DOCUMENT_SEARCH)
-        reasons.append("Internal banking operations policies, operational procedures, or compliance manuals requested.")
+        reasons.append("Internal banking documentation requested.")
 
-    # 8. Multi-Source Investigation
-    if len(dict.fromkeys(selected_sources)) > 1 or "multi" in q or ("compare" in q and "graph" in q) or ("policy" in q and "record" in q):
+    # 11. Multi-Source / Mixed Tool Combination (Prompt Intent J)
+    if len(dict.fromkeys(selected_sources)) > 1:
+        analysis_intents.append(AnalysisIntent.MULTI_TOOL_MIXED)
         analysis_intents.append(AnalysisIntent.MULTI_SOURCE_INVESTIGATION)
-        reasons.append("Corroborated investigation across multiple authoritative layers.")
+        reasons.append("Corroborated investigation across multiple authorized layers.")
 
-    # 9. General Banking Question fallback
+    # Fallback for remaining queries
     if not selected_sources:
         selected_sources.append(SourceType.DOCUMENTS)
         analysis_intents.append(AnalysisIntent.GENERAL_BANKING_QUESTION)
@@ -411,7 +564,6 @@ def understand_query_and_intent(state: AgenticRAGState) -> dict[str, Any]:
     deduped_sources = list(dict.fromkeys(selected_sources))
     deduped_intents = list(dict.fromkeys(analysis_intents))
 
-    # Time range extraction
     time_range_days = 30
     if "7 days" in q or "week" in q:
         time_range_days = 7
@@ -453,40 +605,170 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
     evidence_list: list[NormalizedEvidence] = list(state.evidence)
     routing = state.routing
     thought_steps = list(state.thought_steps)
+    warnings = list(state.warnings)
+    forensic_trace: list[dict[str, Any]] = list(state.forensic_trace)
     status = state.status
     clarification_question = state.clarification_question
 
+    async def _safe_call_tool(tool_name: str, args: dict[str, Any], intent: AnalysisIntent) -> Any:
+        t_sub = time.perf_counter()
+        t_status = "SUCCESS"
+        t_err = None
+        res = None
+        try:
+            res = await invoke_agent_tool(tool_name, args, user_role=state.user_role)
+        except Exception as exc:
+            t_status = "FAILED"
+            t_err = str(exc)
+            logger.warning("Tool %s error: %s", tool_name, exc)
+            warnings.append(f"Authoritative service disruption: {tool_name} failed ({exc})")
+            nonlocal status
+            status = ResponseStatus.SOURCE_UNAVAILABLE
+        dur = round((time.perf_counter() - t_sub) * 1000, 2)
+        res_cnt = len(res) if isinstance(res, (list, dict)) else (1 if res is not None else 0)
+        source_ids = []
+        if isinstance(res, list):
+            for it in res[:5]:
+                if isinstance(it, dict) and "external_id" in it:
+                    source_ids.append(it["external_id"])
+        elif isinstance(res, dict) and "external_id" in res:
+            source_ids.append(res["external_id"])
+        forensic_trace.append({
+            "intent": intent.value if hasattr(intent, "value") else str(intent),
+            "tool_name": tool_name,
+            "arguments": {k: v for k, v in args.items() if k not in ["password", "secret"]},
+            "status": t_status,
+            "duration_ms": dur,
+            "result_count": res_cnt,
+            "source_identifiers": source_ids,
+            "error": t_err,
+        })
+        return res
+
     # 1. Document RAG Retrieval via approved read-only tool
     if SourceType.DOCUMENTS in routing.selected_sources:
-        doc_evidence = await invoke_agent_tool(
+        doc_intent = AnalysisIntent.INTERNAL_POLICIES if AnalysisIntent.INTERNAL_POLICIES in routing.analysis_intents else AnalysisIntent.DOCUMENT_SEARCH
+        doc_evidence = await _safe_call_tool(
             "search_documents",
             {
                 "query": state.question,
                 "user_role": state.user_role,
                 "top_k": 4,
             },
+            doc_intent,
         )
         if isinstance(doc_evidence, list):
             evidence_list.extend(doc_evidence)
 
     # 2. PostgreSQL Relational Retrieval via approved read-only tools
     if SourceType.POSTGRESQL in routing.selected_sources:
-        q_lower = state.question.lower()
-        is_customer_list = any(phrase in q_lower for phrase in [
-            "all customer", "all customers", "list customer", "list customers",
-            "show customer", "show customers", "get customer", "get customers",
-            "gave me all customer", "give me all customer", "give me all customers",
-            "gave me all customers", "all users", "list users", "show users",
-            "customer in database", "customers in database", "all clients", "list clients",
-        ])
-        if is_customer_list:
-            all_custs = await invoke_agent_tool("get_all_customers", {"limit": 20})
-            if all_custs and isinstance(all_custs, list):
-                ev_id = "ev-db-cust-all"
-                c_str = json.dumps(all_custs, indent=2)
+        # A. Customer Balance Intent (Scenario 2)
+        if AnalysisIntent.CUSTOMER_BALANCE in routing.analysis_intents:
+            cust_target = _extract_customer_name_query(state.question) or next((e for e in state.entity_ids if e.startswith("CUST-") or e.startswith("ACC-")), None)
+            if not cust_target:
+                cleaned_q = _clean_name_string(state.question)
+                if cleaned_q and len(cleaned_q) <= 60 and not any(k in cleaned_q.lower() for k in NON_NAME_SYSTEM_KEYWORDS):
+                    cust_target = cleaned_q
+            if cust_target:
+                bal_data = await _safe_call_tool(
+                    "get_customer_balance_and_accounts",
+                    {"customer_identifier": cust_target},
+                    AnalysisIntent.CUSTOMER_BALANCE,
+                )
+                if bal_data and isinstance(bal_data, dict):
+                    if bal_data.get("ambiguous"):
+                        status = ResponseStatus.NEEDS_CLARIFICATION
+                        cand_names = [f"{c['name']} ({c['external_id']})" for c in bal_data.get("candidates", [])]
+                        clarification_question = f"Multiple customer records found matching '{cust_target}': {', '.join(cand_names)}. Please provide the exact customer ID or unique full name."
+                        ev_id = f"ev-db-cust-mult-{uuid4().hex[:6]}"
+                        c_str = json.dumps(bal_data, indent=2)
+                        evidence_list.append(
+                            NormalizedEvidence(
+                                evidence_id=ev_id,
+                                source_type=SourceType.POSTGRESQL,
+                                source_record_id="customers:multi",
+                                title=f"Ambiguous Customer Candidates: {cust_target}",
+                                content=c_str,
+                                content_hash=compute_sha256(c_str),
+                                citation_metadata={"table": "customers", "locator": f"CUSTOMERS: {cust_target}"},
+                            )
+                        )
+                    elif bal_data.get("error") or not (bal_data.get("customer") or bal_data.get("customer_found")):
+                        status = ResponseStatus.INSUFFICIENT_EVIDENCE
+                        ev_id = f"ev-db-cust-none-{uuid4().hex[:6]}"
+                        c_str = json.dumps({"search_query": cust_target, "found": 0, "status": "NOT_FOUND"}, indent=2)
+                        evidence_list.append(
+                            NormalizedEvidence(
+                                evidence_id=ev_id,
+                                source_type=SourceType.POSTGRESQL,
+                                source_record_id="customers:none",
+                                title=f"Customer Search Result: {cust_target} (Not Found)",
+                                content=c_str,
+                                content_hash=compute_sha256(c_str),
+                                citation_metadata={"table": "customers", "locator": f"CUSTOMER: NOT_FOUND ({cust_target})"},
+                            )
+                        )
+                    else:
+                        status = ResponseStatus.ANSWERED
+                        cust = bal_data.get("customer") or {
+                            "external_id": bal_data.get("customer_id"),
+                            "name": bal_data.get("customer_name"),
+                            "status": bal_data.get("customer_status", "ACTIVE"),
+                            "risk_level": bal_data.get("risk_level", "LOW"),
+                        }
+                        ev_id = f"ev-db-{cust['external_id']}"
+                        c_str = json.dumps(cust, indent=2)
+                        evidence_list.append(
+                            NormalizedEvidence(
+                                evidence_id=ev_id,
+                                source_type=SourceType.POSTGRESQL,
+                                source_record_id=cust["external_id"],
+                                title=f"Customer Record: {cust['name']} ({cust['external_id']})",
+                                content=c_str,
+                                content_hash=compute_sha256(c_str),
+                                citation_metadata={"table": "customers", "locator": f"CUSTOMER: {cust['external_id']}"},
+                            )
+                        )
+                        for acc in bal_data.get("accounts", []):
+                            acc_ev_id = f"ev-db-acc-{acc['external_id']}"
+                            acc_str = json.dumps(acc, indent=2)
+                            evidence_list.append(
+                                NormalizedEvidence(
+                                    evidence_id=acc_ev_id,
+                                    source_type=SourceType.POSTGRESQL,
+                                    source_record_id=acc["external_id"],
+                                    title=f"Linked Account: {acc['external_id']} ({cust['name']})",
+                                    content=acc_str,
+                                    content_hash=compute_sha256(acc_str),
+                                    citation_metadata={"table": "accounts", "locator": f"ACCOUNT: {acc['external_id']}"},
+                                )
+                            )
+
+        # B. Account Count Intent (Scenario 5)
+        if AnalysisIntent.ACCOUNT_COUNT in routing.analysis_intents:
+            acc_cnt = await _safe_call_tool("count_accounts", {}, AnalysisIntent.ACCOUNT_COUNT)
+            if acc_cnt and isinstance(acc_cnt, dict):
+                c_str = json.dumps(acc_cnt, indent=2)
                 evidence_list.append(
                     NormalizedEvidence(
-                        evidence_id=ev_id,
+                        evidence_id="ev-db-acc-count",
+                        source_type=SourceType.POSTGRESQL,
+                        source_record_id="accounts:count",
+                        title="Total Bank Accounts Count",
+                        content=c_str,
+                        content_hash=compute_sha256(c_str),
+                        citation_metadata={"table": "accounts", "locator": "ACCOUNTS: Total Count"},
+                    )
+                )
+
+        # C. Customer Listing Intent (Scenario 5)
+        if AnalysisIntent.CUSTOMER_LISTING in routing.analysis_intents:
+            cust_all = await _safe_call_tool("get_all_customers", {"limit": 50}, AnalysisIntent.CUSTOMER_LISTING)
+            if cust_all and isinstance(cust_all, list):
+                c_str = json.dumps(cust_all, indent=2)
+                evidence_list.append(
+                    NormalizedEvidence(
+                        evidence_id="ev-db-cust-all",
                         source_type=SourceType.POSTGRESQL,
                         source_record_id="customers:all",
                         title="All Registered Banking Customers",
@@ -495,17 +777,39 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
                         citation_metadata={"table": "customers", "locator": "CUSTOMERS: All Registered Customers"},
                     )
                 )
-        else:
-            # Check for customer lookup by name or explicit intent
+
+        # D. Customer Count Intent
+        if AnalysisIntent.CUSTOMER_COUNT in routing.analysis_intents:
+            cust_cnt = await _safe_call_tool("count_customers", {}, AnalysisIntent.CUSTOMER_COUNT)
+            if cust_cnt and isinstance(cust_cnt, dict):
+                c_str = json.dumps(cust_cnt, indent=2)
+                evidence_list.append(
+                    NormalizedEvidence(
+                        evidence_id="ev-db-cust-count",
+                        source_type=SourceType.POSTGRESQL,
+                        source_record_id="customers:count",
+                        title="Total Registered Customers Count",
+                        content=c_str,
+                        content_hash=compute_sha256(c_str),
+                        citation_metadata={"table": "customers", "locator": "CUSTOMERS: Total Count"},
+                    )
+                )
+
+        # E. Customer Profile Lookup (when not already retrieved via balance)
+        if (
+            (AnalysisIntent.CUSTOMER_PROFILE in routing.analysis_intents or AnalysisIntent.CUSTOMER_LOOKUP in routing.analysis_intents)
+            and AnalysisIntent.CUSTOMER_BALANCE not in routing.analysis_intents
+            and not any(e.source_record_id.startswith("CUST-") for e in evidence_list)
+        ):
             cust_name_query = _extract_customer_name_query(state.question)
             if cust_name_query:
                 search_term = cust_name_query[:60]
-                candidates = await invoke_agent_tool(
+                candidates = await _safe_call_tool(
                     "find_customers_by_name",
                     {"name_query": search_term, "limit": 5},
+                    AnalysisIntent.CUSTOMER_PROFILE,
                 )
                 if isinstance(candidates, list):
-                    # Prioritize exact match (case-insensitive) when multiple fuzzy matches are returned
                     exact_matches = [c for c in candidates if c.get("name", "").strip().lower() == search_term.strip().lower()]
                     if len(exact_matches) == 1:
                         candidates = exact_matches
@@ -543,10 +847,10 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
                             )
                         )
 
-                        # Correlate linked accounts and transactions for this customer
-                        accts_and_txns = await invoke_agent_tool(
+                        accts_and_txns = await _safe_call_tool(
                             "get_customer_accounts_and_transactions",
                             {"customer_id": str(cust["id"])},
+                            AnalysisIntent.CUSTOMER_PROFILE,
                         )
                         if isinstance(accts_and_txns, dict):
                             for acc in accts_and_txns.get("accounts", []):
@@ -579,7 +883,6 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
                                     )
                                 )
                     else:
-                        # Zero matches - honest not found response, never pad with policy documents
                         status = ResponseStatus.INSUFFICIENT_EVIDENCE
                         ev_id = f"ev-db-cust-none-{uuid4().hex[:6]}"
                         c_str = json.dumps({"search_query": search_term, "found": 0, "status": "NOT_FOUND"}, indent=2)
@@ -594,14 +897,14 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
                                 citation_metadata={"table": "customers", "locator": f"CUSTOMER: NOT_FOUND ({search_term})"},
                             )
                         )
-            elif AnalysisIntent.CUSTOMER_LOOKUP in routing.analysis_intents and not any(e.startswith("CUST-") for e in state.entity_ids):
+            elif not any(e.startswith("CUST-") for e in state.entity_ids):
                 status = ResponseStatus.NEEDS_CLARIFICATION
                 clarification_question = "Please specify the customer name or customer ID (e.g. CUST-xxx) you would like to inspect."
 
-        # Entity lookups for transactions and accounts
+        # F. Entity lookups for explicit transactions and accounts
         for entity_id in state.entity_ids:
             if entity_id.startswith("TXN-") or "TXN" in entity_id:
-                txn = await invoke_agent_tool("get_transaction", {"transaction_id": entity_id})
+                txn = await _safe_call_tool("get_transaction", {"transaction_id": entity_id}, AnalysisIntent.TRANSACTION_LOOKUP)
                 if txn and isinstance(txn, dict) and not txn.get("error"):
                     ev_id = f"ev-db-{txn['external_id']}"
                     content_str = json.dumps(txn, indent=2)
@@ -618,7 +921,7 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
                     )
 
             if entity_id.startswith("ACC-") or "ACC" in entity_id:
-                acc = await invoke_agent_tool("get_account", {"account_id": entity_id})
+                acc = await _safe_call_tool("get_account", {"account_id": entity_id}, AnalysisIntent.ACCOUNT_LOOKUP)
                 if acc and isinstance(acc, dict) and not acc.get("error"):
                     ev_id = f"ev-db-{acc['external_id']}"
                     content_str = json.dumps(acc, indent=2)
@@ -634,12 +937,13 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
                         )
                     )
 
+        # G. Financial Aggregation (only if not an account/customer count query)
         if (
-            AnalysisIntent.FINANCIAL_AGGREGATION in routing.analysis_intents
-            or AnalysisIntent.AGGREGATION in routing.analysis_intents
-            or AnalysisIntent.DATA_RETRIEVAL in routing.analysis_intents
+            (AnalysisIntent.FINANCIAL_AGGREGATION in routing.analysis_intents or AnalysisIntent.AGGREGATION in routing.analysis_intents)
+            and AnalysisIntent.ACCOUNT_COUNT not in routing.analysis_intents
+            and AnalysisIntent.CUSTOMER_LISTING not in routing.analysis_intents
         ):
-            summary = await invoke_agent_tool("get_transaction_summary", {"time_range_days": routing.time_range_days})
+            summary = await _safe_call_tool("get_transaction_summary", {"time_range_days": routing.time_range_days}, AnalysisIntent.FINANCIAL_AGGREGATION)
             if summary and isinstance(summary, dict) and "total_volume" in summary:
                 ev_id = f"ev-db-summary-{routing.time_range_days or 'all'}"
                 content_str = json.dumps(summary, indent=2)
@@ -655,12 +959,16 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
                     )
                 )
 
+        # H. Daily Transaction Volume and Risk Distribution for Visualizations
+        if routing.chart_requested or AnalysisIntent.VISUALIZATION in routing.analysis_intents:
+            await _safe_call_tool("get_daily_transaction_volume", {"days": routing.time_range_days or 30, "currency": "EGP"}, AnalysisIntent.VISUALIZATION)
+            await _safe_call_tool("get_risk_distribution", {"time_range_days": routing.time_range_days}, AnalysisIntent.VISUALIZATION)
+
     # 3. Neo4j Graph Retrieval via approved read-only tools
     if SourceType.NEO4J in routing.selected_sources:
         q_lower = state.question.lower()
-        # Graph schema / overview question / Neo4j database inspection
         if any(w in q_lower for w in ["what does this graph represent", "node type", "relationship type", "schema", "overview", "what do its nodes", "neo4j", "connect", "graph database", "show graph"]):
-            schema_res = await invoke_agent_tool("get_graph_schema_overview", {})
+            schema_res = await _safe_call_tool("get_graph_schema_overview", {}, AnalysisIntent.GRAPH_INVESTIGATION)
             if schema_res and isinstance(schema_res, dict):
                 ev_id = "ev-graph-schema-overview"
                 content_str = json.dumps(schema_res, indent=2)
@@ -678,7 +986,7 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
 
         for entity_id in state.entity_ids:
             if entity_id.startswith("ACC-") or "ACC" in entity_id:
-                graph_net = await invoke_agent_tool("summarize_account_network", {"account_id": entity_id})
+                graph_net = await _safe_call_tool("summarize_account_network", {"account_id": entity_id}, AnalysisIntent.GRAPH_INVESTIGATION)
                 if graph_net and isinstance(graph_net, dict):
                     ev_id = f"ev-graph-{entity_id}"
                     content_str = json.dumps(graph_net, indent=2)
@@ -695,7 +1003,7 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
                     )
 
                 if any(w in q_lower for w in ["connected", "neighbor", "counterpart"]):
-                    conns = await invoke_agent_tool("find_connected_accounts", {"account_id": entity_id, "limit": 10})
+                    conns = await _safe_call_tool("find_connected_accounts", {"account_id": entity_id, "limit": 10}, AnalysisIntent.GRAPH_INVESTIGATION)
                     if conns and (isinstance(conns, list) or (isinstance(conns, dict) and not conns.get("error"))):
                         ev_id = f"ev-graph-conns-{entity_id}"
                         content_str = json.dumps({"connected_accounts": conns}, indent=2)
@@ -712,7 +1020,7 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
                         )
 
                 if any(w in q_lower for w in ["device", "shared device"]):
-                    devs = await invoke_agent_tool("get_shared_devices", {"account_id": entity_id})
+                    devs = await _safe_call_tool("get_shared_devices", {"account_id": entity_id}, AnalysisIntent.GRAPH_INVESTIGATION)
                     if devs and (isinstance(devs, list) or (isinstance(devs, dict) and not devs.get("error"))):
                         ev_id = f"ev-graph-devs-{entity_id}"
                         content_str = json.dumps(devs, indent=2)
@@ -729,7 +1037,7 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
                         )
 
                 if any(w in q_lower for w in ["ip", "shared ip"]):
-                    ips = await invoke_agent_tool("get_shared_ips", {"account_id": entity_id})
+                    ips = await _safe_call_tool("get_shared_ips", {"account_id": entity_id}, AnalysisIntent.GRAPH_INVESTIGATION)
                     if ips and (isinstance(ips, list) or (isinstance(ips, dict) and not ips.get("error"))):
                         ev_id = f"ev-graph-ips-{entity_id}"
                         content_str = json.dumps(ips, indent=2)
@@ -763,7 +1071,7 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
         if len(state.entity_ids) >= 2 and any(w in q_lower for w in ["path", "flow", "connect"]):
             acc_ids = [e for e in state.entity_ids if e.startswith("ACC-") or "ACC" in e]
             if len(acc_ids) >= 2:
-                paths = await invoke_agent_tool("find_transaction_paths", {"source_account_id": acc_ids[0], "target_account_id": acc_ids[1], "max_depth": 3})
+                paths = await _safe_call_tool("find_transaction_paths", {"source_account_id": acc_ids[0], "target_account_id": acc_ids[1], "max_depth": 3}, AnalysisIntent.GRAPH_INVESTIGATION)
                 if paths and isinstance(paths, list):
                     ev_id = f"ev-graph-paths-{acc_ids[0]}-{acc_ids[1]}"
                     content_str = json.dumps({"paths": paths}, indent=2)
@@ -790,6 +1098,8 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
         "status": status,
         "clarification_question": clarification_question,
         "thought_steps": thought_steps,
+        "warnings": warnings,
+        "forensic_trace": forensic_trace,
         "node_timings_ms": timings,
     }
 
@@ -937,51 +1247,56 @@ async def generate_chart_if_required(state: AgenticRAGState) -> dict[str, Any]:
                 if chart_comp:
                     charts.append(chart_comp)
         else:
-            rows = await invoke_agent_tool("get_bounded_transaction_dataset", {"limit": 20})
-            buckets = DeterministicAnalyticsService.group_by_time_bucket(rows, bucket="day") if (rows and isinstance(rows, list)) else {}
-            if buckets:
-                cats = list(buckets.keys())[-7:] if len(buckets) >= 7 else list(buckets.keys())
-                vols = [buckets[c]["total"] for c in cats]
+            wants_trend_chart = any(k in q for k in ["volume", "trend", "trajectory", "history", "timeline", "area", "line", "bar", "multi"]) or ("chart" in q and "risk" not in q)
+            if wants_trend_chart:
+                daily_rows = await invoke_agent_tool("get_daily_transaction_volume", {"days": routing.time_range_days or 30, "currency": "EGP"})
+                if daily_rows and isinstance(daily_rows, list) and len(daily_rows) > 0:
+                    cats = [str(d.get("date") or d.get("day")) for d in daily_rows]
+                    vols = [float(d.get("volume", 0.0)) for d in daily_rows]
 
-                # Select chart type
-                if "area" in q:
-                    c_type = ChartType.AREA
-                elif "bar" in q:
-                    c_type = ChartType.BAR
+                    # Select chart type
+                    if "area" in q:
+                        c_type = ChartType.AREA
+                    elif "bar" in q:
+                        c_type = ChartType.BAR
+                    else:
+                        c_type = ChartType.AREA if ("trend" in q or "volume" in q or "multi" in q) else ChartType.LINE
+
+                    spec_trend = ChartSpecification(
+                        chart_type=c_type,
+                        title="Transaction Volume Trajectory (EGP)",
+                        x_axis_label="Timeline",
+                        y_axis_label="Volume (EGP)",
+                        categories=cats,
+                        series=[ChartSeries(name="Total Volume (EGP)", data=vols, color="#002D72")],
+                    )
+                    chart_trend = VisualizationEngine.render_chart(spec_trend)
+                    if chart_trend:
+                        charts.append(chart_trend)
                 else:
-                    c_type = ChartType.AREA if ("trend" in q or "volume" in q or "multi" in q) else ChartType.LINE
+                    warnings.append("No transaction records found for the requested period; chart generation omitted to ensure truthful reporting.")
 
-                spec_trend = ChartSpecification(
-                    chart_type=c_type,
-                    title="Transaction Volume Trajectory (EGP)",
-                    x_axis_label="Timeline",
-                    y_axis_label="Volume (EGP)",
-                    categories=cats,
-                    series=[ChartSeries(name="Total Volume (EGP)", data=vols, color="#002D72")],
+        # 2. Risk Distribution Donut or Horizontal Bar (only if requested and real non-zero distribution exists)
+        wants_risk_chart = any(k in q for k in ["risk", "donut", "pie", "distribution", "tier", "multi"]) or ("chart" in q and not any(k in q for k in ["volume", "trend", "trajectory", "history", "timeline", "area", "line", "bar"]))
+        if wants_risk_chart:
+            risk_dist = await invoke_agent_tool("get_risk_distribution", {"time_range_days": routing.time_range_days})
+            if risk_dist and isinstance(risk_dist, dict) and any(float(v) > 0 for v in risk_dist.values()):
+                categories = list(risk_dist.keys())
+                values = [float(v) for v in risk_dist.values()]
+                sec_type = ChartType.DONUT if ("donut" in q or "pie" in q or len(charts) > 0) else ChartType.HORIZONTAL_BAR
+                spec_risk = ChartSpecification(
+                    chart_type=sec_type,
+                    title="Transaction Risk Tier Distribution",
+                    x_axis_label="Risk Category",
+                    y_axis_label="Transaction Count",
+                    categories=categories,
+                    series=[ChartSeries(name="Transactions", data=values, color="#F9A825")],
                 )
-                chart_trend = VisualizationEngine.render_chart(spec_trend)
-                if chart_trend:
-                    charts.append(chart_trend)
+                chart_risk = VisualizationEngine.render_chart(spec_risk)
+                if chart_risk:
+                    charts.append(chart_risk)
             else:
-                warnings.append("No transaction records found for the requested period; chart generation omitted to ensure truthful reporting.")
-
-        # 2. Risk Distribution Donut or Horizontal Bar (only if real non-zero distribution exists)
-        risk_dist = await invoke_agent_tool("get_risk_distribution", {"time_range_days": routing.time_range_days})
-        if risk_dist and isinstance(risk_dist, dict) and any(float(v) > 0 for v in risk_dist.values()):
-            categories = list(risk_dist.keys())
-            values = [float(v) for v in risk_dist.values()]
-            sec_type = ChartType.DONUT if ("donut" in q or "pie" in q or len(charts) > 0) else ChartType.HORIZONTAL_BAR
-            spec_risk = ChartSpecification(
-                chart_type=sec_type,
-                title="Transaction Risk Tier Distribution",
-                x_axis_label="Risk Category",
-                y_axis_label="Transaction Count",
-                categories=categories,
-                series=[ChartSeries(name="Transactions", data=values, color="#F9A825")],
-            )
-            chart_risk = VisualizationEngine.render_chart(spec_risk)
-            if chart_risk:
-                charts.append(chart_risk)
+                warnings.append("No authoritative risk distribution data found; risk donut chart omitted.")
 
     types_str = ", ".join(c.chart_type.value.upper() for c in charts) if charts else "None"
     thought_steps.append(f"[05/07] Visual Analytics Generation: Generated {len(charts)} vector charts (Types: [{types_str}]) with Omerta Corporate Palette.")
@@ -1003,6 +1318,36 @@ async def generate_chart_if_required(state: AgenticRAGState) -> dict[str, Any]:
 async def synthesize_structured_response(state: AgenticRAGState) -> dict[str, Any]:
     """Synthesize the final narrative response with strict citations, output safety, and rich blocks."""
     t0 = time.perf_counter()
+
+    # 0. Deterministic Boundary for Out-of-Domain queries (Section 6)
+    is_ood = (
+        getattr(state, "intent", None) == AnalysisIntent.OUT_OF_DOMAIN
+        or AnalysisIntent.OUT_OF_DOMAIN in getattr(state.routing, "analysis_intents", [])
+        or _is_out_of_domain_query(state.question)
+    )
+    if is_ood:
+        answer_text = _build_deterministic_answer(state, [])
+        ms = (time.perf_counter() - t0) * 1000
+        timings = dict(state.node_timings_ms)
+        timings["synthesize_structured_response"] = round(ms, 2)
+        return {
+            "answer": answer_text,
+            "citations": [],
+            "evidence_ids": [],
+            "sources_used": [],
+            "response_blocks": [TextBlock(content=answer_text)],
+            "status": ResponseStatus.ANSWERED,
+            "limitations": [
+                "Inquiry is outside the approved Omerta.ai banking, compliance, and ledger domain.",
+                "External trivia and general knowledge queries cannot be verified against the internal knowledge base.",
+            ],
+            "forensic_trace": list(state.forensic_trace),
+            "thought_steps": list(state.thought_steps) + [
+                "[06/07] Response Synthesis: Generated strict out-of-domain limitation disclosure without external hallucinations."
+            ],
+            "node_timings_ms": timings,
+        }
+
     evidence = state.evidence
     citations: list[Citation] = []
     blocks: list[ResponseBlock] = []
@@ -1136,16 +1481,121 @@ def _build_deterministic_answer(state: AgenticRAGState, citations: list[Citation
     """Deterministic, factual response generator used when LLM is unavailable or offline."""
     lines = []
 
+    # 1. Out-of-Domain Response (Scenario 3)
+    if AnalysisIntent.OUT_OF_DOMAIN in state.routing.analysis_intents:
+        lines.append("## Domain Limitation Notice")
+        lines.append("The current banking knowledge base and forensic tools cannot verify external general knowledge questions (such as inquiries regarding where a public figure was born).\n\nOmerta.ai is scoped strictly to internal banking operations, customer profiles, relational transaction ledgers, property graph intelligence, and operational compliance policies.")
+        return "\n".join(lines)
+
+    # 2. Clarification Required Response (Scenario 9)
     if state.clarification_question:
         lines.append("## Clarification Required")
         lines.append(f"{state.clarification_question}\n")
         return "\n".join(lines)
 
+    # 3. Disruption Notice for tool outages (Scenario 11)
+    failed_traces = [t for t in state.forensic_trace if t.get("status") == "FAILED"]
+    if failed_traces:
+        lines.append("## Authoritative Service Disruption Notice")
+        for ft in failed_traces:
+            lines.append(f"- **{ft['tool_name']}**: Service execution failed ({ft.get('error') or 'Unavailable'}). Operating in degraded forensic mode.")
+        lines.append("")
+
     graph_evidence = [e for e in state.evidence if e.source_type == SourceType.NEO4J]
     doc_evidence = [e for e in state.evidence if e.source_type == SourceType.DOCUMENTS]
     db_evidence = [e for e in state.evidence if e.source_type == SourceType.POSTGRESQL]
 
-    if state.metrics:
+    # 4. Customer Balance and Linked Accounts (Scenario 2)
+    if AnalysisIntent.CUSTOMER_BALANCE in state.routing.analysis_intents:
+        cust_ev = next((e for e in db_evidence if e.citation_metadata.get("table") == "customers" and "NOT_FOUND" not in e.citation_metadata.get("locator", "") and e.source_record_id != "customers:all"), None)
+        acc_evs = [e for e in db_evidence if e.citation_metadata.get("table") == "accounts" and "Count" not in e.citation_metadata.get("locator", "")]
+        not_found_ev = next((e for e in db_evidence if e.citation_metadata.get("table") == "customers" and "NOT_FOUND" in e.citation_metadata.get("locator", "")), None)
+
+        if not_found_ev:
+            lines.append("## Customer Balance Lookup")
+            lines.append(f"No customer record matching query *'{state.question}'* was found in the authoritative PostgreSQL database [{not_found_ev.citation_metadata.get('locator', 'NOT_FOUND')}]. Balance information is unavailable.")
+            return "\n".join(lines)
+
+        if cust_ev or acc_evs:
+            cust_name = "Customer"
+            cust_id = ""
+            if cust_ev:
+                try:
+                    cdata = json.loads(cust_ev.content)
+                    cust_name = cdata.get("name", "Customer")
+                    cust_id = cdata.get("external_id", "")
+                except Exception:
+                    pass
+
+            lines.append("## Customer Balance & Linked Accounts Summary")
+            loc = cust_ev.citation_metadata.get("locator", cust_id) if cust_ev else "PostgreSQL Ledger"
+            lines.append(f"Retrieved authoritative balances and linked accounts for **{cust_name}** (`{cust_id}`) [{loc}]:\n")
+
+            if acc_evs:
+                lines.append("| Account Identifier | Currency | Ledger Balance | Available Balance | Operational Status |")
+                lines.append("| :--- | :--- | :--- | :--- | :--- |")
+                for a_ev in acc_evs:
+                    try:
+                        adata = json.loads(a_ev.content)
+                        acc_id = adata.get("external_id", "")
+                        curr = adata.get("currency", "EGP")
+                        bal = adata.get("ledger_balance", adata.get("balance", 0.0))
+                        avail = adata.get("available_balance", adata.get("balance", 0.0))
+                        st = adata.get("status", "ACTIVE")
+                        lines.append(f"| `{acc_id}` [{a_ev.citation_metadata.get('locator', acc_id)}] | **{curr}** | **{bal:,.2f} {curr}** | **{avail:,.2f} {curr}** | **{st}** |")
+                    except Exception:
+                        pass
+                lines.append("")
+            else:
+                lines.append("No active bank accounts are linked to this customer profile.\n")
+
+            if citations:
+                lines.append("*All findings verified with SHA-256 cryptographic provenance.*")
+            return "\n".join(lines)
+
+    # 5. Accounts & Customer Directory Summary (Scenario 5)
+    acc_count_ev = next((e for e in db_evidence if e.source_record_id == "accounts:count"), None)
+    cust_all_ev = next((e for e in db_evidence if e.source_record_id == "customers:all"), None)
+    if (AnalysisIntent.ACCOUNT_COUNT in state.routing.analysis_intents or AnalysisIntent.CUSTOMER_LISTING in state.routing.analysis_intents) and (acc_count_ev or cust_all_ev):
+        lines.append("## Banking Accounts & Customer Directory Summary")
+        if acc_count_ev:
+            try:
+                ac_data = json.loads(acc_count_ev.content)
+                tot_accs = ac_data.get("total_accounts", 0)
+                lines.append(f"- **Total Registered Bank Accounts**: **{tot_accs}** [{acc_count_ev.citation_metadata.get('locator', 'ACCOUNTS: Total Count')}]")
+            except Exception:
+                pass
+        if cust_all_ev:
+            try:
+                cl_data = json.loads(cust_all_ev.content)
+                cust_list = cl_data if isinstance(cl_data, list) else cl_data.get("customers", [])
+                lines.append(f"- **Total Registered Customers**: **{len(cust_list)}** [{cust_all_ev.citation_metadata.get('locator', 'CUSTOMERS: All Registered Customers')}]\n")
+                lines.append("### Customer Names & Identifiers")
+                for c in cust_list:
+                    cid = c.get("external_id") or f"CUST-{c.get('id', '')}"
+                    cname = c.get("name", "Unknown")
+                    lines.append(f"- **{cname}** (`{cid}`)")
+            except Exception:
+                pass
+        lines.append("")
+        if citations:
+            lines.append("*All findings verified with SHA-256 cryptographic provenance.*")
+        return "\n".join(lines)
+
+    # 6. Financial Analysis Metrics (Sums, Comparisons)
+    if state.analytical_results:
+        lines.append("## Financial Analytics & Summary")
+        inflow = state.analytical_results.get("total_inflow")
+        outflow = state.analytical_results.get("total_outflow")
+        if inflow is not None:
+            lines.append(f"- **Total Inflow**: {float(inflow):,.2f} EGP")
+        if outflow is not None:
+            lines.append(f"- **Total Outflow**: {float(outflow):,.2f} EGP")
+        for k, v in state.analytical_results.items():
+            if k not in ("total_inflow", "total_outflow"):
+                lines.append(f"- **{k.replace('_', ' ').title()}**: {v}")
+        lines.append("")
+    elif state.metrics:
         lines.append("## Financial Analysis Summary")
         for m in state.metrics:
             comp_str = f" ({m.comparison_text})" if m.comparison_text else ""
@@ -1157,6 +1607,7 @@ def _build_deterministic_answer(state: AgenticRAGState, citations: list[Citation
         lines.append(f"**Period Comparison**: Total volume moved from {c.previous_value:,.2f} ({c.previous_label}) to {c.current_value:,.2f} ({c.current_label}), representing an absolute difference of {c.absolute_difference:,.2f} and a change of **{c.percentage_change_display}**.")
         lines.append("")
 
+    # 7. Graph Evidence (Neo4j)
     if graph_evidence:
         schema_ev = next((e for e in graph_evidence if "schema" in e.source_record_id.lower()), None)
         if schema_ev:
@@ -1216,6 +1667,7 @@ def _build_deterministic_answer(state: AgenticRAGState, citations: list[Citation
             lines.append("Review underlying device fingerprints, verify transaction velocity in PostgreSQL, and request additional KYC documentation if warranted.")
             lines.append("")
 
+    # 8. Document Knowledge & Policy Evidence
     if doc_evidence and not db_evidence and not graph_evidence:
         lines.append("## Executive Summary")
         top_ev = doc_evidence[0]
@@ -1237,35 +1689,13 @@ def _build_deterministic_answer(state: AgenticRAGState, citations: list[Citation
             lines.append(f"- **{ev.title}** [{loc}]:\n  > {snippet}...")
         lines.append("")
 
+    # 9. PostgreSQL Customer Profiles & Facts
     if db_evidence and not graph_evidence:
         cust_all_ev = next((e for e in db_evidence if e.source_record_id == "customers:all"), None)
         cust_ev = next((e for e in db_evidence if e.citation_metadata.get("table") == "customers" and "NOT_FOUND" not in e.citation_metadata.get("locator", "") and e.source_record_id != "customers:all"), None)
         not_found_ev = next((e for e in db_evidence if e.citation_metadata.get("table") == "customers" and "NOT_FOUND" in e.citation_metadata.get("locator", "")), None)
 
-        if cust_all_ev:
-            try:
-                data = json.loads(cust_all_ev.content)
-                cust_list = data if isinstance(data, list) else data.get("customers", [])
-                lines.append("## Executive Summary")
-                lines.append(f"Retrieved **{len(cust_list)}** registered customer profiles from the authoritative PostgreSQL ledger [{cust_all_ev.citation_metadata.get('locator', 'CUSTOMERS: All Registered Customers')}].")
-                lines.append("As an authenticated Administrator, full visibility across customer identities, contact parameters, risk tiers, and operational statuses is granted.")
-                lines.append("")
-                lines.append("## Registered Customer Directory")
-                lines.append("| Customer ID | Full Name | Omerta User # | Email Address | Country | Status | Risk Level |")
-                lines.append("| :--- | :--- | :--- | :--- | :--- | :--- | :--- |")
-                for c in cust_list:
-                    cid = c.get("external_id") or f"CUST-{c.get('id', '')}"
-                    name = c.get("name", "Unknown")
-                    usr = c.get("omerta_user_number", "N/A")
-                    em = c.get("email", "N/A")
-                    country = c.get("declared_country", "EG")
-                    st = c.get("transfer_status", "ACTIVE")
-                    rk = c.get("risk_level", "LOW")
-                    lines.append(f"| `{cid}` | **{name}** | `{usr}` | `{em}` | {country} | **{st}** | {rk} |")
-                lines.append("")
-            except Exception as exc:
-                logger.warning("Error rendering all customers table: %s", exc)
-        elif cust_ev:
+        if cust_ev:
             try:
                 cust_data = json.loads(cust_ev.content)
                 cust_name = cust_data.get("name", "Unknown")
@@ -1299,8 +1729,7 @@ def _build_deterministic_answer(state: AgenticRAGState, citations: list[Citation
                 lines.append(f"- **Account Operational State**: Operational with active transaction privileges")
                 lines.append("")
 
-                # Linked Accounts
-                acc_evs = [e for e in db_evidence if e.citation_metadata.get("table") == "accounts"]
+                acc_evs = [e for e in db_evidence if e.citation_metadata.get("table") == "accounts" and "Count" not in e.citation_metadata.get("locator", "")]
                 if acc_evs:
                     lines.append("## 3. Linked Bank Accounts & Balances")
                     lines.append("| Account Identifier | Currency | Ledger Balance | Available Balance | Operational Status |")
@@ -1308,8 +1737,8 @@ def _build_deterministic_answer(state: AgenticRAGState, citations: list[Citation
                     for a_ev in acc_evs:
                         try:
                             acc_data = json.loads(a_ev.content)
-                            bal = acc_data.get("ledger_balance", 0.0)
-                            avail = acc_data.get("available_balance", 0.0)
+                            bal = acc_data.get("ledger_balance", acc_data.get("balance", 0.0))
+                            avail = acc_data.get("available_balance", acc_data.get("balance", 0.0))
                             curr = acc_data.get("currency", "EGP")
                             acc_id = acc_data.get("external_id", "")
                             st = acc_data.get("status", "ACTIVE")
@@ -1318,7 +1747,6 @@ def _build_deterministic_answer(state: AgenticRAGState, citations: list[Citation
                             pass
                     lines.append("")
 
-                # Recent Transactions
                 txn_ev = next((e for e in db_evidence if e.citation_metadata.get("table") == "transactions" and "TRANSACTIONS:" in e.citation_metadata.get("locator", "")), None)
                 if txn_ev:
                     try:
@@ -1349,7 +1777,7 @@ def _build_deterministic_answer(state: AgenticRAGState, citations: list[Citation
             lines.append("| :--- | :--- | :--- |")
             lines.append(f"| *'{state.question}'* | **NOT_FOUND** | [{not_found_ev.citation_metadata.get('locator', 'NOT_FOUND')}] |")
             lines.append("")
-        else:
+        elif not acc_count_ev and not cust_all_ev:
             lines.append("## Relational Banking Ledger Records")
             for ev in db_evidence[:4]:
                 loc = ev.citation_metadata.get("locator") or ev.source_record_id
@@ -1360,7 +1788,8 @@ def _build_deterministic_answer(state: AgenticRAGState, citations: list[Citation
     if not lines:
         lines.append(f"No matching records or policies were found for query: *'{state.question}'*.")
 
-    lines.append("\n*All findings verified with SHA-256 cryptographic provenance.*")
+    if citations:
+        lines.append("\n*All findings verified with SHA-256 cryptographic provenance.*")
     return "\n".join(lines)
 
 
@@ -1403,16 +1832,17 @@ def validate_citations_and_results(state: AgenticRAGState) -> dict[str, Any]:
         valid_citations.append(c)
 
     sources_used = list(state.routing.selected_sources)
-    if not sources_used:
-        sources_used = [SourceType.DOCUMENTS]
+    if not sources_used and valid_citations:
+        sources_used = [valid_citations[0].source_type]
 
     thought_steps = list(state.thought_steps)
     if valid_citations:
         thought_steps.append(f"[07/07] Cryptographic Provenance Sealing: Verified {len(valid_citations)} citations against canonical SHA-256 evidence hashes.")
     elif state.citations and rejected_count > 0:
         thought_steps.append(f"[07/07] Cryptographic Integrity Alert: Rejected {rejected_count} citations due to unverified provenance or tampering.")
-    else:
-        thought_steps.append("[07/07] Cryptographic Provenance Audit: Verified request boundary without external citations.")
+    warnings = list(state.warnings)
+    if rejected_count > 0:
+        warnings.append(f"Rejected {rejected_count} citations due to unverified provenance or tampering.")
 
     ms = (time.perf_counter() - t0) * 1000
     timings = dict(state.node_timings_ms)
@@ -1423,5 +1853,7 @@ def validate_citations_and_results(state: AgenticRAGState) -> dict[str, Any]:
         "evidence_ids": [c.evidence_id for c in valid_citations],
         "sources_used": sources_used,
         "thought_steps": thought_steps,
+        "warnings": warnings,
+        "forensic_trace": list(state.forensic_trace),
         "node_timings_ms": timings,
     }

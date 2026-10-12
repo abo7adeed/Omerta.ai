@@ -33,6 +33,10 @@ class AgenticRAGState(BaseModel):
 
     # Routing and classification
     routing: AgenticRAGRouting = Field(default_factory=AgenticRAGRouting)
+    intent: Any = None
+    chart_requested: bool = False
+    selected_sources: list[SourceType] = Field(default_factory=list)
+    analytical_results: dict[str, Any] = Field(default_factory=dict)
 
     # Retrieved multi-source evidence
     evidence: list[NormalizedEvidence] = Field(default_factory=list)
@@ -64,6 +68,7 @@ class AgenticRAGState(BaseModel):
 
     # Operational tracking
     errors: list[str] = Field(default_factory=list)
+    forensic_trace: list[dict[str, Any]] = Field(default_factory=list)
     node_timings_ms: dict[str, float] = Field(default_factory=dict)
     start_time: float = Field(default_factory=lambda: datetime.now(UTC).timestamp())
 

@@ -21,7 +21,18 @@ from apps.api.v1.auth import evaluate_vpn_risk
 from domain.services.customer_service import CustomerService
 from domain.services.ticket_service import TicketService
 from domain.services.transfer_service import TransferError, TransferService
-from infrastructure.database.models import Alert, AuditEvent, Session as UserSession, User
+from infrastructure.database.models import (
+    Account,
+    AccountLedgerEntry,
+    Alert,
+    AuditEvent,
+    InvestigationCase,
+    RiskAssessment,
+    RiskSignal,
+    Session as UserSession,
+    Transaction,
+    User,
+)
 from infrastructure.database.session import get_engine
 from infrastructure.security.jwt_auth import get_current_user, hash_password, verify_password
 
@@ -357,6 +368,253 @@ async def initiate_transfer(
                 status_code=err.status_code,
                 detail={"error": err.code, "message": err.message},
             )
+
+class CustomerWithdrawRequest(BaseModel):
+    amount: Decimal = Field(..., gt=Decimal("0.00"), description="Withdrawal amount")
+    account_id: str | None = Field(default=None, description="Source account external ID (e.g. ACC-1001)")
+    currency: str = Field(default="EGP", max_length=10)
+    method: str = Field(default="ATM_CASH_OUT", description="ATM_CASH_OUT, BRANCH_TELLER, EXTERNAL_IBAN")
+    destination_details: str | None = Field(default=None, description="ATM Code, Branch Location, or IBAN")
+    password: str = Field(..., description="Customer transfer password for financial authorization")
+
+
+@router.post("/withdraw", status_code=status.HTTP_201_CREATED)
+async def withdraw_funds(
+    body: CustomerWithdrawRequest,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Execute customer withdrawal with atomic ledger debit and dynamic multi-vector risk evaluation."""
+    client_ip = request.client.host if request.client else "127.0.0.1"
+
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        cust_service = CustomerService(session)
+        customer = await cust_service.get_customer_by_user_id(current_user["sub"])
+        if not customer or not customer.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error": "NOT_A_CUSTOMER", "message": "Only registered customers can withdraw funds."},
+            )
+
+        if getattr(customer, "transfer_status", "ACTIVE") == "BLOCKED" or getattr(customer, "status", "ACTIVE") == "BLOCKED":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "ACCOUNT_BLOCKED_SECURITY_HOLD",
+                    "message": "Your account is currently under security hold. Withdrawals and transfers are suspended.",
+                },
+            )
+
+        # Verify transfer password
+        user_rec = await session.scalar(select(User).where(User.id == customer.user_id))
+        effective_transfer_hash = customer.hashed_transfer_password or (user_rec.hashed_password if user_rec else "")
+        if not effective_transfer_hash or not verify_password(body.password, effective_transfer_hash):
+            customer.transfer_failed_attempts = (customer.transfer_failed_attempts or 0) + 1
+            if customer.transfer_failed_attempts >= 3:
+                customer.transfer_status = "BLOCKED"
+                await session.commit()
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={"error": "TRANSFER_BLOCKED_SECURITY_HOLD", "message": "3 consecutive incorrect passwords. Transfers and withdrawals blocked."},
+                )
+            await session.commit()
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"error": "INVALID_TRANSFER_PASSWORD", "message": "Incorrect transfer password."},
+            )
+
+        customer.transfer_failed_attempts = 0
+
+        # Resolve Account
+        if body.account_id:
+            acc = await session.scalar(
+                select(Account).where(
+                    and_(
+                        Account.customer_id == customer.id,
+                        Account.external_id == body.account_id,
+                    )
+                )
+            )
+        else:
+            acc = await session.scalar(
+                select(Account).where(Account.customer_id == customer.id).order_by(Account.id.asc()).limit(1)
+            )
+
+        if not acc:
+            raise HTTPException(status_code=400, detail={"error": "ACCOUNT_NOT_FOUND", "message": "Account not found."})
+
+        if acc.status == "BLOCKED" or acc.status == "FROZEN":
+            raise HTTPException(status_code=403, detail={"error": "ACCOUNT_LOCKED", "message": f"Account {acc.external_id} is currently {acc.status}."})
+
+        if acc.balance < body.amount:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "INSUFFICIENT_FUNDS",
+                    "message": f"Insufficient available balance. Account has {acc.balance:,.2f} {acc.currency}, requested {body.amount:,.2f} {acc.currency}.",
+                },
+            )
+
+        # Deduct balance
+        import uuid
+        now_dt = datetime.now(UTC)
+        ext_txn_id = f"TXN-WDL-{uuid.uuid4().hex[:8].upper()}"
+
+        acc.balance -= body.amount
+
+        txn = Transaction(
+            external_id=ext_txn_id,
+            account_id=acc.id,
+            recipient_account_id=acc.id,
+            amount=body.amount,
+            currency=acc.currency,
+            transaction_type="WITHDRAWAL",
+            status="COMPLETED",
+            timestamp=now_dt,
+            txn_metadata={
+                "withdrawal_method": body.method,
+                "destination_details": body.destination_details or "Direct Cash-out",
+                "client_ip": client_ip,
+            },
+        )
+        session.add(txn)
+        await session.flush()
+
+        ledger_entry = AccountLedgerEntry(
+            external_id=f"LED-WDL-{uuid.uuid4().hex[:8].upper()}",
+            account_id=acc.id,
+            transaction_id=txn.id,
+            entry_type="DEBIT",
+            amount=body.amount,
+            currency=acc.currency,
+            balance_after=acc.balance,
+            description=f"Withdrawal via {body.method} ({body.destination_details or 'ATM Cash Out'})",
+            idempotency_key=f"IDEMP-WDL-{txn.external_id}",
+        )
+        session.add(ledger_entry)
+
+        # Dynamic Risk Evaluation on Withdrawal
+        base_risk = Decimal("10.00")
+        signals = []
+
+        if body.amount >= Decimal("50000.00"):
+            base_risk += Decimal("45.00")
+            signals.append({
+                "name": "HIGH_VALUE_CASH_OUT",
+                "severity": "CRITICAL",
+                "description": f"Cash withdrawal of {body.amount:,.2f} {acc.currency} exceeds threshold.",
+            })
+        elif body.amount >= Decimal("20000.00"):
+            base_risk += Decimal("30.00")
+            signals.append({
+                "name": "ELEVATED_WITHDRAWAL_VALUE",
+                "severity": "HIGH",
+                "description": f"Elevated single-operation withdrawal of {body.amount:,.2f} {acc.currency}.",
+            })
+
+        # Structuring check just below 25,000 or 50,000
+        if (Decimal("24000.00") <= body.amount < Decimal("25000.00")) or (Decimal("45000.00") <= body.amount < Decimal("50000.00")):
+            base_risk += Decimal("40.00")
+            signals.append({
+                "name": "STRUCTURING_CASH_OUT",
+                "severity": "CRITICAL",
+                "description": f"Withdrawal of {body.amount:,.2f} {acc.currency} positioned just under statutory threshold.",
+            })
+
+        final_risk = min(Decimal("95.00"), base_risk)
+        requires_review = final_risk > Decimal("40.00")
+        risk_lvl = "CRITICAL" if final_risk >= Decimal("80.00") else ("HIGH" if final_risk >= Decimal("70.00") else ("REQUIRES_REVIEW" if requires_review else "LOW"))
+
+        txn.risk_score = final_risk
+        txn.risk_level = risk_lvl
+        txn.review_status = "REQUIRES_REVIEW" if requires_review else "CLEARED"
+
+        # Record Risk Assessment
+        ra = RiskAssessment(
+            external_id=f"RA-{uuid.uuid4().hex[:8].upper()}",
+            transaction_id=txn.id,
+            risk_score=final_risk,
+            risk_level=risk_lvl,
+            requires_human_review=requires_review,
+            correlation_id=f"CORR-{txn.external_id}",
+            version="lgbm-risk-v1",
+            summary=f"Automated evaluation completed with {len(signals)} signals. Score: {final_risk:.1f}%",
+        )
+        session.add(ra)
+        await session.flush()
+
+        for s in signals:
+            session.add(
+                RiskSignal(
+                    assessment_id=ra.id,
+                    signal_name=s["name"],
+                    severity=s["severity"],
+                    description=s["description"],
+                    source="WITHDRAWAL_ENGINE",
+                )
+            )
+
+        if requires_review:
+            # Containment Hold: Block account, customer, and user
+            acc.status = "BLOCKED"
+            customer.status = "BLOCKED"
+            customer.transfer_status = "BLOCKED"
+            if user_rec:
+                user_rec.is_active = False
+
+            inv_case = InvestigationCase(
+                external_id=f"CASE-WDL-{uuid.uuid4().hex[:8].upper()}",
+                title=f"High Risk Withdrawal: {acc.external_id} ({customer.name}) - {body.amount:,.2f} {acc.currency}",
+                transaction_id=txn.id,
+                status="NEW",
+                severity="HIGH" if final_risk >= Decimal("70.00") else "MEDIUM",
+                report={
+                    "account_id": acc.external_id,
+                    "customer_name": customer.name,
+                    "amount": float(body.amount),
+                    "currency": acc.currency,
+                    "risk_score": float(final_risk),
+                    "description": f"Automated security containment triggered on withdrawal of {body.amount:,.2f} {acc.currency}. Risk: {final_risk:.1f}%.",
+                },
+            )
+            session.add(inv_case)
+            session.add(
+                AuditEvent(
+                    event_id=f"EVT-WDL-HOLD-{uuid.uuid4().hex[:8].upper()}",
+                    event_type="ACCOUNT_SECURITY_HOLD_TRIGGERED",
+                    actor_type="SYSTEM",
+                    actor_id="AutomatedRiskEngine",
+                    source="WithdrawalSecurity",
+                    metadata_={
+                        "account_id": acc.external_id,
+                        "transaction_id": txn.external_id,
+                        "risk_score": float(final_risk),
+                        "amount": float(body.amount),
+                        "reason": "Automated security containment on elevated withdrawal risk.",
+                    },
+                )
+            )
+
+        await session.commit()
+
+        return {
+            "success": True,
+            "transaction_id": txn.external_id,
+            "account_id": acc.external_id,
+            "amount": float(body.amount),
+            "currency": acc.currency,
+            "method": body.method,
+            "balance_after": float(acc.balance),
+            "risk_score": float(final_risk),
+            "risk_level": risk_lvl,
+            "requires_review": requires_review,
+            "account_status": acc.status,
+            "message": (
+                "Withdrawal processed successfully. Funds dispensed."
+                if not requires_review
+                else "Withdrawal processed. Account placed under security hold for compliance review. Contact +20 2 19876."
+            ),
+        }
 
 
 @router.get("/transfers")

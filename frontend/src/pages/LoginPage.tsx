@@ -10,6 +10,8 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
+  ShieldAlert,
+  Phone,
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -107,16 +109,49 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {effectiveError && (
-            <div className="p-3.5 rounded-[10px] bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B] text-xs flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 shrink-0 text-[#DC2626] mt-0.5" />
-              <div className="space-y-1">
-                <span className="font-semibold">{effectiveError}</span>
-                {hasActiveSessionConflict && (
-                  <p className="text-[11px] text-[#991B1B]">
-                    Another session is active. You can terminate it and proceed below.
-                  </p>
+            <div className={`p-4 rounded-[12px] text-xs flex flex-col gap-2.5 ${
+              effectiveError.toLowerCase().includes('security hold') || effectiveError.toLowerCase().includes('19876') || effectiveError.toLowerCase().includes('blocked')
+                ? 'bg-[#FEF2F2] border-2 border-[#DC2626] text-[#991B1B] shadow-sm'
+                : 'bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B]'
+            }`}>
+              <div className="flex items-start gap-2.5">
+                {effectiveError.toLowerCase().includes('security hold') || effectiveError.toLowerCase().includes('19876') || effectiveError.toLowerCase().includes('blocked') ? (
+                  <ShieldAlert className="w-5 h-5 shrink-0 text-[#DC2626] mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0 text-[#DC2626] mt-0.5" />
                 )}
+                <div className="space-y-1.5 flex-1">
+                  <span className="font-bold text-sm block text-[#991B1B]">
+                    {effectiveError.toLowerCase().includes('security hold') || effectiveError.toLowerCase().includes('19876') || effectiveError.toLowerCase().includes('blocked')
+                      ? 'Account Under Security Hold'
+                      : 'Authentication Alert'}
+                  </span>
+                  <p className="text-xs text-[#7F1D1D] leading-relaxed">
+                    {effectiveError}
+                  </p>
+                  {hasActiveSessionConflict && (
+                    <p className="text-[11px] text-[#991B1B]">
+                      Another session is active. You can terminate it and proceed below.
+                    </p>
+                  )}
+                </div>
               </div>
+
+              {(effectiveError.toLowerCase().includes('security hold') || effectiveError.toLowerCase().includes('19876') || effectiveError.toLowerCase().includes('blocked')) && (
+                <div className="mt-1 p-3 bg-white rounded-[8px] border border-[#FECACA] space-y-1.5 text-xs">
+                  <div className="flex items-center gap-2 font-bold text-[#B91C1C]">
+                    <Phone className="w-4 h-4 text-[#DC2626] shrink-0" />
+                    <span>24/7 Compliance Hotline: <strong className="font-mono text-sm underline">+20 2 19876</strong></span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[#7F1D1D]">
+                    <Mail className="w-4 h-4 text-[#DC2626] shrink-0" />
+                    <span>Fraud &amp; AML Desk: <strong>compliance@omerta.ai</strong></span>
+                  </div>
+                  <p className="text-[11px] text-[#64748B] pt-1.5 border-t border-[#FEE2E2]">
+                    An authorized investigator can verify your transactions in the Compliance Workbench to unblock your account.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

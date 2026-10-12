@@ -25,8 +25,48 @@ from domain.agentic_rag.schemas import (
 logger = logging.getLogger(__name__)
 
 
+def route_after_validate(state: AgenticRAGState) -> str:
+    if state.status == ResponseStatus.INSUFFICIENT_EVIDENCE and state.errors:
+        return "synthesize_structured_response"
+    return "understand_query_and_intent"
+
+
+def route_after_intent(state: AgenticRAGState) -> str:
+    from domain.agentic_rag.schemas import AnalysisIntent
+    intents = state.routing.analysis_intents
+    if AnalysisIntent.OUT_OF_DOMAIN in intents or not state.routing.selected_sources:
+        return "synthesize_structured_response"
+    return "retrieve_selected_sources"
+
+
+def route_after_retrieval(state: AgenticRAGState) -> str:
+    if state.status == ResponseStatus.NEEDS_CLARIFICATION:
+        return "synthesize_structured_response"
+    from domain.agentic_rag.schemas import AnalysisIntent
+    intents = state.routing.analysis_intents
+    needs_analysis = any(i in intents for i in [
+        AnalysisIntent.FINANCIAL_AGGREGATION,
+        AnalysisIntent.AGGREGATION,
+        AnalysisIntent.PERIOD_COMPARISON,
+        AnalysisIntent.COMPARISON,
+        AnalysisIntent.TREND_ANALYSIS,
+        AnalysisIntent.VISUALIZATION,
+        AnalysisIntent.TRANSACTION_LOOKUP,
+    ]) or state.routing.chart_requested
+    if needs_analysis:
+        return "execute_validated_analysis"
+    return "synthesize_structured_response"
+
+
+def route_after_analysis(state: AgenticRAGState) -> str:
+    from domain.agentic_rag.schemas import AnalysisIntent
+    if state.routing.chart_requested or AnalysisIntent.VISUALIZATION in state.routing.analysis_intents:
+        return "generate_chart_if_required"
+    return "synthesize_structured_response"
+
+
 def build_agentic_rag_graph() -> Any:
-    """Build and compile the Agentic RAG StateGraph."""
+    """Build and compile the Agentic RAG StateGraph with conditional execution."""
     graph = StateGraph(AgenticRAGState)
 
     graph.add_node("validate_request", nodes.validate_request)
@@ -38,10 +78,22 @@ def build_agentic_rag_graph() -> Any:
     graph.add_node("validate_citations_and_results", nodes.validate_citations_and_results)
 
     graph.add_edge(START, "validate_request")
-    graph.add_edge("validate_request", "understand_query_and_intent")
-    graph.add_edge("understand_query_and_intent", "retrieve_selected_sources")
-    graph.add_edge("retrieve_selected_sources", "execute_validated_analysis")
-    graph.add_edge("execute_validated_analysis", "generate_chart_if_required")
+    graph.add_conditional_edges("validate_request", route_after_validate, {
+        "synthesize_structured_response": "synthesize_structured_response",
+        "understand_query_and_intent": "understand_query_and_intent",
+    })
+    graph.add_conditional_edges("understand_query_and_intent", route_after_intent, {
+        "synthesize_structured_response": "synthesize_structured_response",
+        "retrieve_selected_sources": "retrieve_selected_sources",
+    })
+    graph.add_conditional_edges("retrieve_selected_sources", route_after_retrieval, {
+        "execute_validated_analysis": "execute_validated_analysis",
+        "synthesize_structured_response": "synthesize_structured_response",
+    })
+    graph.add_conditional_edges("execute_validated_analysis", route_after_analysis, {
+        "generate_chart_if_required": "generate_chart_if_required",
+        "synthesize_structured_response": "synthesize_structured_response",
+    })
     graph.add_edge("generate_chart_if_required", "synthesize_structured_response")
     graph.add_edge("synthesize_structured_response", "validate_citations_and_results")
     graph.add_edge("validate_citations_and_results", END)
@@ -95,6 +147,7 @@ async def execute_agentic_rag(
         charts=final_dict.get("charts", []),
         thought_steps=final_dict.get("thought_steps", []),
         warnings=final_dict.get("warnings", []),
+        forensic_trace=final_dict.get("forensic_trace", []),
         conversation_id=request.conversation_id,
     )
 

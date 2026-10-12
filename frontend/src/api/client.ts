@@ -164,6 +164,18 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  withdrawCustomerFunds: (data: {
+    amount: number;
+    account_id?: string;
+    currency?: string;
+    method?: string;
+    destination_details?: string;
+    password: string;
+  }) =>
+    apiRequest<any>('/customer/withdraw', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   getCustomerTransfers: (params: Record<string, any> = {}) => {
     const q = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => {
@@ -624,6 +636,26 @@ export const api = {
       reset_fixtures: string[];
       message: string;
     }>('/investigations/reset-sandbox', {
+      method: 'POST',
+    }),
+  unblockAccount: (accountId: string) =>
+    apiRequest<{
+      success: boolean;
+      message: string;
+      account_id: string;
+      account_status: string;
+      customer_status?: string;
+    }>(`/investigations/accounts/${encodeURIComponent(accountId)}/unblock`, {
+      method: 'POST',
+    }),
+  blockAccount: (accountId: string) =>
+    apiRequest<{
+      success: boolean;
+      message: string;
+      account_id: string;
+      account_status: string;
+      customer_status?: string;
+    }>(`/investigations/accounts/${encodeURIComponent(accountId)}/block`, {
       method: 'POST',
     }),
 };

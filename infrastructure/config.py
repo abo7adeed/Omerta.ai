@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     llm_provider: str | None = None  # openai | gemini | groq | ollama
     llm_model: str | None = None
     llm_api_key: str | None = None
+    llm_api_keys: str | None = None
+    groq_api_key: str | None = None
+    groq_api_keys: str | None = None
     llm_base_url: str | None = None
 
     # --- Vector store (consumed in later phases) ---

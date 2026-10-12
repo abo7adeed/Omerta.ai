@@ -150,6 +150,14 @@ USERS: list[dict[str, Any]] = [
         "full_name": "Nour Mansour",
         "role": "CUSTOMER",
     },
+    {
+        "external_id": "USR-CUST-6",
+        "username": "abdo@omerta.ai",
+        "email": "abdo@omerta.ai",
+        "hashed_password": hash_password("Customer@2026!"),
+        "full_name": "Abdo Belli",
+        "role": "CUSTOMER",
+    },
 ]
 
 CUSTOMERS: list[dict[str, Any]] = [
@@ -339,6 +347,25 @@ CUSTOMERS: list[dict[str, Any]] = [
         "transfer_status": "ACTIVE",
         "identity_status": "VERIFIED",
     },
+    {
+        "external_id": "CUST-1002",
+        "omerta_user_number": "OMR-679B-566D",
+        "user_external_id": "USR-CUST-6",
+        "name": "Abdo Belli",
+        "customer_type": "INDIVIDUAL",
+        "email": "abdo@omerta.ai",
+        "phone": "+201012345678",
+        "country": "EG",
+        "declared_country": "EG",
+        "preferred_currency": "EGP",
+        "device_consent": True,
+        "risk_level": "LOW",
+        "registration_date": _days_ago(90),
+        "hashed_transfer_password": hash_password("Customer@2026!"),
+        "national_id_number": "29801015678912",
+        "transfer_status": "ACTIVE",
+        "identity_status": "VERIFIED",
+    },
 ]
 
 ACCOUNTS: list[dict[str, Any]] = [
@@ -461,6 +488,18 @@ ACCOUNTS: list[dict[str, Any]] = [
         "status": "ACTIVE",
         "risk_level": "HIGH",
         "created_at": _days_ago(60),
+    },
+    {
+        "external_id": "ACC-679B566D",
+        "customer_external_id": "CUST-1002",
+        "customer_name": "Abdo Belli",
+        "account_type": "CHECKING",
+        "currency": "EGP",
+        "balance": Decimal("50000.00"),
+        "country": "EG",
+        "status": "ACTIVE",
+        "risk_level": "LOW",
+        "created_at": _days_ago(90),
     },
 ]
 

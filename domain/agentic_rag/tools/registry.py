@@ -169,6 +169,27 @@ class GetBoundedTransactionDatasetArgs(StrictToolArgs):
     risk_level: str | None = Field(default=None, max_length=16)
 
 
+class CountAccountsArgs(StrictToolArgs):
+    status: str | None = Field(default=None, max_length=32)
+
+
+class CountCustomersArgs(StrictToolArgs):
+    status: str | None = Field(default=None, max_length=32)
+
+
+class GetAccountsAndCustomersSummaryArgs(StrictToolArgs):
+    limit: int = Field(default=50, ge=1, le=100)
+
+
+class GetCustomerBalanceAndAccountsArgs(StrictToolArgs):
+    customer_identifier: str = Field(min_length=1, max_length=100)
+
+
+class GetDailyTransactionVolumeArgs(StrictToolArgs):
+    days: int = Field(default=30, ge=1, le=365)
+    currency: str = Field(default="EGP", max_length=3)
+
+
 class GetAccountNeighborsArgs(StrictToolArgs):
     account_id: str = Field(min_length=1, max_length=64)
     limit: int = Field(default=20, ge=1, le=50)
@@ -245,6 +266,11 @@ READ_ONLY_TOOL_REGISTRY: dict[str, tuple[type[StrictToolArgs], Any]] = {
     "compare_transaction_periods": (CompareTransactionPeriodsArgs, DatabaseTools.compare_transaction_periods),
     "get_risk_distribution": (GetRiskDistributionArgs, DatabaseTools.get_risk_distribution),
     "get_bounded_transaction_dataset": (GetBoundedTransactionDatasetArgs, DatabaseTools.get_bounded_transaction_dataset),
+    "count_accounts": (CountAccountsArgs, DatabaseTools.count_accounts),
+    "count_customers": (CountCustomersArgs, DatabaseTools.count_customers),
+    "get_accounts_and_customers_summary": (GetAccountsAndCustomersSummaryArgs, DatabaseTools.get_accounts_and_customers_summary),
+    "get_customer_balance_and_accounts": (GetCustomerBalanceAndAccountsArgs, DatabaseTools.get_customer_balance_and_accounts),
+    "get_daily_transaction_volume": (GetDailyTransactionVolumeArgs, DatabaseTools.get_daily_transaction_volume),
     "execute_read_only_sql": (ExecuteReadOnlySqlArgs, DatabaseTools.execute_read_only_sql),
     # Graph Tools (Neo4j)
     "get_account_neighbors": (GetAccountNeighborsArgs, GraphTools.get_account_neighbors),

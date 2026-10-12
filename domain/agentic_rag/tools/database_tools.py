@@ -24,7 +24,7 @@ from infrastructure.database.models import (
     Transaction,
 )
 from infrastructure.database.session import get_engine
-from sqlalchemy import desc, func, select
+from sqlalchemy import Date, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -74,18 +74,39 @@ class DatabaseTools:
                 "account_type": acc.account_type,
                 "status": acc.status,
                 "balance": float(acc.balance) if acc.balance is not None else 0.0,
+                "ledger_balance": float(acc.balance) if acc.balance is not None else 0.0,
+                "available_balance": float(acc.balance) if acc.balance is not None else 0.0,
                 "currency": acc.currency,
                 "risk_level": acc.risk_level,
             }
 
     @staticmethod
-    async def get_customer(customer_id: str) -> dict[str, Any] | None:
-        """Fetch customer profile without sensitive passwords or hashes."""
+    async def get_customer(customer_id: str | None = None, name: str | None = None) -> dict[str, Any] | None:
+        """Fetch customer profile by ID or name without sensitive passwords or hashes."""
+        ident = (customer_id or name or "").strip()
+        if not ident:
+            return None
+
+        # Check for multiple matches if looking up by name
+        if name or (not ident.startswith("CUST-") and not ident.startswith("OMR-") and not ident.isdigit()):
+            matches = await DatabaseTools.find_customers_by_name(ident, limit=10)
+            if len(matches) > 1:
+                return {
+                    "status": "AMBIGUOUS",
+                    "ambiguous": True,
+                    "matches": matches,
+                    "count": len(matches),
+                    "query": ident,
+                }
+            elif len(matches) == 1:
+                return matches[0]
+
         async with AsyncSession(get_engine(), expire_on_commit=False) as session:
             stmt = select(Customer).where(
-                (Customer.external_id == customer_id)
-                | (Customer.omerta_user_number == customer_id)
-                | (Customer.id == int(customer_id) if customer_id.isdigit() else False)
+                (Customer.external_id == ident)
+                | (Customer.omerta_user_number == ident)
+                | (Customer.name.ilike(f"%{ident}%"))
+                | (Customer.id == int(ident) if ident.isdigit() else False)
             )
             cust = await session.scalar(stmt)
             if not cust:
@@ -293,6 +314,8 @@ class DatabaseTools:
                     "external_id": a.external_id,
                     "account_type": a.account_type,
                     "balance": float(a.balance) if a.balance is not None else 0.0,
+                    "ledger_balance": float(a.balance) if a.balance is not None else 0.0,
+                    "available_balance": float(a.balance) if a.balance is not None else 0.0,
                     "currency": a.currency,
                     "status": a.status,
                 }
@@ -525,3 +548,185 @@ class DatabaseTools:
                 }
                 for r in rows
             ]
+
+    @staticmethod
+    async def count_accounts(status: str | None = None) -> dict[str, Any]:
+        """Count total accounts in PostgreSQL with optional status filter."""
+        async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+            stmt = select(func.count(Account.id))
+            if status:
+                stmt = stmt.where(Account.status == status.upper())
+            total = await session.scalar(stmt) or 0
+            return {
+                "count": int(total),
+                "status_filter": status,
+                "entity": "accounts",
+            }
+
+    @staticmethod
+    async def count_customers(status: str | None = None) -> dict[str, Any]:
+        """Count total customers in PostgreSQL with optional status filter."""
+        async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+            stmt = select(func.count(Customer.id))
+            if status:
+                stmt = stmt.where(Customer.status == status.upper())
+            total = await session.scalar(stmt) or 0
+            return {
+                "count": int(total),
+                "status_filter": status,
+                "entity": "customers",
+            }
+
+    @staticmethod
+    async def get_accounts_and_customers_summary(limit: int = 50) -> dict[str, Any]:
+        """Retrieve authoritative counts of accounts, counts of customers, and customer names."""
+        limit = min(max(limit, 1), 100)
+        async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+            acc_count = await session.scalar(select(func.count(Account.id))) or 0
+            cust_count = await session.scalar(select(func.count(Customer.id))) or 0
+            cust_rows = (await session.scalars(select(Customer).order_by(Customer.id).limit(limit))).all()
+            customers = [
+                {
+                    "external_id": c.external_id,
+                    "name": c.name,
+                    "omerta_user_number": c.omerta_user_number,
+                    "status": c.status,
+                    "risk_level": c.risk_level,
+                }
+                for c in cust_rows
+            ]
+            return {
+                "total_accounts": int(acc_count),
+                "total_customers": int(cust_count),
+                "customers": customers,
+                "customer_names": [c.name for c in cust_rows],
+            }
+
+    @staticmethod
+    async def get_customer_balance_and_accounts(customer_identifier: str) -> dict[str, Any]:
+        """Retrieve linked accounts, current balances, currencies, and total balance for a customer."""
+        clean = (customer_identifier or "").strip()
+        if not clean:
+            return {"customer_found": False, "error": "Customer identifier is required", "accounts": [], "total_balances": {}}
+
+        async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+            # 1. Exact match on external_id, omerta_user_number, or integer id
+            stmt_exact = select(Customer).where(
+                (Customer.external_id == clean)
+                | (Customer.omerta_user_number == clean)
+                | (Customer.id == int(clean) if clean.isdigit() else False)
+            )
+            cust = await session.scalar(stmt_exact)
+
+            # 2. Exact match on full name
+            if not cust:
+                stmt_name_exact = select(Customer).where(Customer.name.ilike(clean))
+                cust = await session.scalar(stmt_name_exact)
+
+            # 3. Partial substring or token-based candidate lookup
+            if not cust:
+                candidates = await DatabaseTools.find_customers_by_name(clean, limit=5)
+                if len(candidates) == 1:
+                    cust = await session.get(Customer, candidates[0]["id"])
+                elif len(candidates) > 1:
+                    exact = [c for c in candidates if c["name"].lower() == clean.lower()]
+                    if len(exact) == 1:
+                        cust = await session.get(Customer, exact[0]["id"])
+                    else:
+                        return {
+                            "customer_found": False,
+                            "ambiguous": True,
+                            "candidates": candidates,
+                            "query": clean,
+                            "accounts": [],
+                            "total_balances": {},
+                            "message": f"Multiple customer records found matching '{clean}'.",
+                        }
+
+            if not cust:
+                return {
+                    "customer_found": False,
+                    "query": clean,
+                    "accounts": [],
+                    "total_balances": {},
+                    "message": f"Customer '{clean}' was not found in authorized database records.",
+                }
+
+            acc_stmt = select(Account).where(Account.customer_id == cust.id).order_by(Account.id)
+            acc_rows = (await session.scalars(acc_stmt)).all()
+
+            accounts = []
+            total_by_curr: dict[str, float] = {}
+            for a in acc_rows:
+                bal = float(a.balance) if a.balance is not None else 0.0
+                curr = a.currency or "EGP"
+                total_by_curr[curr] = round(total_by_curr.get(curr, 0.0) + bal, 2)
+                accounts.append({
+                    "id": a.id,
+                    "external_id": a.external_id,
+                    "account_type": a.account_type,
+                    "status": a.status,
+                    "balance": bal,
+                    "ledger_balance": bal,
+                    "available_balance": bal,
+                    "currency": curr,
+                    "risk_level": a.risk_level,
+                })
+
+            return {
+                "customer_found": True,
+                "customer": {
+                    "id": cust.id,
+                    "external_id": cust.external_id,
+                    "name": cust.name,
+                    "omerta_user_number": cust.omerta_user_number,
+                    "status": cust.status,
+                    "transfer_status": cust.transfer_status,
+                    "risk_level": cust.risk_level,
+                },
+                "customer_id": cust.external_id,
+                "customer_name": cust.name,
+                "omerta_user_number": cust.omerta_user_number,
+                "customer_status": cust.status,
+                "transfer_status": cust.transfer_status,
+                "risk_level": cust.risk_level,
+                "accounts": accounts,
+                "account_count": len(accounts),
+                "total_balances": total_by_curr,
+            }
+
+    @staticmethod
+    async def get_daily_transaction_volume(
+        days: int = 30,
+        currency: str = "EGP",
+    ) -> list[dict[str, Any]]:
+        """Retrieve actual daily transaction totals from PostgreSQL without fabricating missing days."""
+        async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+            since = datetime.now(UTC) - timedelta(days=days)
+            stmt = (
+                select(
+                    func.cast(Transaction.timestamp, Date).label("day"),
+                    func.count(Transaction.id).label("count"),
+                    func.coalesce(func.sum(Transaction.amount), 0).label("volume"),
+                )
+                .where(
+                    Transaction.currency == currency.upper(),
+                    Transaction.timestamp >= since,
+                    Transaction.status != "REVERSED",
+                )
+                .group_by(func.cast(Transaction.timestamp, Date))
+                .order_by(func.cast(Transaction.timestamp, Date).asc())
+            )
+            rows = (await session.execute(stmt)).all()
+            return [
+                {
+                    "day": str(r.day),
+                    "date": str(r.day),
+                    "count": int(r.count),
+                    "volume": float(r.volume),
+                    "total_volume": float(r.volume),
+                    "currency": currency.upper(),
+                }
+                for r in rows
+            ]
+

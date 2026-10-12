@@ -3,7 +3,7 @@
   "user_id": "USR-001",
   "title": "Suspicious structuring indicators?",
   "created_at": "2026-10-10T12:14:27.098010+00:00",
-  "updated_at": "2026-10-11T08:58:29.197448+00:00",
+  "updated_at": "2026-10-12T07:48:00.034601+00:00",
   "turns": [
     {
       "turn_id": "turn-de10ac32",
@@ -2296,6 +2296,540 @@
         "[05/07] Visual Analytics Generation: Generated 0 vector charts (Types: [None]) with Omerta Corporate Palette.",
         "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
         "[07/07] Cryptographic Provenance Sealing: Verified 4 citations against canonical SHA-256 evidence hashes."
+      ],
+      "charts": [],
+      "warnings": []
+    },
+    {
+      "turn_id": "turn-a3afcf9b",
+      "sender": "user",
+      "text": "What are suspicious structuring indicators?",
+      "timestamp": "2026-10-11T12:24:52.761943+00:00",
+      "rag_response": null,
+      "thought_steps": [],
+      "charts": [],
+      "warnings": []
+    },
+    {
+      "turn_id": "turn-99739651",
+      "sender": "assistant",
+      "text": "## Executive Summary\nBased on verified knowledge base records from **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n> 1.1. Core Typology Categories\nThe Omerta.ai detection engine tracks six primary financial crime typologies:\n- MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination.\n- FRAUD_RING: Syndicates coordinating across multiple accounts, frequently operating from shared devices, co-located IP subnets, or common beneficiary targets.\n- LAYERING: Successive, rapid, and purposeless transfers through multiple intermediate accounts intended to disguise the illicit source and ownership of funds.\n- SMURFING: Structuring large monetary sums into numerous smaller sub-threshold deposits or transfers across disparate accounts.\n- ACCOUNT_TAKEOVER: Unauthorized compromise of genuine customer credentials marked by immediate device changes, anomalous geolocation jumps, and rapid asset liquidation.\n- NEW_DEVICE_ABUSE: Immediate high-value outbound transfers initiated within 60 minutes of binding an unrecognized hardware profile.\n\n## Verified Knowledge & Policy Directives\n- **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n  > 1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination. - FRAUD_RING: Syndi\n- **Compliance Case Management, SAR Filing, and Evidence Procedures \u2014 Section 1: Case Creation, Triage, and Prioritization** [DOC-CMP-001, v2, \u00a7Section 1: Case Creation, Triage, and Prioritization]:\n  > 1.1. Case Origination Channels Investigation cases in Omerta.ai originate through three defined triggers: - AUTOMATED_ALERT: Triggered when real-time transaction risk score exceeds 40.00. - ANALYST_ESCALATION: Created manually by frontline fraud analysts during transaction review. - SUPPORT_TICKET: \n- **AI Investigation Governance, Tool Constraints, and Forensic Attribution Policy \u2014 Section 1: Permitted Uses and Boundaries of Autonomous AI** [DOC-GOV-001, v1, \u00a7Section 1: Permitted Uses and Boundaries of Autonomous AI]:\n  > 1.1. Scope of AI Deployment Autonomous AI agents within Omerta.ai are authorized strictly for: - Forensic inquiry understanding and query decomposition. - Read-only data retrieval and evidence correlation across PostgreSQL and Neo4j. - Statistical anomaly detection, period comparisons, and trend ana\n- **Compliance Case Management, SAR Filing, and Evidence Procedures \u2014 Section 3: Analyst Review, Escalation, and Closure** [DOC-CMP-001, v2, \u00a7Section 3: Analyst Review, Escalation, and Closure]:\n  > 3.1. Case Dispositions Upon concluding an inquiry, an investigator must record one of the following bounded dispositions: - TRUE_POSITIVE_FRAUD: Confirmed fraud or AML breach; initiate fund freeze and escalate to legal. - FALSE_POSITIVE_BENIGN: Legitimate commercial or family activity; dismiss alert\n\n\n*All findings verified with SHA-256 cryptographic provenance.*",
+      "timestamp": "2026-10-11T12:24:52.761943+00:00",
+      "rag_response": {
+        "status": "ANSWERED",
+        "answer": "## Executive Summary\nBased on verified knowledge base records from **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n> 1.1. Core Typology Categories\nThe Omerta.ai detection engine tracks six primary financial crime typologies:\n- MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination.\n- FRAUD_RING: Syndicates coordinating across multiple accounts, frequently operating from shared devices, co-located IP subnets, or common beneficiary targets.\n- LAYERING: Successive, rapid, and purposeless transfers through multiple intermediate accounts intended to disguise the illicit source and ownership of funds.\n- SMURFING: Structuring large monetary sums into numerous smaller sub-threshold deposits or transfers across disparate accounts.\n- ACCOUNT_TAKEOVER: Unauthorized compromise of genuine customer credentials marked by immediate device changes, anomalous geolocation jumps, and rapid asset liquidation.\n- NEW_DEVICE_ABUSE: Immediate high-value outbound transfers initiated within 60 minutes of binding an unrecognized hardware profile.\n\n## Verified Knowledge & Policy Directives\n- **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n  > 1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination. - FRAUD_RING: Syndi\n- **Compliance Case Management, SAR Filing, and Evidence Procedures \u2014 Section 1: Case Creation, Triage, and Prioritization** [DOC-CMP-001, v2, \u00a7Section 1: Case Creation, Triage, and Prioritization]:\n  > 1.1. Case Origination Channels Investigation cases in Omerta.ai originate through three defined triggers: - AUTOMATED_ALERT: Triggered when real-time transaction risk score exceeds 40.00. - ANALYST_ESCALATION: Created manually by frontline fraud analysts during transaction review. - SUPPORT_TICKET: \n- **AI Investigation Governance, Tool Constraints, and Forensic Attribution Policy \u2014 Section 1: Permitted Uses and Boundaries of Autonomous AI** [DOC-GOV-001, v1, \u00a7Section 1: Permitted Uses and Boundaries of Autonomous AI]:\n  > 1.1. Scope of AI Deployment Autonomous AI agents within Omerta.ai are authorized strictly for: - Forensic inquiry understanding and query decomposition. - Read-only data retrieval and evidence correlation across PostgreSQL and Neo4j. - Statistical anomaly detection, period comparisons, and trend ana\n- **Compliance Case Management, SAR Filing, and Evidence Procedures \u2014 Section 3: Analyst Review, Escalation, and Closure** [DOC-CMP-001, v2, \u00a7Section 3: Analyst Review, Escalation, and Closure]:\n  > 3.1. Case Dispositions Upon concluding an inquiry, an investigator must record one of the following bounded dispositions: - TRUE_POSITIVE_FRAUD: Confirmed fraud or AML breach; initiate fund freeze and escalate to legal. - FALSE_POSITIVE_BENIGN: Legitimate commercial or family activity; dismiss alert\n\n\n*All findings verified with SHA-256 cryptographic provenance.*",
+        "citations": [
+          {
+            "citation_id": "cit-e1f767da",
+            "evidence_id": "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0",
+            "source_type": "documents",
+            "title": "Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags",
+            "locator": "DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags",
+            "excerpt": "1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination."
+          },
+          {
+            "citation_id": "cit-8460a8fb",
+            "evidence_id": "ev-doc-DOC-CMP-001-section-1-case-creation-triage-and-prioritization-0",
+            "source_type": "documents",
+            "title": "Compliance Case Management, SAR Filing, and Evidence Procedures \u2014 Section 1: Case Creation, Triage, and Prioritization",
+            "locator": "DOC-CMP-001, v2, \u00a7Section 1: Case Creation, Triage, and Prioritization",
+            "excerpt": "1.1. Case Origination Channels Investigation cases in Omerta.ai originate through three defined triggers: - AUTOMATED_ALERT: Triggered when real-time transaction risk score exceeds 40.00. - ANALYST_ESCALATION: Created manually by frontline fraud analysts during transaction review"
+          },
+          {
+            "citation_id": "cit-a343ef52",
+            "evidence_id": "ev-doc-DOC-GOV-001-section-1-permitted-uses-and-boundaries-of-autonomous-ai-0",
+            "source_type": "documents",
+            "title": "AI Investigation Governance, Tool Constraints, and Forensic Attribution Policy \u2014 Section 1: Permitted Uses and Boundaries of Autonomous AI",
+            "locator": "DOC-GOV-001, v1, \u00a7Section 1: Permitted Uses and Boundaries of Autonomous AI",
+            "excerpt": "1.1. Scope of AI Deployment Autonomous AI agents within Omerta.ai are authorized strictly for: - Forensic inquiry understanding and query decomposition. - Read-only data retrieval and evidence correlation across PostgreSQL and Neo4j. - Statistical anomaly detection, period compar"
+          },
+          {
+            "citation_id": "cit-a4b24fe6",
+            "evidence_id": "ev-doc-DOC-CMP-001-section-3-analyst-review-escalation-and-closure-2",
+            "source_type": "documents",
+            "title": "Compliance Case Management, SAR Filing, and Evidence Procedures \u2014 Section 3: Analyst Review, Escalation, and Closure",
+            "locator": "DOC-CMP-001, v2, \u00a7Section 3: Analyst Review, Escalation, and Closure",
+            "excerpt": "3.1. Case Dispositions Upon concluding an inquiry, an investigator must record one of the following bounded dispositions: - TRUE_POSITIVE_FRAUD: Confirmed fraud or AML breach; initiate fund freeze and escalate to legal. - FALSE_POSITIVE_BENIGN: Legitimate commercial or family act"
+          }
+        ],
+        "evidence_ids": [
+          "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0",
+          "ev-doc-DOC-CMP-001-section-1-case-creation-triage-and-prioritization-0",
+          "ev-doc-DOC-CMP-001-section-3-analyst-review-escalation-and-closure-2",
+          "ev-doc-DOC-GOV-001-section-1-permitted-uses-and-boundaries-of-autonomous-ai-0"
+        ],
+        "sources_used": [
+          "documents"
+        ],
+        "response_blocks": [
+          {
+            "type": "warning",
+            "title": "Forensic Compliance Advisory (FATF / ISO-20022)",
+            "message": "Identified indicators reflect algorithmic risk anomalies and do not constitute legal determinations of culpability. In accordance with internal AML/CFT governance and banking regulations, any account freezing or formal Suspicious Activity Report (SAR) filing requires multi-eye human compliance officer sign-off."
+          },
+          {
+            "type": "text",
+            "content": "## Executive Summary\nBased on verified knowledge base records from **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n> 1.1. Core Typology Categories\nThe Omerta.ai detection engine tracks six primary financial crime typologies:\n- MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination.\n- FRAUD_RING: Syndicates coordinating across multiple accounts, frequently operating from shared devices, co-located IP subnets, or common beneficiary targets.\n- LAYERING: Successive, rapid, and purposeless transfers through multiple intermediate accounts intended to disguise the illicit source and ownership of funds.\n- SMURFING: Structuring large monetary sums into numerous smaller sub-threshold deposits or transfers across disparate accounts.\n- ACCOUNT_TAKEOVER: Unauthorized compromise of genuine customer credentials marked by immediate device changes, anomalous geolocation jumps, and rapid asset liquidation.\n- NEW_DEVICE_ABUSE: Immediate high-value outbound transfers initiated within 60 minutes of binding an unrecognized hardware profile.\n\n## Verified Knowledge & Policy Directives\n- **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n  > 1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination. - FRAUD_RING: Syndi\n- **Compliance Case Management, SAR Filing, and Evidence Procedures \u2014 Section 1: Case Creation, Triage, and Prioritization** [DOC-CMP-001, v2, \u00a7Section 1: Case Creation, Triage, and Prioritization]:\n  > 1.1. Case Origination Channels Investigation cases in Omerta.ai originate through three defined triggers: - AUTOMATED_ALERT: Triggered when real-time transaction risk score exceeds 40.00. - ANALYST_ESCALATION: Created manually by frontline fraud analysts during transaction review. - SUPPORT_TICKET: \n- **AI Investigation Governance, Tool Constraints, and Forensic Attribution Policy \u2014 Section 1: Permitted Uses and Boundaries of Autonomous AI** [DOC-GOV-001, v1, \u00a7Section 1: Permitted Uses and Boundaries of Autonomous AI]:\n  > 1.1. Scope of AI Deployment Autonomous AI agents within Omerta.ai are authorized strictly for: - Forensic inquiry understanding and query decomposition. - Read-only data retrieval and evidence correlation across PostgreSQL and Neo4j. - Statistical anomaly detection, period comparisons, and trend ana\n- **Compliance Case Management, SAR Filing, and Evidence Procedures \u2014 Section 3: Analyst Review, Escalation, and Closure** [DOC-CMP-001, v2, \u00a7Section 3: Analyst Review, Escalation, and Closure]:\n  > 3.1. Case Dispositions Upon concluding an inquiry, an investigator must record one of the following bounded dispositions: - TRUE_POSITIVE_FRAUD: Confirmed fraud or AML breach; initiate fund freeze and escalate to legal. - FALSE_POSITIVE_BENIGN: Legitimate commercial or family activity; dismiss alert\n\n\n*All findings verified with SHA-256 cryptographic provenance.*"
+          },
+          {
+            "type": "citation",
+            "citations": [
+              {
+                "citation_id": "cit-e1f767da",
+                "evidence_id": "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0",
+                "source_type": "documents",
+                "title": "Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags",
+                "locator": "DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags",
+                "excerpt": "1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination."
+              },
+              {
+                "citation_id": "cit-8460a8fb",
+                "evidence_id": "ev-doc-DOC-CMP-001-section-1-case-creation-triage-and-prioritization-0",
+                "source_type": "documents",
+                "title": "Compliance Case Management, SAR Filing, and Evidence Procedures \u2014 Section 1: Case Creation, Triage, and Prioritization",
+                "locator": "DOC-CMP-001, v2, \u00a7Section 1: Case Creation, Triage, and Prioritization",
+                "excerpt": "1.1. Case Origination Channels Investigation cases in Omerta.ai originate through three defined triggers: - AUTOMATED_ALERT: Triggered when real-time transaction risk score exceeds 40.00. - ANALYST_ESCALATION: Created manually by frontline fraud analysts during transaction review"
+              },
+              {
+                "citation_id": "cit-a343ef52",
+                "evidence_id": "ev-doc-DOC-GOV-001-section-1-permitted-uses-and-boundaries-of-autonomous-ai-0",
+                "source_type": "documents",
+                "title": "AI Investigation Governance, Tool Constraints, and Forensic Attribution Policy \u2014 Section 1: Permitted Uses and Boundaries of Autonomous AI",
+                "locator": "DOC-GOV-001, v1, \u00a7Section 1: Permitted Uses and Boundaries of Autonomous AI",
+                "excerpt": "1.1. Scope of AI Deployment Autonomous AI agents within Omerta.ai are authorized strictly for: - Forensic inquiry understanding and query decomposition. - Read-only data retrieval and evidence correlation across PostgreSQL and Neo4j. - Statistical anomaly detection, period compar"
+              },
+              {
+                "citation_id": "cit-a4b24fe6",
+                "evidence_id": "ev-doc-DOC-CMP-001-section-3-analyst-review-escalation-and-closure-2",
+                "source_type": "documents",
+                "title": "Compliance Case Management, SAR Filing, and Evidence Procedures \u2014 Section 3: Analyst Review, Escalation, and Closure",
+                "locator": "DOC-CMP-001, v2, \u00a7Section 3: Analyst Review, Escalation, and Closure",
+                "excerpt": "3.1. Case Dispositions Upon concluding an inquiry, an investigator must record one of the following bounded dispositions: - TRUE_POSITIVE_FRAUD: Confirmed fraud or AML breach; initiate fund freeze and escalate to legal. - FALSE_POSITIVE_BENIGN: Legitimate commercial or family act"
+              }
+            ]
+          }
+        ],
+        "limitations": [],
+        "clarification_question": null,
+        "investigation_id": "rag-inv-26993ccb4c",
+        "execution_time_ms": 316.3,
+        "charts": [],
+        "thought_steps": [
+          "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+          "[02/07] Intent Decomposition & Source Selection: Extracted intents [DOCUMENT_SEARCH]. Routing to authoritative tiers: [documents].",
+          "[03/07] Multi-Source Evidence Retrieval: Retrieved 4 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+          "[04/07] Deterministic Analytical Execution: Computed zero-hallucination metrics (0 verified KPIs and tabular projections with zero-division safety guards).",
+          "[05/07] Visual Analytics Generation: Generated 0 vector charts (Types: [None]) with Omerta Corporate Palette.",
+          "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+          "[07/07] Cryptographic Provenance Sealing: Verified 4 citations against canonical SHA-256 evidence hashes."
+        ],
+        "warnings": [],
+        "conversation_id": "sess-USR-001"
+      },
+      "thought_steps": [
+        "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+        "[02/07] Intent Decomposition & Source Selection: Extracted intents [DOCUMENT_SEARCH]. Routing to authoritative tiers: [documents].",
+        "[03/07] Multi-Source Evidence Retrieval: Retrieved 4 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+        "[04/07] Deterministic Analytical Execution: Computed zero-hallucination metrics (0 verified KPIs and tabular projections with zero-division safety guards).",
+        "[05/07] Visual Analytics Generation: Generated 0 vector charts (Types: [None]) with Omerta Corporate Palette.",
+        "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+        "[07/07] Cryptographic Provenance Sealing: Verified 4 citations against canonical SHA-256 evidence hashes."
+      ],
+      "charts": [],
+      "warnings": []
+    },
+    {
+      "turn_id": "turn-d18555bc",
+      "sender": "user",
+      "text": "What are suspicious structuring indicators?",
+      "timestamp": "2026-10-11T12:41:22.357739+00:00",
+      "rag_response": null,
+      "thought_steps": [],
+      "charts": [],
+      "warnings": []
+    },
+    {
+      "turn_id": "turn-2d414f06",
+      "sender": "assistant",
+      "text": "## Executive Summary\nBased on verified knowledge base records from **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n> 1.1. Core Typology Categories\nThe Omerta.ai detection engine tracks six primary financial crime typologies:\n- MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination.\n- FRAUD_RING: Syndicates coordinating across multiple accounts, frequently operating from shared devices, co-located IP subnets, or common beneficiary targets.\n- LAYERING: Successive, rapid, and purposeless transfers through multiple intermediate accounts intended to disguise the illicit source and ownership of funds.\n- SMURFING: Structuring large monetary sums into numerous smaller sub-threshold deposits or transfers across disparate accounts.\n- ACCOUNT_TAKEOVER: Unauthorized compromise of genuine customer credentials marked by immediate device changes, anomalous geolocation jumps, and rapid asset liquidation.\n- NEW_DEVICE_ABUSE: Immediate high-value outbound transfers initiated within 60 minutes of binding an unrecognized hardware profile.\n\n## Verified Knowledge & Policy Directives\n- **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n  > 1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination. - FRAUD_RING: Syndi\n\n\n*All findings verified with SHA-256 cryptographic provenance.*",
+      "timestamp": "2026-10-11T12:41:22.357739+00:00",
+      "rag_response": {
+        "status": "ANSWERED",
+        "answer": "## Executive Summary\nBased on verified knowledge base records from **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n> 1.1. Core Typology Categories\nThe Omerta.ai detection engine tracks six primary financial crime typologies:\n- MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination.\n- FRAUD_RING: Syndicates coordinating across multiple accounts, frequently operating from shared devices, co-located IP subnets, or common beneficiary targets.\n- LAYERING: Successive, rapid, and purposeless transfers through multiple intermediate accounts intended to disguise the illicit source and ownership of funds.\n- SMURFING: Structuring large monetary sums into numerous smaller sub-threshold deposits or transfers across disparate accounts.\n- ACCOUNT_TAKEOVER: Unauthorized compromise of genuine customer credentials marked by immediate device changes, anomalous geolocation jumps, and rapid asset liquidation.\n- NEW_DEVICE_ABUSE: Immediate high-value outbound transfers initiated within 60 minutes of binding an unrecognized hardware profile.\n\n## Verified Knowledge & Policy Directives\n- **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n  > 1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination. - FRAUD_RING: Syndi\n\n\n*All findings verified with SHA-256 cryptographic provenance.*",
+        "citations": [
+          {
+            "citation_id": "cit-1338e97e",
+            "evidence_id": "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0",
+            "source_type": "documents",
+            "title": "Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags",
+            "locator": "DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags",
+            "excerpt": "1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination."
+          }
+        ],
+        "evidence_ids": [
+          "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0"
+        ],
+        "sources_used": [
+          "documents"
+        ],
+        "response_blocks": [
+          {
+            "type": "warning",
+            "title": "Forensic Compliance Advisory (FATF / ISO-20022)",
+            "message": "Identified indicators reflect algorithmic risk anomalies and do not constitute legal determinations of culpability. In accordance with internal AML/CFT governance and banking regulations, any account freezing or formal Suspicious Activity Report (SAR) filing requires multi-eye human compliance officer sign-off."
+          },
+          {
+            "type": "text",
+            "content": "## Executive Summary\nBased on verified knowledge base records from **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n> 1.1. Core Typology Categories\nThe Omerta.ai detection engine tracks six primary financial crime typologies:\n- MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination.\n- FRAUD_RING: Syndicates coordinating across multiple accounts, frequently operating from shared devices, co-located IP subnets, or common beneficiary targets.\n- LAYERING: Successive, rapid, and purposeless transfers through multiple intermediate accounts intended to disguise the illicit source and ownership of funds.\n- SMURFING: Structuring large monetary sums into numerous smaller sub-threshold deposits or transfers across disparate accounts.\n- ACCOUNT_TAKEOVER: Unauthorized compromise of genuine customer credentials marked by immediate device changes, anomalous geolocation jumps, and rapid asset liquidation.\n- NEW_DEVICE_ABUSE: Immediate high-value outbound transfers initiated within 60 minutes of binding an unrecognized hardware profile.\n\n## Verified Knowledge & Policy Directives\n- **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n  > 1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination. - FRAUD_RING: Syndi\n\n\n*All findings verified with SHA-256 cryptographic provenance.*"
+          },
+          {
+            "type": "citation",
+            "citations": [
+              {
+                "citation_id": "cit-1338e97e",
+                "evidence_id": "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0",
+                "source_type": "documents",
+                "title": "Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags",
+                "locator": "DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags",
+                "excerpt": "1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination."
+              }
+            ]
+          }
+        ],
+        "limitations": [],
+        "clarification_question": null,
+        "investigation_id": "rag-inv-d10924b753",
+        "execution_time_ms": 360.12,
+        "charts": [],
+        "thought_steps": [
+          "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+          "[02/07] Intent Decomposition & Source Selection: Extracted intents [DOCUMENT_SEARCH]. Routing to authoritative tiers: [documents].",
+          "[03/07] Multi-Source Evidence Retrieval: Retrieved 1 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+          "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+          "[07/07] Cryptographic Provenance Sealing: Verified 1 citations against canonical SHA-256 evidence hashes."
+        ],
+        "warnings": [],
+        "conversation_id": "sess-USR-001",
+        "forensic_trace": [
+          {
+            "intent": "DOCUMENT_SEARCH",
+            "tool_name": "search_documents",
+            "arguments": {
+              "query": "What are suspicious structuring indicators?",
+              "user_role": "FRAUD_ANALYST",
+              "top_k": 4
+            },
+            "status": "SUCCESS",
+            "duration_ms": 91.18,
+            "result_count": 1,
+            "source_identifiers": [],
+            "error": null
+          }
+        ]
+      },
+      "thought_steps": [
+        "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+        "[02/07] Intent Decomposition & Source Selection: Extracted intents [DOCUMENT_SEARCH]. Routing to authoritative tiers: [documents].",
+        "[03/07] Multi-Source Evidence Retrieval: Retrieved 1 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+        "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+        "[07/07] Cryptographic Provenance Sealing: Verified 1 citations against canonical SHA-256 evidence hashes."
+      ],
+      "charts": [],
+      "warnings": []
+    },
+    {
+      "turn_id": "turn-5aac312b",
+      "sender": "user",
+      "text": "What are suspicious structuring indicators?",
+      "timestamp": "2026-10-11T12:44:12.212534+00:00",
+      "rag_response": null,
+      "thought_steps": [],
+      "charts": [],
+      "warnings": []
+    },
+    {
+      "turn_id": "turn-39a82c97",
+      "sender": "assistant",
+      "text": "## Executive Summary\nBased on verified knowledge base records from **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n> 1.1. Core Typology Categories\nThe Omerta.ai detection engine tracks six primary financial crime typologies:\n- MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination.\n- FRAUD_RING: Syndicates coordinating across multiple accounts, frequently operating from shared devices, co-located IP subnets, or common beneficiary targets.\n- LAYERING: Successive, rapid, and purposeless transfers through multiple intermediate accounts intended to disguise the illicit source and ownership of funds.\n- SMURFING: Structuring large monetary sums into numerous smaller sub-threshold deposits or transfers across disparate accounts.\n- ACCOUNT_TAKEOVER: Unauthorized compromise of genuine customer credentials marked by immediate device changes, anomalous geolocation jumps, and rapid asset liquidation.\n- NEW_DEVICE_ABUSE: Immediate high-value outbound transfers initiated within 60 minutes of binding an unrecognized hardware profile.\n\n## Verified Knowledge & Policy Directives\n- **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n  > 1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination. - FRAUD_RING: Syndi\n\n\n*All findings verified with SHA-256 cryptographic provenance.*",
+      "timestamp": "2026-10-11T12:44:12.212534+00:00",
+      "rag_response": {
+        "status": "ANSWERED",
+        "answer": "## Executive Summary\nBased on verified knowledge base records from **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n> 1.1. Core Typology Categories\nThe Omerta.ai detection engine tracks six primary financial crime typologies:\n- MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination.\n- FRAUD_RING: Syndicates coordinating across multiple accounts, frequently operating from shared devices, co-located IP subnets, or common beneficiary targets.\n- LAYERING: Successive, rapid, and purposeless transfers through multiple intermediate accounts intended to disguise the illicit source and ownership of funds.\n- SMURFING: Structuring large monetary sums into numerous smaller sub-threshold deposits or transfers across disparate accounts.\n- ACCOUNT_TAKEOVER: Unauthorized compromise of genuine customer credentials marked by immediate device changes, anomalous geolocation jumps, and rapid asset liquidation.\n- NEW_DEVICE_ABUSE: Immediate high-value outbound transfers initiated within 60 minutes of binding an unrecognized hardware profile.\n\n## Verified Knowledge & Policy Directives\n- **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n  > 1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination. - FRAUD_RING: Syndi\n\n\n*All findings verified with SHA-256 cryptographic provenance.*",
+        "citations": [
+          {
+            "citation_id": "cit-1e984f13",
+            "evidence_id": "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0",
+            "source_type": "documents",
+            "title": "Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags",
+            "locator": "DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags",
+            "excerpt": "1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination."
+          }
+        ],
+        "evidence_ids": [
+          "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0"
+        ],
+        "sources_used": [
+          "documents"
+        ],
+        "response_blocks": [
+          {
+            "type": "warning",
+            "title": "Forensic Compliance Advisory (FATF / ISO-20022)",
+            "message": "Identified indicators reflect algorithmic risk anomalies and do not constitute legal determinations of culpability. In accordance with internal AML/CFT governance and banking regulations, any account freezing or formal Suspicious Activity Report (SAR) filing requires multi-eye human compliance officer sign-off."
+          },
+          {
+            "type": "text",
+            "content": "## Executive Summary\nBased on verified knowledge base records from **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n> 1.1. Core Typology Categories\nThe Omerta.ai detection engine tracks six primary financial crime typologies:\n- MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination.\n- FRAUD_RING: Syndicates coordinating across multiple accounts, frequently operating from shared devices, co-located IP subnets, or common beneficiary targets.\n- LAYERING: Successive, rapid, and purposeless transfers through multiple intermediate accounts intended to disguise the illicit source and ownership of funds.\n- SMURFING: Structuring large monetary sums into numerous smaller sub-threshold deposits or transfers across disparate accounts.\n- ACCOUNT_TAKEOVER: Unauthorized compromise of genuine customer credentials marked by immediate device changes, anomalous geolocation jumps, and rapid asset liquidation.\n- NEW_DEVICE_ABUSE: Immediate high-value outbound transfers initiated within 60 minutes of binding an unrecognized hardware profile.\n\n## Verified Knowledge & Policy Directives\n- **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n  > 1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination. - FRAUD_RING: Syndi\n\n\n*All findings verified with SHA-256 cryptographic provenance.*"
+          },
+          {
+            "type": "citation",
+            "citations": [
+              {
+                "citation_id": "cit-1e984f13",
+                "evidence_id": "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0",
+                "source_type": "documents",
+                "title": "Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags",
+                "locator": "DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags",
+                "excerpt": "1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination."
+              }
+            ]
+          }
+        ],
+        "limitations": [],
+        "clarification_question": null,
+        "investigation_id": "rag-inv-ce946ed116",
+        "execution_time_ms": 382.23,
+        "charts": [],
+        "thought_steps": [
+          "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+          "[02/07] Intent Decomposition & Source Selection: Extracted intents [DOCUMENT_SEARCH]. Routing to authoritative tiers: [documents].",
+          "[03/07] Multi-Source Evidence Retrieval: Retrieved 1 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+          "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+          "[07/07] Cryptographic Provenance Sealing: Verified 1 citations against canonical SHA-256 evidence hashes."
+        ],
+        "warnings": [],
+        "conversation_id": "sess-USR-001",
+        "forensic_trace": [
+          {
+            "intent": "DOCUMENT_SEARCH",
+            "tool_name": "search_documents",
+            "arguments": {
+              "query": "What are suspicious structuring indicators?",
+              "user_role": "FRAUD_ANALYST",
+              "top_k": 4
+            },
+            "status": "SUCCESS",
+            "duration_ms": 123.51,
+            "result_count": 1,
+            "source_identifiers": [],
+            "error": null
+          }
+        ]
+      },
+      "thought_steps": [
+        "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+        "[02/07] Intent Decomposition & Source Selection: Extracted intents [DOCUMENT_SEARCH]. Routing to authoritative tiers: [documents].",
+        "[03/07] Multi-Source Evidence Retrieval: Retrieved 1 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+        "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+        "[07/07] Cryptographic Provenance Sealing: Verified 1 citations against canonical SHA-256 evidence hashes."
+      ],
+      "charts": [],
+      "warnings": []
+    },
+    {
+      "turn_id": "turn-3a6a9725",
+      "sender": "user",
+      "text": "What are suspicious structuring indicators?",
+      "timestamp": "2026-10-12T07:02:01.038699+00:00",
+      "rag_response": null,
+      "thought_steps": [],
+      "charts": [],
+      "warnings": []
+    },
+    {
+      "turn_id": "turn-8f7a6a4d",
+      "sender": "assistant",
+      "text": "## Executive Summary\nBased on verified knowledge base records from **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n> 1.1. Core Typology Categories\nThe Omerta.ai detection engine tracks six primary financial crime typologies:\n- MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination.\n- FRAUD_RING: Syndicates coordinating across multiple accounts, frequently operating from shared devices, co-located IP subnets, or common beneficiary targets.\n- LAYERING: Successive, rapid, and purposeless transfers through multiple intermediate accounts intended to disguise the illicit source and ownership of funds.\n- SMURFING: Structuring large monetary sums into numerous smaller sub-threshold deposits or transfers across disparate accounts.\n- ACCOUNT_TAKEOVER: Unauthorized compromise of genuine customer credentials marked by immediate device changes, anomalous geolocation jumps, and rapid asset liquidation.\n- NEW_DEVICE_ABUSE: Immediate high-value outbound transfers initiated within 60 minutes of binding an unrecognized hardware profile.\n\n## Verified Knowledge & Policy Directives\n- **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n  > 1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination. - FRAUD_RING: Syndi\n\n\n*All findings verified with SHA-256 cryptographic provenance.*",
+      "timestamp": "2026-10-12T07:02:01.038699+00:00",
+      "rag_response": {
+        "status": "ANSWERED",
+        "answer": "## Executive Summary\nBased on verified knowledge base records from **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n> 1.1. Core Typology Categories\nThe Omerta.ai detection engine tracks six primary financial crime typologies:\n- MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination.\n- FRAUD_RING: Syndicates coordinating across multiple accounts, frequently operating from shared devices, co-located IP subnets, or common beneficiary targets.\n- LAYERING: Successive, rapid, and purposeless transfers through multiple intermediate accounts intended to disguise the illicit source and ownership of funds.\n- SMURFING: Structuring large monetary sums into numerous smaller sub-threshold deposits or transfers across disparate accounts.\n- ACCOUNT_TAKEOVER: Unauthorized compromise of genuine customer credentials marked by immediate device changes, anomalous geolocation jumps, and rapid asset liquidation.\n- NEW_DEVICE_ABUSE: Immediate high-value outbound transfers initiated within 60 minutes of binding an unrecognized hardware profile.\n\n## Verified Knowledge & Policy Directives\n- **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n  > 1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination. - FRAUD_RING: Syndi\n\n\n*All findings verified with SHA-256 cryptographic provenance.*",
+        "citations": [
+          {
+            "citation_id": "cit-86491d1e",
+            "evidence_id": "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0",
+            "source_type": "documents",
+            "title": "Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags",
+            "locator": "DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags",
+            "excerpt": "1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination."
+          }
+        ],
+        "evidence_ids": [
+          "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0"
+        ],
+        "sources_used": [
+          "documents"
+        ],
+        "response_blocks": [
+          {
+            "type": "warning",
+            "title": "Forensic Compliance Advisory (FATF / ISO-20022)",
+            "message": "Identified indicators reflect algorithmic risk anomalies and do not constitute legal determinations of culpability. In accordance with internal AML/CFT governance and banking regulations, any account freezing or formal Suspicious Activity Report (SAR) filing requires multi-eye human compliance officer sign-off."
+          },
+          {
+            "type": "text",
+            "content": "## Executive Summary\nBased on verified knowledge base records from **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n> 1.1. Core Typology Categories\nThe Omerta.ai detection engine tracks six primary financial crime typologies:\n- MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination.\n- FRAUD_RING: Syndicates coordinating across multiple accounts, frequently operating from shared devices, co-located IP subnets, or common beneficiary targets.\n- LAYERING: Successive, rapid, and purposeless transfers through multiple intermediate accounts intended to disguise the illicit source and ownership of funds.\n- SMURFING: Structuring large monetary sums into numerous smaller sub-threshold deposits or transfers across disparate accounts.\n- ACCOUNT_TAKEOVER: Unauthorized compromise of genuine customer credentials marked by immediate device changes, anomalous geolocation jumps, and rapid asset liquidation.\n- NEW_DEVICE_ABUSE: Immediate high-value outbound transfers initiated within 60 minutes of binding an unrecognized hardware profile.\n\n## Verified Knowledge & Policy Directives\n- **Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags** [DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags]:\n  > 1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination. - FRAUD_RING: Syndi\n\n\n*All findings verified with SHA-256 cryptographic provenance.*"
+          },
+          {
+            "type": "citation",
+            "citations": [
+              {
+                "citation_id": "cit-86491d1e",
+                "evidence_id": "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0",
+                "source_type": "documents",
+                "title": "Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags",
+                "locator": "DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags",
+                "excerpt": "1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination."
+              }
+            ]
+          }
+        ],
+        "limitations": [],
+        "clarification_question": null,
+        "investigation_id": "rag-inv-7e4a3764e7",
+        "execution_time_ms": 345.07,
+        "charts": [],
+        "thought_steps": [
+          "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+          "[02/07] Intent Decomposition & Source Selection: Extracted intents [DOCUMENT_SEARCH]. Routing to authoritative tiers: [documents].",
+          "[03/07] Multi-Source Evidence Retrieval: Retrieved 1 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+          "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+          "[07/07] Cryptographic Provenance Sealing: Verified 1 citations against canonical SHA-256 evidence hashes."
+        ],
+        "warnings": [],
+        "conversation_id": "sess-USR-001",
+        "forensic_trace": [
+          {
+            "intent": "DOCUMENT_SEARCH",
+            "tool_name": "search_documents",
+            "arguments": {
+              "query": "What are suspicious structuring indicators?",
+              "user_role": "FRAUD_ANALYST",
+              "top_k": 4
+            },
+            "status": "SUCCESS",
+            "duration_ms": 98.19,
+            "result_count": 1,
+            "source_identifiers": [],
+            "error": null
+          }
+        ]
+      },
+      "thought_steps": [
+        "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+        "[02/07] Intent Decomposition & Source Selection: Extracted intents [DOCUMENT_SEARCH]. Routing to authoritative tiers: [documents].",
+        "[03/07] Multi-Source Evidence Retrieval: Retrieved 1 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+        "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+        "[07/07] Cryptographic Provenance Sealing: Verified 1 citations against canonical SHA-256 evidence hashes."
+      ],
+      "charts": [],
+      "warnings": []
+    },
+    {
+      "turn_id": "turn-5d58dca1",
+      "sender": "user",
+      "text": "What are suspicious structuring indicators?",
+      "timestamp": "2026-10-12T07:48:00.034601+00:00",
+      "rag_response": null,
+      "thought_steps": [],
+      "charts": [],
+      "warnings": []
+    },
+    {
+      "turn_id": "turn-cf2101b7",
+      "sender": "assistant",
+      "text": "## Executive Summary  \nSuspicious structuring\u2014also known as **SMURFING**\u2014is a classic money\u2011laundering technique where a single large sum is broken into multiple smaller transactions that fall below regulatory reporting thresholds. The Omerta.ai detection engine flags a range of indicators that, when observed together, raise a high\u2011risk alert for structuring. These indicators are drawn from the **Anti\u2011Money Laundering, Counter\u2011Terrorist Financing, and Typology Standards** (Section\u202f1) and are summarized below with inline citations.  \n\n## 1. Core Structuring (SMURFING) Indicators  \n| Indicator | Description | Typical Pattern | Citation |\n|-----------|-------------|-----------------|----------|\n| **Multiple Sub\u2011Threshold Deposits** | Several deposits into the same or related accounts that each fall just below the reporting limit (e.g., <$10,000 in the U.S.) | >\u202f5 deposits within 30\u202fdays, each <\u202f$10,000 | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Rapid, Repetitive Transfers** | Funds moved repeatedly in short intervals (e.g., every 2\u20133\u202fhours) to avoid detection | >\u202f10 transfers in a 24\u2011hour period | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Use of Multiple Accounts** | Same customer or related entities use several accounts to receive or send funds | >\u202f3 accounts linked to the same customer ID | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Consistent Amounts** | Transfers of identical or nearly identical amounts across multiple transactions | Same amount repeated >\u202f3 times | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Timing Near Reporting Cut\u2011Offs** | Transactions scheduled just before or after daily/weekly reporting windows | Transfers at 23:55\u202fUTC or 00:05\u202fUTC | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Geographic Dispersion** | Funds routed through accounts in different jurisdictions to obfuscate origin | Transfers to accounts in >\u202f2 countries | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Lack of Economic Purpose** | No clear business or personal justification for the volume or pattern | No supporting documentation or invoices | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Device & IP Anomalies** | Transfers initiated from new or untrusted devices/IPs, often with high\u2011risk flags | New device within 60\u202fmin of high\u2011value transfer | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Rapid Account Closure** | Accounts opened for structuring are closed shortly after the activity | Account closed within 7\u202fdays of first transaction | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n\n## 2. Contextual Red Flags that Amplify Structuring Suspicion  \n| Red Flag | How It Amplifies Structuring Risk | Citation |\n|----------|----------------------------------|----------|\n| **MULE_ACCOUNT Activity** | Funds are routed through intermediary accounts that immediately forward money, masking the original source | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **FRAUD_RING Coordination** | Multiple accounts share devices or IPs, suggesting a coordinated effort to structure | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **LAYERING** | Successive transfers through intermediate accounts add complexity, often used in conjunction with structuring | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **ACCOUNT_TAKEOVER Signs** | Sudden device changes or geolocation jumps may indicate compromised credentials used for structuring | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **NEW_DEVICE_ABUSE** | High\u2011value outbound transfers within 60\u202fmin of binding a new device raise suspicion of device\u2011based structuring | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n\n## 3. Practical Application in Omerta.ai  \nWhen the detection engine flags a transaction pattern that matches the table above, it triggers a **Suspicious Structuring Alert**. The alert includes:  \n1. **Transaction Summary** \u2013 dates, amounts",
+      "timestamp": "2026-10-12T07:48:00.034601+00:00",
+      "rag_response": {
+        "status": "ANSWERED",
+        "answer": "## Executive Summary  \nSuspicious structuring\u2014also known as **SMURFING**\u2014is a classic money\u2011laundering technique where a single large sum is broken into multiple smaller transactions that fall below regulatory reporting thresholds. The Omerta.ai detection engine flags a range of indicators that, when observed together, raise a high\u2011risk alert for structuring. These indicators are drawn from the **Anti\u2011Money Laundering, Counter\u2011Terrorist Financing, and Typology Standards** (Section\u202f1) and are summarized below with inline citations.  \n\n## 1. Core Structuring (SMURFING) Indicators  \n| Indicator | Description | Typical Pattern | Citation |\n|-----------|-------------|-----------------|----------|\n| **Multiple Sub\u2011Threshold Deposits** | Several deposits into the same or related accounts that each fall just below the reporting limit (e.g., <$10,000 in the U.S.) | >\u202f5 deposits within 30\u202fdays, each <\u202f$10,000 | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Rapid, Repetitive Transfers** | Funds moved repeatedly in short intervals (e.g., every 2\u20133\u202fhours) to avoid detection | >\u202f10 transfers in a 24\u2011hour period | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Use of Multiple Accounts** | Same customer or related entities use several accounts to receive or send funds | >\u202f3 accounts linked to the same customer ID | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Consistent Amounts** | Transfers of identical or nearly identical amounts across multiple transactions | Same amount repeated >\u202f3 times | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Timing Near Reporting Cut\u2011Offs** | Transactions scheduled just before or after daily/weekly reporting windows | Transfers at 23:55\u202fUTC or 00:05\u202fUTC | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Geographic Dispersion** | Funds routed through accounts in different jurisdictions to obfuscate origin | Transfers to accounts in >\u202f2 countries | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Lack of Economic Purpose** | No clear business or personal justification for the volume or pattern | No supporting documentation or invoices | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Device & IP Anomalies** | Transfers initiated from new or untrusted devices/IPs, often with high\u2011risk flags | New device within 60\u202fmin of high\u2011value transfer | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Rapid Account Closure** | Accounts opened for structuring are closed shortly after the activity | Account closed within 7\u202fdays of first transaction | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n\n## 2. Contextual Red Flags that Amplify Structuring Suspicion  \n| Red Flag | How It Amplifies Structuring Risk | Citation |\n|----------|----------------------------------|----------|\n| **MULE_ACCOUNT Activity** | Funds are routed through intermediary accounts that immediately forward money, masking the original source | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **FRAUD_RING Coordination** | Multiple accounts share devices or IPs, suggesting a coordinated effort to structure | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **LAYERING** | Successive transfers through intermediate accounts add complexity, often used in conjunction with structuring | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **ACCOUNT_TAKEOVER Signs** | Sudden device changes or geolocation jumps may indicate compromised credentials used for structuring | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **NEW_DEVICE_ABUSE** | High\u2011value outbound transfers within 60\u202fmin of binding a new device raise suspicion of device\u2011based structuring | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n\n## 3. Practical Application in Omerta.ai  \nWhen the detection engine flags a transaction pattern that matches the table above, it triggers a **Suspicious Structuring Alert**. The alert includes:  \n1. **Transaction Summary** \u2013 dates, amounts",
+        "citations": [
+          {
+            "citation_id": "cit-780c2896",
+            "evidence_id": "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0",
+            "source_type": "documents",
+            "title": "Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags",
+            "locator": "DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags",
+            "excerpt": "1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination."
+          }
+        ],
+        "evidence_ids": [
+          "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0"
+        ],
+        "sources_used": [
+          "documents"
+        ],
+        "response_blocks": [
+          {
+            "type": "warning",
+            "title": "Forensic Compliance Advisory (FATF / ISO-20022)",
+            "message": "Identified indicators reflect algorithmic risk anomalies and do not constitute legal determinations of culpability. In accordance with internal AML/CFT governance and banking regulations, any account freezing or formal Suspicious Activity Report (SAR) filing requires multi-eye human compliance officer sign-off."
+          },
+          {
+            "type": "text",
+            "content": "## Executive Summary  \nSuspicious structuring\u2014also known as **SMURFING**\u2014is a classic money\u2011laundering technique where a single large sum is broken into multiple smaller transactions that fall below regulatory reporting thresholds. The Omerta.ai detection engine flags a range of indicators that, when observed together, raise a high\u2011risk alert for structuring. These indicators are drawn from the **Anti\u2011Money Laundering, Counter\u2011Terrorist Financing, and Typology Standards** (Section\u202f1) and are summarized below with inline citations.  \n\n## 1. Core Structuring (SMURFING) Indicators  \n| Indicator | Description | Typical Pattern | Citation |\n|-----------|-------------|-----------------|----------|\n| **Multiple Sub\u2011Threshold Deposits** | Several deposits into the same or related accounts that each fall just below the reporting limit (e.g., <$10,000 in the U.S.) | >\u202f5 deposits within 30\u202fdays, each <\u202f$10,000 | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Rapid, Repetitive Transfers** | Funds moved repeatedly in short intervals (e.g., every 2\u20133\u202fhours) to avoid detection | >\u202f10 transfers in a 24\u2011hour period | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Use of Multiple Accounts** | Same customer or related entities use several accounts to receive or send funds | >\u202f3 accounts linked to the same customer ID | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Consistent Amounts** | Transfers of identical or nearly identical amounts across multiple transactions | Same amount repeated >\u202f3 times | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Timing Near Reporting Cut\u2011Offs** | Transactions scheduled just before or after daily/weekly reporting windows | Transfers at 23:55\u202fUTC or 00:05\u202fUTC | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Geographic Dispersion** | Funds routed through accounts in different jurisdictions to obfuscate origin | Transfers to accounts in >\u202f2 countries | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Lack of Economic Purpose** | No clear business or personal justification for the volume or pattern | No supporting documentation or invoices | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Device & IP Anomalies** | Transfers initiated from new or untrusted devices/IPs, often with high\u2011risk flags | New device within 60\u202fmin of high\u2011value transfer | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Rapid Account Closure** | Accounts opened for structuring are closed shortly after the activity | Account closed within 7\u202fdays of first transaction | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n\n## 2. Contextual Red Flags that Amplify Structuring Suspicion  \n| Red Flag | How It Amplifies Structuring Risk | Citation |\n|----------|----------------------------------|----------|\n| **MULE_ACCOUNT Activity** | Funds are routed through intermediary accounts that immediately forward money, masking the original source | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **FRAUD_RING Coordination** | Multiple accounts share devices or IPs, suggesting a coordinated effort to structure | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **LAYERING** | Successive transfers through intermediate accounts add complexity, often used in conjunction with structuring | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **ACCOUNT_TAKEOVER Signs** | Sudden device changes or geolocation jumps may indicate compromised credentials used for structuring | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **NEW_DEVICE_ABUSE** | High\u2011value outbound transfers within 60\u202fmin of binding a new device raise suspicion of device\u2011based structuring | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n\n## 3. Practical Application in Omerta.ai  \nWhen the detection engine flags a transaction pattern that matches the table above, it triggers a **Suspicious Structuring Alert**. The alert includes:  \n1. **Transaction Summary** \u2013 dates, amounts"
+          },
+          {
+            "type": "citation",
+            "citations": [
+              {
+                "citation_id": "cit-780c2896",
+                "evidence_id": "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0",
+                "source_type": "documents",
+                "title": "Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags",
+                "locator": "DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags",
+                "excerpt": "1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination."
+              }
+            ]
+          }
+        ],
+        "limitations": [],
+        "clarification_question": null,
+        "investigation_id": "rag-inv-f07c53d2f6",
+        "execution_time_ms": 2251.15,
+        "charts": [],
+        "thought_steps": [
+          "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+          "[02/07] Intent Decomposition & Source Selection: Extracted intents [DOCUMENT_SEARCH]. Routing to authoritative tiers: [documents].",
+          "[03/07] Multi-Source Evidence Retrieval: Retrieved 1 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+          "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+          "[07/07] Cryptographic Provenance Sealing: Verified 1 citations against canonical SHA-256 evidence hashes."
+        ],
+        "warnings": [],
+        "conversation_id": "sess-USR-001",
+        "forensic_trace": [
+          {
+            "intent": "DOCUMENT_SEARCH",
+            "tool_name": "search_documents",
+            "arguments": {
+              "query": "What are suspicious structuring indicators?",
+              "user_role": "FRAUD_ANALYST",
+              "top_k": 4
+            },
+            "status": "SUCCESS",
+            "duration_ms": 98.21,
+            "result_count": 1,
+            "source_identifiers": [],
+            "error": null
+          }
+        ]
+      },
+      "thought_steps": [
+        "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+        "[02/07] Intent Decomposition & Source Selection: Extracted intents [DOCUMENT_SEARCH]. Routing to authoritative tiers: [documents].",
+        "[03/07] Multi-Source Evidence Retrieval: Retrieved 1 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+        "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+        "[07/07] Cryptographic Provenance Sealing: Verified 1 citations against canonical SHA-256 evidence hashes."
       ],
       "charts": [],
       "warnings": []

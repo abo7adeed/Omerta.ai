@@ -8,6 +8,7 @@ Exposes endpoints for:
 - Sandbox fixtures and safe sandbox reset
 """
 
+from datetime import UTC, datetime
 import logging
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -24,7 +25,14 @@ from domain.investigation.schemas import (
 )
 from domain.errors import ValidationError
 from domain.investigation.simulation import get_sandbox_withdrawal_service
-from infrastructure.database.models import InvestigationCase, Transaction, Account
+from infrastructure.database.models import (
+    InvestigationCase,
+    Transaction,
+    Account,
+    Customer,
+    User,
+    AuditEvent,
+)
 from infrastructure.database.session import get_engine
 from infrastructure.security.jwt_auth import get_current_user
 
@@ -168,3 +176,154 @@ async def reset_sandbox_endpoint(
     """Safely reset sandbox environment."""
     service = get_sandbox_withdrawal_service()
     return await service.reset_sandbox()
+
+
+@router.post(
+    "/accounts/{account_id}/unblock",
+    summary="Human-in-the-Loop Unblock Account",
+    description="Authorized compliance action to unblock an account and restore user login and transaction privileges.",
+)
+async def unblock_account_endpoint(
+    account_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Restore account and user status to ACTIVE."""
+    role = current_user.get("role", "INVESTIGATOR")
+    authorized = role in [
+        "ADMINISTRATOR",
+        "ADMIN",
+        "INVESTIGATOR",
+        "SENIOR_INVESTIGATOR",
+        "FRAUD_ANALYST",
+        "COMPLIANCE_OFFICER",
+    ]
+    if not authorized:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Unauthorized. Only compliance investigators or administrators can unblock accounts.",
+        )
+
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        acc = await session.scalar(
+            select(Account)
+            .options(selectinload(Account.customer).selectinload(Customer.user))
+            .where(
+                or_(
+                    Account.external_id == account_id,
+                    Account.id == int(account_id) if account_id.isdigit() else False,
+                )
+            )
+        )
+        if not acc:
+            raise HTTPException(status_code=404, detail=f"Account '{account_id}' not found.")
+
+        acc.status = "ACTIVE"
+        cust_name = acc.customer_name
+        if acc.customer:
+            acc.customer.status = "ACTIVE"
+            acc.customer.transfer_status = "ACTIVE"
+            acc.customer.transfer_failed_attempts = 0
+            acc.customer.transfer_unblocked_at = datetime.now(UTC)
+            cust_name = acc.customer.name
+            if acc.customer.user:
+                acc.customer.user.is_active = True
+
+        session.add(
+            AuditEvent(
+                event_id=f"EVT-UNBLOCK-{acc.external_id}-{int(datetime.now(UTC).timestamp())}",
+                event_type="ACCOUNT_UNBLOCKED_BY_INVESTIGATOR",
+                actor_type=role,
+                actor_id=str(current_user.get("sub", "ANALYST")),
+                source="InvestigationWorkbench",
+                metadata_={
+                    "account_id": acc.external_id,
+                    "customer_name": cust_name,
+                    "action": "RESTORE_ACCESS",
+                    "status": "ACTIVE",
+                },
+            )
+        )
+        await session.commit()
+
+        return {
+            "success": True,
+            "message": f"Account {acc.external_id} ({cust_name}) successfully unblocked. User login and transfer privileges restored.",
+            "account_id": acc.external_id,
+            "account_status": "ACTIVE",
+            "customer_status": "ACTIVE",
+        }
+
+
+@router.post(
+    "/accounts/{account_id}/block",
+    summary="Human-in-the-Loop Block Account",
+    description="Authorized compliance action to place an account under containment hold, suspending transactions and login.",
+)
+async def block_account_endpoint(
+    account_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Place account and user status under security hold (BLOCKED)."""
+    role = current_user.get("role", "INVESTIGATOR")
+    authorized = role in [
+        "ADMINISTRATOR",
+        "ADMIN",
+        "INVESTIGATOR",
+        "SENIOR_INVESTIGATOR",
+        "FRAUD_ANALYST",
+        "COMPLIANCE_OFFICER",
+    ]
+    if not authorized:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Unauthorized. Only compliance investigators or administrators can block accounts.",
+        )
+
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        acc = await session.scalar(
+            select(Account)
+            .options(selectinload(Account.customer).selectinload(Customer.user))
+            .where(
+                or_(
+                    Account.external_id == account_id,
+                    Account.id == int(account_id) if account_id.isdigit() else False,
+                )
+            )
+        )
+        if not acc:
+            raise HTTPException(status_code=404, detail=f"Account '{account_id}' not found.")
+
+        acc.status = "BLOCKED"
+        cust_name = acc.customer_name
+        if acc.customer:
+            acc.customer.status = "BLOCKED"
+            acc.customer.transfer_status = "BLOCKED"
+            acc.customer.transfer_blocked_at = datetime.now(UTC)
+            cust_name = acc.customer.name
+            if acc.customer.user:
+                acc.customer.user.is_active = False
+
+        session.add(
+            AuditEvent(
+                event_id=f"EVT-BLOCK-{acc.external_id}-{int(datetime.now(UTC).timestamp())}",
+                event_type="ACCOUNT_BLOCKED_BY_INVESTIGATOR",
+                actor_type=role,
+                actor_id=str(current_user.get("sub", "ANALYST")),
+                source="InvestigationWorkbench",
+                metadata_={
+                    "account_id": acc.external_id,
+                    "customer_name": cust_name,
+                    "action": "CONTAINMENT_BLOCK",
+                    "status": "BLOCKED",
+                },
+            )
+        )
+        await session.commit()
+
+        return {
+            "success": True,
+            "message": f"Account {acc.external_id} ({cust_name}) placed under compliance containment hold.",
+            "account_id": acc.external_id,
+            "account_status": "BLOCKED",
+            "customer_status": "BLOCKED",
+        }

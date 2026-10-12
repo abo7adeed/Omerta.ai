@@ -24,21 +24,31 @@ class SourceType(StrEnum):
 
 class AnalysisIntent(StrEnum):
     """Categorized analytical intent of the user inquiry."""
-    DOCUMENT_SEARCH = "DOCUMENT_SEARCH"
-    TRANSACTION_LOOKUP = "TRANSACTION_LOOKUP"
+    # Core Deterministic Intents
+    CUSTOMER_PROFILE = "CUSTOMER_PROFILE"
+    CUSTOMER_BALANCE = "CUSTOMER_BALANCE"
     ACCOUNT_LOOKUP = "ACCOUNT_LOOKUP"
-    CUSTOMER_LOOKUP = "CUSTOMER_LOOKUP"
+    ACCOUNT_COUNT = "ACCOUNT_COUNT"
+    CUSTOMER_LISTING = "CUSTOMER_LISTING"
+    CUSTOMER_COUNT = "CUSTOMER_COUNT"
+    TRANSACTION_LOOKUP = "TRANSACTION_LOOKUP"
     FINANCIAL_AGGREGATION = "FINANCIAL_AGGREGATION"
-    PERIOD_COMPARISON = "PERIOD_COMPARISON"
-    TREND_ANALYSIS = "TREND_ANALYSIS"
-    GRAPH_EXPLORATION = "GRAPH_EXPLORATION"
-    RISK_ANALYSIS = "RISK_ANALYSIS"
+    INTERNAL_POLICIES = "INTERNAL_POLICIES"
+    GRAPH_INVESTIGATION = "GRAPH_INVESTIGATION"
     VISUALIZATION = "VISUALIZATION"
-    MULTI_SOURCE_INVESTIGATION = "MULTI_SOURCE_INVESTIGATION"
-    GENERAL_BANKING_QUESTION = "GENERAL_BANKING_QUESTION"
+    MULTI_TOOL_MIXED = "MULTI_TOOL_MIXED"
+    OUT_OF_DOMAIN = "OUT_OF_DOMAIN"
     NEEDS_CLARIFICATION = "NEEDS_CLARIFICATION"
 
-    # Backwards-compatible aliases
+    # Semantic & Backwards-Compatible Aliases
+    CUSTOMER_LOOKUP = "CUSTOMER_LOOKUP"
+    DOCUMENT_SEARCH = "DOCUMENT_SEARCH"
+    GRAPH_EXPLORATION = "GRAPH_EXPLORATION"
+    PERIOD_COMPARISON = "PERIOD_COMPARISON"
+    TREND_ANALYSIS = "TREND_ANALYSIS"
+    RISK_ANALYSIS = "RISK_ANALYSIS"
+    MULTI_SOURCE_INVESTIGATION = "MULTI_SOURCE_INVESTIGATION"
+    GENERAL_BANKING_QUESTION = "GENERAL_BANKING_QUESTION"
     QUESTION_ANSWERING = "QUESTION_ANSWERING"
     DATA_RETRIEVAL = "DATA_RETRIEVAL"
     AGGREGATION = "AGGREGATION"
@@ -266,6 +276,7 @@ class AgenticRAGResponse(BaseModel):
     thought_steps: list[str] = Field(default_factory=list, description="Trace of reasoning and audit milestones")
     warnings: list[str] = Field(default_factory=list, description="Forensic guardrail notices and advisories")
     conversation_id: str | None = None
+    forensic_trace: list[dict[str, Any]] = Field(default_factory=list, description="Forensic audit trail of tool executions, parameters, and results")
 
     @model_validator(mode="after")
     def validate_citation_evidence_referential_integrity(self) -> "AgenticRAGResponse":

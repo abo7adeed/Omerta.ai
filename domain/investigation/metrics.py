@@ -78,8 +78,9 @@ def calculate_behavioral_metrics(
         # Classify by transaction type or role
         ttype = t.transaction_type.upper()
         is_withdrawal = (
-            ttype in ("WITHDRAWAL", "CUSTOMER_TRANSFER", "P2P_OUTBOUND", "WIRE_OUTBOUND", "DEBIT")
+            ttype in ("WITHDRAWAL", "CUSTOMER_TRANSFER", "P2P_OUTBOUND", "WIRE_OUTBOUND", "DEBIT", "TRANSFER")
             or "OUTBOUND" in ttype
+            or (t.recipient_account_id is not None and ttype not in ("DEPOSIT", "CREDIT"))
         )
         is_deposit = (
             ttype in ("DEPOSIT", "INBOUND_TRANSFER", "P2P_INBOUND", "WIRE_INBOUND", "CREDIT")

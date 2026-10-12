@@ -674,6 +674,17 @@ class NetworkGraphService:
                             current_risk = "HIGH"
 
                 n_obj["risk_level"] = current_risk
+                if current_risk == "CRITICAL":
+                    calc_score = min(98.0, 85.0 + len(risk_factors) * 4.0)
+                elif current_risk == "HIGH":
+                    calc_score = min(84.0, 70.0 + len(risk_factors) * 3.0)
+                elif current_risk == "MEDIUM":
+                    calc_score = 45.0
+                else:
+                    calc_score = 10.0
+                n_obj["risk_score"] = round(calc_score, 1)
+                det = n_obj["details"]
+                det["risk_score"] = round(calc_score, 1)
                 n_obj["inflow_total"] = in_sum
                 n_obj["inflow_count"] = len(n_in)
                 n_obj["inflow_sources"] = n_in
