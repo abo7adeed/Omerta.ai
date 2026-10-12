@@ -154,3 +154,75 @@ async def create_transaction(body: CreateTransactionRequest) -> dict[str, Any]:
             "risk_level": assessment.risk_level,
             "requires_human_review": assessment.requires_human_review,
         }
+
+
+class CustomerConfirmationPayload(BaseModel):
+    action: str = "CONFIRM"  # CONFIRM | DENY
+
+
+@router.post("/{transaction_id}/customer-confirmation")
+async def handle_transaction_customer_confirmation(
+    transaction_id: str,
+    payload: CustomerConfirmationPayload,
+) -> dict[str, Any]:
+    """Record customer confirmation (CONFIRM) or fraud denial (DENY) on a held transfer."""
+    from domain.services.transfer_service import TransferService, TransferError
+
+    from sqlalchemy.orm import selectinload
+    from sqlalchemy import or_
+    from infrastructure.database.models import Transfer
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        # Find transaction with account and customer loaded (supports either TXN or TRF reference)
+        txn_stmt = (
+            select(Transaction)
+            .options(selectinload(Transaction.account).selectinload(Account.customer))
+            .where(
+                or_(
+                    Transaction.external_id == transaction_id,
+                    Transaction.id.in_(
+                        select(Transfer.transaction_id).where(Transfer.external_id == transaction_id)
+                    ),
+                )
+            )
+            .limit(1)
+        )
+        txn = await session.scalar(txn_stmt)
+        if not txn:
+            raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": f"Transaction {transaction_id} not found"})
+
+        cust = txn.account.customer if (txn.account and txn.account.customer) else None
+        user_id = cust.user_id if cust and cust.user_id else 1
+        transfer_svc = TransferService(session)
+        try:
+            return await transfer_svc.handle_customer_confirmation(
+                transaction_external_id=txn.external_id,
+                action=payload.action,
+                customer_user_id=user_id,
+            )
+        except TransferError as terr:
+            raise HTTPException(status_code=terr.status_code, detail={"error": terr.code, "message": terr.message})
+
+
+@router.get("/{transaction_id}/history")
+async def get_transaction_history_intel(
+    transaction_id: str,
+) -> dict[str, Any]:
+    """Retrieve rolling multi-window historical intelligence for the transaction's sender account."""
+    from domain.investigation.history_agent import TransactionHistoryAgent
+
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        txn = await session.scalar(
+            select(Transaction).where(Transaction.external_id == transaction_id).limit(1)
+        )
+        if not txn:
+            raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": f"Transaction {transaction_id} not found"})
+
+        agent = TransactionHistoryAgent(session)
+        result = await agent.analyze(
+            account_id=txn.account_id,
+            current_amount=float(txn.amount),
+            current_timestamp=txn.timestamp,
+            recipient_account_id=txn.recipient_account_id,
+            current_transaction_id=txn.id,
+        )
+        return result.model_dump()

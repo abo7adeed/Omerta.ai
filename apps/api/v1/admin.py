@@ -864,113 +864,171 @@ async def get_problem_customer_agentic_summary(
 
 
 # ============================================================================
-# PENDING TRANSACTIONS & HUMAN REVIEW DECISION EXECUTION
+# MASTER FRAUD WORKFLOW ADMIN ENDPOINTS
 # ============================================================================
 
-class TransactionApprovalRequest(BaseModel):
-    rationale: str = Field(default="Analyst verified identity and transaction legitimacy. Hold released.", min_length=3)
+class AdminApproveRejectRequest(BaseModel):
+    reason: str | None = None
+    rationale: str | None = None
+
+    @property
+    def final_reason(self) -> str:
+        return self.rationale or self.reason or "Compliance review completed and approved."
+
+
+class AdminPrivilegeRestorationRequest(BaseModel):
+    reason: str = Field(default="Customer account recovery completed and identity verified.", min_length=5)
+    ticket_id: int | None = None
 
 
 @router.post("/transactions/{transaction_id}/approve")
-async def approve_pending_transaction(
+async def admin_approve_transaction(
     transaction_id: str,
-    body: TransactionApprovalRequest,
-    current_user: dict[str, Any] = Depends(require_role(["ADMINISTRATOR", "FRAUD_ANALYST", "SENIOR_INVESTIGATOR"])),
+    body: AdminApproveRejectRequest = AdminApproveRejectRequest(),
+    current_user: dict[str, Any] = Depends(require_role(ADMIN_ROLES)),
 ) -> dict[str, Any]:
-    """Approve a pending or flagged transaction, releasing human review holds and executing funds dispatch."""
-    import secrets
+    """Approve a held transaction and atomically execute double-entry ledger settlement."""
+    from domain.services.transfer_service import TransferService, TransferError
 
     async with AsyncSession(get_engine(), expire_on_commit=False) as session:
-        txn = await session.scalar(
-            select(Transaction).where(Transaction.external_id == transaction_id)
-        )
-        if not txn:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found.")
-
-        old_status = txn.status
-        old_review_status = txn.review_status
-
-        # Approve and complete
-        txn.review_status = "APPROVED"
-        txn.status = "COMPLETED"
-
-        session.add(
-            AuditEvent(
-                event_id=f"EVT-TXNAPPR-{secrets.token_hex(4).upper()}",
-                event_type="TRANSACTION_APPROVED_AND_RELEASED",
-                actor_type="ANALYST",
-                actor_id=str(current_user.get("sub")),
-                source="HumanReviewQueue",
-                transaction_id=txn.external_id,
-                metadata_={
-                    "transaction_id": txn.external_id,
-                    "amount": str(txn.amount),
-                    "old_status": old_status,
-                    "new_status": txn.status,
-                    "old_review_status": old_review_status,
-                    "new_review_status": txn.review_status,
-                    "rationale": body.rationale,
-                    "analyst": current_user.get("username"),
-                },
+        transfer_svc = TransferService(session)
+        admin_sub = str(current_user.get("sub", ""))
+        admin_user_id = int(admin_sub) if admin_sub.isdigit() else 1
+        try:
+            return await transfer_svc.admin_approve_transfer(
+                transaction_external_id=transaction_id,
+                admin_user_id=admin_user_id,
+                reason=body.final_reason,
             )
-        )
-        await session.commit()
-
-        return {
-            "success": True,
-            "transaction_id": txn.external_id,
-            "status": txn.status,
-            "review_status": txn.review_status,
-            "message": f"Transaction {txn.external_id} approved by analyst. Hold released and processing completed.",
-        }
+        except TransferError as terr:
+            raise HTTPException(status_code=terr.status_code, detail={"error": terr.code, "message": terr.message})
 
 
 @router.post("/transactions/{transaction_id}/reject")
-async def reject_pending_transaction(
+async def admin_reject_transaction(
     transaction_id: str,
-    body: TransactionApprovalRequest,
-    current_user: dict[str, Any] = Depends(require_role(["ADMINISTRATOR", "FRAUD_ANALYST", "SENIOR_INVESTIGATOR"])),
+    body: AdminApproveRejectRequest = AdminApproveRejectRequest(),
+    current_user: dict[str, Any] = Depends(require_role(ADMIN_ROLES)),
 ) -> dict[str, Any]:
-    """Reject a flagged transaction, blocking money transfer and logging fraud detection disposition."""
-    import secrets
+    """Reject a held transaction and mark as suspicious / cancelled."""
+    from domain.services.transfer_service import TransferService, TransferError
 
     async with AsyncSession(get_engine(), expire_on_commit=False) as session:
-        txn = await session.scalar(
-            select(Transaction).where(Transaction.external_id == transaction_id)
-        )
-        if not txn:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found.")
-
-        txn.review_status = "REJECTED"
-        txn.status = "BLOCKED"
-
-        session.add(
-            AuditEvent(
-                event_id=f"EVT-TXNREJ-{secrets.token_hex(4).upper()}",
-                event_type="TRANSACTION_REJECTED_FRAUD",
-                actor_type="ANALYST",
-                actor_id=str(current_user.get("sub")),
-                source="HumanReviewQueue",
-                transaction_id=txn.external_id,
-                metadata_={
-                    "transaction_id": txn.external_id,
-                    "amount": str(txn.amount),
-                    "new_status": txn.status,
-                    "new_review_status": txn.review_status,
-                    "rationale": body.rationale,
-                    "analyst": current_user.get("username"),
-                },
+        transfer_svc = TransferService(session)
+        admin_sub = str(current_user.get("sub", ""))
+        admin_user_id = int(admin_sub) if admin_sub.isdigit() else 1
+        try:
+            return await transfer_svc.admin_reject_transfer(
+                transaction_external_id=transaction_id,
+                admin_user_id=admin_user_id,
+                reason=body.final_reason,
             )
-        )
-        await session.commit()
+        except TransferError as terr:
+            raise HTTPException(status_code=terr.status_code, detail={"error": terr.code, "message": terr.message})
 
+
+@router.post("/customers/{customer_id}/restore-transaction-privileges")
+async def admin_restore_transaction_privileges(
+    customer_id: str,
+    body: AdminPrivilegeRestorationRequest = AdminPrivilegeRestorationRequest(),
+    current_user: dict[str, Any] = Depends(require_role(ADMIN_ROLES)),
+) -> dict[str, Any]:
+    """Release server-enforced transaction restrictions and restore transfer privileges."""
+    from domain.services.transfer_service import TransferService, TransferError
+
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        # Resolve customer by external_id or integer PK
+        cust = await session.scalar(
+            select(Customer).where(
+                (Customer.external_id == customer_id)
+                | (Customer.omerta_user_number == customer_id)
+                | (Customer.id == (int(customer_id) if customer_id.isdigit() else -1))
+            ).limit(1)
+        )
+        if not cust:
+            raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": f"Customer {customer_id} not found"})
+
+        transfer_svc = TransferService(session)
+        admin_sub = str(current_user.get("sub", ""))
+        admin_user_id = int(admin_sub) if admin_sub.isdigit() else 1
+        try:
+            return await transfer_svc.restore_customer_transfer_privileges(
+                customer_id=cust.id,
+                admin_user_id=admin_user_id,
+                reason=body.reason,
+                ticket_id=body.ticket_id,
+            )
+        except TransferError as terr:
+            raise HTTPException(status_code=terr.status_code, detail={"error": terr.code, "message": terr.message})
+
+
+@router.get("/security-tickets")
+async def list_admin_security_tickets(
+    status_filter: str | None = Query(default=None),
+    priority: str | None = Query(default=None),
+    current_user: dict[str, Any] = Depends(require_role(ADMIN_ROLES)),
+) -> dict[str, Any]:
+    """List security and account takeover incident tickets for compliance triage."""
+    from infrastructure.database.models import SupportTicket
+
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        stmt = select(SupportTicket).options(selectinload(SupportTicket.customer)).order_by(SupportTicket.created_at.desc())
+        if status_filter:
+            stmt = stmt.where(SupportTicket.status == status_filter.upper())
+        if priority:
+            stmt = stmt.where(SupportTicket.priority == priority.upper())
+
+        tickets = (await session.scalars(stmt)).all()
         return {
-            "success": True,
-            "transaction_id": txn.external_id,
-            "status": txn.status,
-            "review_status": txn.review_status,
-            "message": f"Transaction {txn.external_id} rejected. Transfer cancelled and flagged as suspicious.",
+            "total": len(tickets),
+            "tickets": [
+                {
+                    "id": t.id,
+                    "external_id": t.external_id,
+                    "ticket_type": t.ticket_type,
+                    "priority": t.priority,
+                    "status": t.status,
+                    "subject": t.subject,
+                    "customer_name": t.customer.name if t.customer else "Unknown",
+                    "customer_number": t.customer.omerta_user_number if t.customer else "N/A",
+                    "related_transaction_id": t.related_transaction_id,
+                    "created_at": t.created_at.isoformat(),
+                    "resolution_reason": t.resolution_reason,
+                }
+                for t in tickets
+            ],
         }
+
+
+@router.post("/security-tickets/{ticket_id}/resolve")
+async def admin_resolve_security_ticket(
+    ticket_id: str,
+    body: AdminPrivilegeRestorationRequest = AdminPrivilegeRestorationRequest(),
+    current_user: dict[str, Any] = Depends(require_role(ADMIN_ROLES)),
+) -> dict[str, Any]:
+    """Resolve an open security ticket."""
+    from infrastructure.database.models import SupportTicket
+    from datetime import UTC, datetime
+
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        ticket = await session.scalar(
+            select(SupportTicket).where(
+                (SupportTicket.external_id == ticket_id)
+                | (SupportTicket.id == (int(ticket_id) if ticket_id.isdigit() else -1))
+            ).limit(1)
+        )
+        if not ticket:
+            raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": f"Security ticket {ticket_id} not found"})
+
+        admin_sub = str(current_user.get("sub", ""))
+        admin_user_id = int(admin_sub) if admin_sub.isdigit() else 1
+        ticket.status = "RESOLVED"
+        ticket.resolved_at = datetime.now(UTC)
+        ticket.resolution_reason = body.reason
+        ticket.assigned_user_id = admin_user_id
+
+        await session.commit()
+        return {"success": True, "ticket_id": ticket.external_id, "status": "RESOLVED"}
 
 
 # ============================================================================

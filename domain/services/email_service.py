@@ -64,6 +64,7 @@ def _send_smtp_sync(
     msg.attach(part1)
     msg.attach(part2)
 
+    load_dotenv(override=True)
     smtp_user = os.getenv("SMTP_USER", "abdomostafa13571234@gmail.com")
     smtp_password = os.getenv("SMTP_PASSWORD", os.getenv("GMAIL_APP_PASSWORD", "")).replace(" ", "").strip()
     smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -87,7 +88,7 @@ def _send_smtp_sync(
         )
 
     try:
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=4) as server:
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
             server.ehlo()
             server.starttls()
             server.ehlo()
@@ -322,3 +323,110 @@ From: {DEFAULT_SENDER_EMAIL}
             html_content=html_body,
             text_content=text_body,
         )
+
+    @staticmethod
+    async def send_transfer_verification_email(
+        to_email: str,
+        customer_name: str,
+        transaction_ref: str,
+        amount: float,
+        currency: str,
+        recipient_masked: str,
+        verification_url: str,
+        reason: str = "A commercial VPN or elevated security indicator was observed on your session.",
+    ) -> EmailDeliveryResult:
+        """Send urgent transaction security confirmation notification."""
+        masked_ref = f"{transaction_ref[:8]}***{transaction_ref[-4:]}" if len(transaction_ref) > 12 else transaction_ref
+        subject = f"ACTION REQUIRED: Confirm Transfer of {amount:,.2f} {currency} ({masked_ref})"
+
+        confirm_url = f"{verification_url}?action=CONFIRM&tx_id={transaction_ref}"
+        deny_url = f"{verification_url}?action=DENY&tx_id={transaction_ref}"
+
+        text_body = f"""Hello {customer_name},
+
+A transfer of {amount:,.2f} {currency} to recipient {recipient_masked} was initiated from your account.
+
+IMPORTANT: This transaction is currently ON HOLD and has NOT been debited or executed.
+Security Reason: {reason}
+
+To protect your account, please confirm whether you initiated this transfer:
+- Yes, I initiated this transfer: {confirm_url}
+- No, I did NOT initiate this transfer: {deny_url}
+
+If you did not initiate this transfer, selecting 'No' will immediately protect your account by placing a hold on outgoing transfers and launching a security ticket.
+
+Omerta.ai Security Operations
+Hotline: +20 2 19876
+"""
+
+        html_body = f"""<!DOCTYPE html>
+<html lang="en">
+<body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #080D19; color: #F4F7FC;">
+  <div style="max-width: 600px; margin: 0 auto; background: #101A2B; border: 1px solid #25344A; border-radius: 14px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+    <div style="background: #182842; padding: 20px 24px; border-bottom: 1px solid #25344A; display: flex; align-items: center; justify-content: space-between;">
+      <span style="font-size: 18px; font-weight: 800; color: #F4F7FC;">🛡️ Omerta.ai Security Hold</span>
+      <span style="background: rgba(244, 185, 66, 0.2); color: #F4B942; border: 1px solid rgba(244, 185, 66, 0.4); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: bold;">ON HOLD</span>
+    </div>
+
+    <div style="padding: 28px 24px;">
+      <h2 style="margin: 0 0 12px 0; font-size: 20px; color: #F4F7FC;">Transfer Security Confirmation Required</h2>
+      <p style="color: #A7B4C8; font-size: 14px; line-height: 1.5; margin: 0 0 20px 0;">
+        Hello <strong>{customer_name}</strong>, a transfer was initiated on your account. The funds are <strong>currently held and have NOT settled</strong>.
+      </p>
+
+      <div style="background: #080D19; border: 1px solid #25344A; border-radius: 10px; padding: 18px; margin: 0 0 24px 0;">
+        <table style="width: 100%; font-size: 13px; color: #A7B4C8; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0; color: #71819A;">Transaction Ref:</td>
+            <td style="padding: 6px 0; text-align: right; font-family: monospace; font-weight: bold; color: #F4F7FC;">{masked_ref}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #71819A;">Amount:</td>
+            <td style="padding: 6px 0; text-align: right; font-size: 16px; font-weight: bold; color: #29C5D9;">{amount:,.2f} {currency}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #71819A;">Recipient:</td>
+            <td style="padding: 6px 0; text-align: right; color: #F4F7FC;">{recipient_masked}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #71819A;">Security Check:</td>
+            <td style="padding: 6px 0; text-align: right; color: #F4B942;">{reason}</td>
+          </tr>
+        </table>
+      </div>
+
+      <p style="font-size: 13px; font-weight: 700; color: #F4F7FC; margin: 0 0 12px 0;">Did you initiate this transaction?</p>
+
+      <div style="margin: 0 0 24px 0;">
+        <a href="{confirm_url}" style="display: block; margin-bottom: 10px; padding: 12px 20px; background: #2E7D32; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold; text-align: center; font-size: 14px;">
+          ✓ Yes, I initiated this transaction
+        </a>
+        <a href="{deny_url}" style="display: block; padding: 12px 20px; background: #C62828; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold; text-align: center; font-size: 14px;">
+          ✕ No, I did NOT initiate this transaction
+        </a>
+      </div>
+
+      <p style="font-size: 11px; color: #71819A; line-height: 1.5; margin: 0;">
+        If you select "No", our security system will immediately prevent the transfer, apply an outgoing transfer restriction to protect your remaining balance, and open an investigation ticket for you.
+      </p>
+    </div>
+
+    <div style="background: #080D19; padding: 16px 24px; border-top: 1px solid #25344A; font-size: 11px; color: #71819A; text-align: center;">
+      Omerta.ai 24/7 Security Operations &bull; Direct Support: +20 2 19876
+    </div>
+  </div>
+</body>
+</html>
+"""
+        res = await EmailService.send_email(
+            to_email=to_email,
+            subject=f"⚠️ {subject}",
+            html_content=html_body,
+            text_content=text_body,
+        )
+        if res.details is not None:
+            res.details["subject"] = subject
+            res.details["confirm_url"] = f"{verification_url}?action=CONFIRM"
+            res.details["deny_url"] = f"{verification_url}?action=DENY"
+            res.details["body"] = text_body
+        return res

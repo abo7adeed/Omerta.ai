@@ -3,7 +3,7 @@
   "user_id": "USR-001",
   "title": "Suspicious structuring indicators?",
   "created_at": "2026-10-10T12:14:27.098010+00:00",
-  "updated_at": "2026-10-12T07:48:00.034601+00:00",
+  "updated_at": "2026-10-12T09:35:45.389213+00:00",
   "turns": [
     {
       "turn_id": "turn-de10ac32",
@@ -2818,6 +2818,105 @@
             },
             "status": "SUCCESS",
             "duration_ms": 98.21,
+            "result_count": 1,
+            "source_identifiers": [],
+            "error": null
+          }
+        ]
+      },
+      "thought_steps": [
+        "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+        "[02/07] Intent Decomposition & Source Selection: Extracted intents [DOCUMENT_SEARCH]. Routing to authoritative tiers: [documents].",
+        "[03/07] Multi-Source Evidence Retrieval: Retrieved 1 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+        "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+        "[07/07] Cryptographic Provenance Sealing: Verified 1 citations against canonical SHA-256 evidence hashes."
+      ],
+      "charts": [],
+      "warnings": []
+    },
+    {
+      "turn_id": "turn-db937222",
+      "sender": "user",
+      "text": "What are suspicious structuring indicators?",
+      "timestamp": "2026-10-12T09:35:45.389213+00:00",
+      "rag_response": null,
+      "thought_steps": [],
+      "charts": [],
+      "warnings": []
+    },
+    {
+      "turn_id": "turn-da5a48b7",
+      "sender": "assistant",
+      "text": "## Executive Summary  \nSuspicious structuring\u2014commonly referred to as **SMURFING**\u2014is a money\u2011laundering technique in which a single large sum is divided into multiple smaller transactions that each fall below regulatory reporting thresholds. The Omerta.ai detection engine flags a range of behavioral and transactional patterns that are indicative of structuring. These indicators are derived from the **Anti\u2011Money Laundering, Counter\u2011Terrorist Financing, and Typology Standards** (Section\u202f1) and are summarized below with inline citations.  \n\n## 1. Suspicious Structuring Indicators  \n| Indicator | Description | Typical Pattern | Citation |\n|-----------|-------------|-----------------|----------|\n| **Multiple Sub\u2011Threshold Deposits** | A series of deposits or transfers that individually stay below the reporting threshold (e.g., <$10,000) but collectively exceed it. | \u2265\u202f5 deposits of <$10,000 within a 24\u2011hour period. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Consistent Transaction Amounts** | Repeated transactions of the same or very similar amounts, suggesting a deliberate attempt to avoid detection. | \u2265\u202f3 transactions of exactly $9,800 within 48\u202fh. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Rapid Succession of Transfers** | Transactions executed in quick succession, often within minutes of each other, to obfuscate the source. | \u2265\u202f4 transfers within 30\u202fminutes. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Use of Multiple Accounts** | The same customer or related entity uses several accounts to spread the funds. | Same customer ID linked to \u2265\u202f3 distinct account IDs. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Geographic Dispersion** | Transfers routed through accounts located in different jurisdictions or countries. | Transfers to accounts in \u2265\u202f2 countries within 24\u202fh. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Unusual Beneficiary Patterns** | Beneficiaries that are unrelated to the customer\u2019s known business or personal profile. | Beneficiary accounts with no prior transaction history with the customer. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Timing Near Reporting Cut\u2011Offs** | Transactions scheduled just before or after regulatory cut\u2011off times (e.g., 23:59 local time). | Transfers at 23:55 or 00:05 local time. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **High\u2011Volume, Low\u2011Value Transfers** | A large number of low\u2011value transfers that collectively exceed the threshold. | \u2265\u202f20 transfers of <$500 each within 12\u202fh. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Pattern of Account Re\u2011opening** | Closing an account and immediately opening a new one to continue structuring. | Account closed and a new account opened within 24\u202fh. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Device or IP Anomalies** | Use of new or untrusted devices/IPs for structuring transactions. | Transactions initiated from a device not previously linked to the customer. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n\n## 2. Contextual Risk Assessment  \n- **Risk Level**: Transactions exhibiting multiple structuring indicators are typically flagged as **HIGH** risk for money\u2011laundering activity.  \n- **Review Status**: Such transactions are automatically routed to the **Compliance Review Queue** for manual investigation.  \n- **Regulatory Reporting**: If the aggregate amount exceeds the jurisdictional threshold, a **Suspicious Activity Report (SAR)** must be filed within the mandated timeframe.  \n\n## 3. Recommended Actions  \n1. **Verify Beneficiary Identity** \u2013 Confirm that the beneficiary is legitimate and has a clear business relationship with the customer.  \n2. **Cross\u2011Check KYC Records** \u2013",
+      "timestamp": "2026-10-12T09:35:45.389213+00:00",
+      "rag_response": {
+        "status": "ANSWERED",
+        "answer": "## Executive Summary  \nSuspicious structuring\u2014commonly referred to as **SMURFING**\u2014is a money\u2011laundering technique in which a single large sum is divided into multiple smaller transactions that each fall below regulatory reporting thresholds. The Omerta.ai detection engine flags a range of behavioral and transactional patterns that are indicative of structuring. These indicators are derived from the **Anti\u2011Money Laundering, Counter\u2011Terrorist Financing, and Typology Standards** (Section\u202f1) and are summarized below with inline citations.  \n\n## 1. Suspicious Structuring Indicators  \n| Indicator | Description | Typical Pattern | Citation |\n|-----------|-------------|-----------------|----------|\n| **Multiple Sub\u2011Threshold Deposits** | A series of deposits or transfers that individually stay below the reporting threshold (e.g., <$10,000) but collectively exceed it. | \u2265\u202f5 deposits of <$10,000 within a 24\u2011hour period. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Consistent Transaction Amounts** | Repeated transactions of the same or very similar amounts, suggesting a deliberate attempt to avoid detection. | \u2265\u202f3 transactions of exactly $9,800 within 48\u202fh. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Rapid Succession of Transfers** | Transactions executed in quick succession, often within minutes of each other, to obfuscate the source. | \u2265\u202f4 transfers within 30\u202fminutes. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Use of Multiple Accounts** | The same customer or related entity uses several accounts to spread the funds. | Same customer ID linked to \u2265\u202f3 distinct account IDs. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Geographic Dispersion** | Transfers routed through accounts located in different jurisdictions or countries. | Transfers to accounts in \u2265\u202f2 countries within 24\u202fh. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Unusual Beneficiary Patterns** | Beneficiaries that are unrelated to the customer\u2019s known business or personal profile. | Beneficiary accounts with no prior transaction history with the customer. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Timing Near Reporting Cut\u2011Offs** | Transactions scheduled just before or after regulatory cut\u2011off times (e.g., 23:59 local time). | Transfers at 23:55 or 00:05 local time. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **High\u2011Volume, Low\u2011Value Transfers** | A large number of low\u2011value transfers that collectively exceed the threshold. | \u2265\u202f20 transfers of <$500 each within 12\u202fh. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Pattern of Account Re\u2011opening** | Closing an account and immediately opening a new one to continue structuring. | Account closed and a new account opened within 24\u202fh. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Device or IP Anomalies** | Use of new or untrusted devices/IPs for structuring transactions. | Transactions initiated from a device not previously linked to the customer. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n\n## 2. Contextual Risk Assessment  \n- **Risk Level**: Transactions exhibiting multiple structuring indicators are typically flagged as **HIGH** risk for money\u2011laundering activity.  \n- **Review Status**: Such transactions are automatically routed to the **Compliance Review Queue** for manual investigation.  \n- **Regulatory Reporting**: If the aggregate amount exceeds the jurisdictional threshold, a **Suspicious Activity Report (SAR)** must be filed within the mandated timeframe.  \n\n## 3. Recommended Actions  \n1. **Verify Beneficiary Identity** \u2013 Confirm that the beneficiary is legitimate and has a clear business relationship with the customer.  \n2. **Cross\u2011Check KYC Records** \u2013",
+        "citations": [
+          {
+            "citation_id": "cit-a18f3fe9",
+            "evidence_id": "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0",
+            "source_type": "documents",
+            "title": "Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags",
+            "locator": "DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags",
+            "excerpt": "1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination."
+          }
+        ],
+        "evidence_ids": [
+          "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0"
+        ],
+        "sources_used": [
+          "documents"
+        ],
+        "response_blocks": [
+          {
+            "type": "warning",
+            "title": "Forensic Compliance Advisory (FATF / ISO-20022)",
+            "message": "Identified indicators reflect algorithmic risk anomalies and do not constitute legal determinations of culpability. In accordance with internal AML/CFT governance and banking regulations, any account freezing or formal Suspicious Activity Report (SAR) filing requires multi-eye human compliance officer sign-off."
+          },
+          {
+            "type": "text",
+            "content": "## Executive Summary  \nSuspicious structuring\u2014commonly referred to as **SMURFING**\u2014is a money\u2011laundering technique in which a single large sum is divided into multiple smaller transactions that each fall below regulatory reporting thresholds. The Omerta.ai detection engine flags a range of behavioral and transactional patterns that are indicative of structuring. These indicators are derived from the **Anti\u2011Money Laundering, Counter\u2011Terrorist Financing, and Typology Standards** (Section\u202f1) and are summarized below with inline citations.  \n\n## 1. Suspicious Structuring Indicators  \n| Indicator | Description | Typical Pattern | Citation |\n|-----------|-------------|-----------------|----------|\n| **Multiple Sub\u2011Threshold Deposits** | A series of deposits or transfers that individually stay below the reporting threshold (e.g., <$10,000) but collectively exceed it. | \u2265\u202f5 deposits of <$10,000 within a 24\u2011hour period. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Consistent Transaction Amounts** | Repeated transactions of the same or very similar amounts, suggesting a deliberate attempt to avoid detection. | \u2265\u202f3 transactions of exactly $9,800 within 48\u202fh. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Rapid Succession of Transfers** | Transactions executed in quick succession, often within minutes of each other, to obfuscate the source. | \u2265\u202f4 transfers within 30\u202fminutes. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Use of Multiple Accounts** | The same customer or related entity uses several accounts to spread the funds. | Same customer ID linked to \u2265\u202f3 distinct account IDs. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Geographic Dispersion** | Transfers routed through accounts located in different jurisdictions or countries. | Transfers to accounts in \u2265\u202f2 countries within 24\u202fh. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Unusual Beneficiary Patterns** | Beneficiaries that are unrelated to the customer\u2019s known business or personal profile. | Beneficiary accounts with no prior transaction history with the customer. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Timing Near Reporting Cut\u2011Offs** | Transactions scheduled just before or after regulatory cut\u2011off times (e.g., 23:59 local time). | Transfers at 23:55 or 00:05 local time. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **High\u2011Volume, Low\u2011Value Transfers** | A large number of low\u2011value transfers that collectively exceed the threshold. | \u2265\u202f20 transfers of <$500 each within 12\u202fh. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Pattern of Account Re\u2011opening** | Closing an account and immediately opening a new one to continue structuring. | Account closed and a new account opened within 24\u202fh. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n| **Device or IP Anomalies** | Use of new or untrusted devices/IPs for structuring transactions. | Transactions initiated from a device not previously linked to the customer. | [DOC-AML-001, v3, \u00a7Section\u202f1] |\n\n## 2. Contextual Risk Assessment  \n- **Risk Level**: Transactions exhibiting multiple structuring indicators are typically flagged as **HIGH** risk for money\u2011laundering activity.  \n- **Review Status**: Such transactions are automatically routed to the **Compliance Review Queue** for manual investigation.  \n- **Regulatory Reporting**: If the aggregate amount exceeds the jurisdictional threshold, a **Suspicious Activity Report (SAR)** must be filed within the mandated timeframe.  \n\n## 3. Recommended Actions  \n1. **Verify Beneficiary Identity** \u2013 Confirm that the beneficiary is legitimate and has a clear business relationship with the customer.  \n2. **Cross\u2011Check KYC Records** \u2013"
+          },
+          {
+            "type": "citation",
+            "citations": [
+              {
+                "citation_id": "cit-a18f3fe9",
+                "evidence_id": "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0",
+                "source_type": "documents",
+                "title": "Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags",
+                "locator": "DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags",
+                "excerpt": "1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination."
+              }
+            ]
+          }
+        ],
+        "limitations": [],
+        "clarification_question": null,
+        "investigation_id": "rag-inv-2f8b056b7c",
+        "execution_time_ms": 2189.49,
+        "charts": [],
+        "thought_steps": [
+          "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+          "[02/07] Intent Decomposition & Source Selection: Extracted intents [DOCUMENT_SEARCH]. Routing to authoritative tiers: [documents].",
+          "[03/07] Multi-Source Evidence Retrieval: Retrieved 1 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+          "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+          "[07/07] Cryptographic Provenance Sealing: Verified 1 citations against canonical SHA-256 evidence hashes."
+        ],
+        "warnings": [],
+        "conversation_id": "sess-USR-001",
+        "forensic_trace": [
+          {
+            "intent": "DOCUMENT_SEARCH",
+            "tool_name": "search_documents",
+            "arguments": {
+              "query": "What are suspicious structuring indicators?",
+              "user_role": "FRAUD_ANALYST",
+              "top_k": 4
+            },
+            "status": "SUCCESS",
+            "duration_ms": 101.29,
             "result_count": 1,
             "source_identifiers": [],
             "error": null

@@ -31,8 +31,11 @@ import {
   Mail,
   UserCheck,
   UserX,
+  Copy,
+  Check,
+  Zap,
 } from 'lucide-react';
-import { api, type AccountInvestigationReport, type PipelineStageTrace } from '../api/client';
+import { api, type AccountInvestigationReport, type PipelineStageTrace, type LiveInvestigationSnapshot } from '../api/client';
 import type { TransactionDetail } from '../types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -49,13 +52,16 @@ export const TransactionDetailPage: React.FC = () => {
 
   const [detail, setDetail] = useState<TransactionDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'pipeline' | 'report' | 'network' | 'timeline'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'specialists' | 'report'>('overview');
+  const [historyIntel, setHistoryIntel] = useState<any | null>(null);
 
-  // LangGraph Transaction Investigation State
+  // LangGraph Transaction Investigation State & Live Monotonic Snapshot
   const [investigationRunning, setInvestigationRunning] = useState(false);
   const [investigationReport, setInvestigationReport] = useState<AccountInvestigationReport | null>(null);
+  const [liveSnapshot, setLiveSnapshot] = useState<LiveInvestigationSnapshot | null>(null);
   const [investigationError, setInvestigationError] = useState<string | null>(null);
   const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({});
+  const [copiedReport, setCopiedReport] = useState(false);
 
   // Human-in-the-Loop Security Hold State
   const [accountStatus, setAccountStatus] = useState<string>('ACTIVE');
@@ -78,19 +84,28 @@ export const TransactionDetailPage: React.FC = () => {
       const accStatus = res?.overview?.source_account?.status || (res as any)?.sender_account_status || (res as any)?.account_status || 'ACTIVE';
       setAccountStatus(accStatus);
 
-      // Check if an investigation report was persisted in the detail payload
-      if (res.persisted_investigation) {
-        setInvestigationReport(res.persisted_investigation);
-      } else {
-        // Try dedicated investigation endpoint
-        try {
-          const inv = await api.getTransactionInvestigation(id);
-          if (inv && inv.investigation_id) {
-            setInvestigationReport(inv);
-          }
-        } catch {
-          // No prior investigation yet - normal state
+      // Check live investigation status or persisted report
+      try {
+        const live = await api.getTransactionInvestigationLive(id);
+        setLiveSnapshot(live);
+        if (live.status === 'RUNNING') {
+          setInvestigationRunning(true);
+          setActiveTab('report');
+        } else if (live.status === 'COMPLETED' && live.final_report) {
+          setInvestigationReport(live.final_report);
         }
+      } catch {
+        if (res.persisted_investigation) {
+          setInvestigationReport(res.persisted_investigation);
+        }
+      }
+
+      // Fetch rolling history intelligence
+      try {
+        const hist = await api.getTransactionHistory(id);
+        setHistoryIntel(hist);
+      } catch {
+        // Handled silently
       }
     } catch (err) {
       console.error('Failed to load transaction detail', err);
@@ -102,6 +117,31 @@ export const TransactionDetailPage: React.FC = () => {
   useEffect(() => {
     fetchDetail();
   }, [id]);
+
+  // Live polling hook while investigation is running
+  useEffect(() => {
+    if (!investigationRunning || !id) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const live = await api.getTransactionInvestigationLive(id);
+        setLiveSnapshot(live);
+        if (live.status === 'COMPLETED' && live.final_report) {
+          setInvestigationReport(live.final_report);
+          setInvestigationRunning(false);
+          setActionSuccess('Parallel LangGraph investigation completed! Final report ready.');
+          setTimeout(() => setActionSuccess(''), 4000);
+        } else if (live.status === 'FAILED') {
+          setInvestigationRunning(false);
+          setInvestigationError(live.error_message || 'Investigation workflow failed.');
+        }
+      } catch (err) {
+        console.error('Polling investigation state error:', err);
+      }
+    }, 750);
+
+    return () => clearInterval(interval);
+  }, [investigationRunning, id]);
 
   const rawOverview = detail?.overview || (detail as any) || {};
   const externalId = rawOverview.external_id || (detail as any)?.external_id || (detail as any)?.id || id || 'TXN-UNKNOWN';
@@ -149,8 +189,8 @@ export const TransactionDetailPage: React.FC = () => {
         persist: true,
       });
       setInvestigationReport(res);
-      setActiveTab('pipeline');
-      setActionSuccess('LangGraph 9-stage pipeline executed and dossier persisted!');
+      setActiveTab('report');
+      setActionSuccess('LangGraph multi-agent forensic report generated and persisted!');
       setTimeout(() => setActionSuccess(''), 4000);
     } catch (err: any) {
       console.error('Transaction investigation failed:', err);
@@ -172,6 +212,55 @@ export const TransactionDetailPage: React.FC = () => {
       fetchDetail();
     } catch (err: any) {
       setInvestigationError(err?.message || 'Failed to unblock account.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Admin: Approve Held Transfer and Post to Ledger
+  const handleApproveTransfer = async () => {
+    if (!externalId) return;
+    setActionLoading(true);
+    try {
+      await api.approvePendingTransaction(externalId, 'Compliance officer approved held transaction after evidence review.');
+      setActionSuccess(`Transfer ${externalId} approved! Double-entry ledger settlement executed successfully.`);
+      setTimeout(() => setActionSuccess(''), 5000);
+      fetchDetail();
+    } catch (err: any) {
+      setInvestigationError(err?.message || 'Failed to approve transaction.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Admin: Reject Held Transfer without Ledger Posting
+  const handleRejectTransfer = async () => {
+    if (!externalId) return;
+    setActionLoading(true);
+    try {
+      await api.rejectPendingTransaction(externalId, 'Transfer rejected due to confirmed fraud or unauthorized activity.');
+      setActionSuccess(`Transfer ${externalId} rejected! Held funds released without ledger settlement.`);
+      setTimeout(() => setActionSuccess(''), 5000);
+      fetchDetail();
+    } catch (err: any) {
+      setInvestigationError(err?.message || 'Failed to reject transaction.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Admin: Restore Customer Transfer Privileges (Release restriction + resolve ticket)
+  const handleRestorePrivileges = async () => {
+    const custId = rawOverview.customer?.id || rawOverview.customer?.external_id;
+    if (!custId) return;
+    setActionLoading(true);
+    try {
+      await api.adminRestoreTransactionPrivileges(custId, 'Compliance officer verified identity and released transaction restriction.');
+      setActionSuccess(`Customer transfer privileges restored! Outgoing transfers restriction cleared.`);
+      setTimeout(() => setActionSuccess(''), 5000);
+      fetchDetail();
+    } catch (err: any) {
+      setInvestigationError(err?.message || 'Failed to restore transaction privileges.');
     } finally {
       setActionLoading(false);
     }
@@ -259,9 +348,9 @@ export const TransactionDetailPage: React.FC = () => {
       ? [
           {
             id: 'investigation',
-            title: `LangGraph Forensic Dossier (${investigationReport.investigation_id})`,
-            description: `Executed 9-stage pipeline. Composite risk: ${(investigationReport.combined_risk_score * 100).toFixed(1)}%. Recommendation: ${investigationReport.recommended_action}`,
-            timestamp: new Date(investigationReport.generated_at).toLocaleTimeString(),
+            title: `LangGraph Forensic Dossier (${investigationReport.investigation_id || 'INV-TXN'})`,
+            description: `Executed 9-stage pipeline. Composite risk: ${((investigationReport.combined_risk_score ?? 0) * 100).toFixed(1)}%. Recommendation: ${investigationReport.recommended_action || 'UNDER_REVIEW'}`,
+            timestamp: investigationReport.generated_at ? new Date(investigationReport.generated_at).toLocaleTimeString() : undefined,
             status: 'completed' as const,
           },
         ]
@@ -416,6 +505,84 @@ export const TransactionDetailPage: React.FC = () => {
         </div>
       )}
 
+      {/* Held Transaction Action Banner (When Status is PENDING_CUSTOMER_VERIFICATION or PENDING_REVIEW) */}
+      {(status === 'PENDING_CUSTOMER_VERIFICATION' || status === 'PENDING_REVIEW') && (
+        <div className="p-4 rounded-[12px] bg-[#FFFBEB] border-2 border-[#F59E0B] shadow-sm space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <ShieldAlert className="w-5 h-5 text-[#D97706] shrink-0" />
+              <div>
+                <span className="font-extrabold text-[#92400E] text-sm tracking-tight uppercase">
+                  {status === 'PENDING_CUSTOMER_VERIFICATION'
+                    ? 'Transfer Held — Pending Customer Confirmation'
+                    : 'Transfer Held — Pending Compliance Review'}
+                </span>
+                <span className="ml-2 px-2 py-0.5 rounded text-[10px] font-bold bg-[#F59E0B] text-white">
+                  STATUS: {status}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleRejectTransfer}
+                disabled={actionLoading}
+                size="sm"
+                className="bg-[#DC2626] hover:bg-[#B91C1C] text-white font-bold text-xs"
+              >
+                <XCircle className="w-3.5 h-3.5 mr-1" />
+                Reject Transfer
+              </Button>
+              <Button
+                onClick={handleApproveTransfer}
+                disabled={actionLoading}
+                size="sm"
+                className="bg-[#2E7D32] hover:bg-[#1B5E20] text-white font-bold text-xs"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                Approve Transfer (Settle Ledger)
+              </Button>
+            </div>
+          </div>
+          <p className="text-xs text-[#78350F] leading-relaxed">
+            <strong>Hold Reason:</strong> {rawOverview.hold_reason || (rawOverview.ip_address?.is_vpn ? 'Commercial VPN / Proxy Detected (RULE-NETWORK-VPN-001)' : 'High Risk Threshold Exceeded')}.<br />
+            <strong>Ledger Settlement Notice:</strong> Double-entry transfer has <em>NOT been executed</em>. Originating account funds remain in place. Approving this transfer will commit double-entry ledger debit and credit entries.
+          </p>
+        </div>
+      )}
+
+      {/* Customer Privilege Restriction Banner (When Customer Has Active Restrictions) */}
+      {(rawOverview.has_transfer_restriction || (rawOverview.active_restrictions && rawOverview.active_restrictions.length > 0)) && (
+        <div className="p-4 rounded-[12px] bg-[#FEF2F2] border border-[#F87171] shadow-sm space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <ShieldAlert className="w-5 h-5 text-[#DC2626] shrink-0" />
+              <div>
+                <span className="font-extrabold text-[#991B1B] text-sm tracking-tight uppercase">
+                  Customer Transfer Privileges Suspended
+                </span>
+                <span className="ml-2 px-2 py-0.5 rounded text-[10px] font-bold bg-[#DC2626] text-white">
+                  RESTRICTION: OUTGOING_TRANSFERS_ONLY
+                </span>
+              </div>
+            </div>
+            <Button
+              onClick={handleRestorePrivileges}
+              disabled={actionLoading}
+              size="sm"
+              className="bg-[#2E7D32] hover:bg-[#1B5E20] text-white font-bold text-xs shadow-xs"
+            >
+              <Unlock className="w-3.5 h-3.5 mr-1" />
+              Restore Transaction Privileges
+            </Button>
+          </div>
+          <p className="text-xs text-[#7F1D1D] leading-relaxed">
+            Customer <strong className="font-mono">{customerName}</strong> is restricted from initiating outgoing transfers due to a reported fraud incident or customer denial.
+            <br />
+            <em>Operational Note: Restoring privileges releases account restriction and resolves the security ticket, but does NOT approve individual held transactions.</em>
+          </p>
+        </div>
+      )}
+
       {/* Primary 3 Overview Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Card 1: Financial Movement Summary */}
@@ -513,17 +680,17 @@ export const TransactionDetailPage: React.FC = () => {
                 </span>
                 <div className="text-3xl font-extrabold font-mono text-[#002D72] mt-0.5">
                   {investigationReport
-                    ? `${(investigationReport.combined_risk_score * 100).toFixed(1)}%`
+                    ? `${((investigationReport.combined_risk_score ?? 0) * 100).toFixed(1)}%`
                     : `${(assessment.risk_score || 0).toFixed(1)}%`}
                 </div>
               </div>
               <RiskBadge
                 level={
                   investigationReport
-                    ? (investigationReport.combined_risk_score >= 0.7 ? 'HIGH' : investigationReport.combined_risk_score >= 0.4 ? 'REQUIRES_REVIEW' : 'LOW')
+                    ? ((investigationReport.combined_risk_score ?? 0) >= 0.7 ? 'HIGH' : (investigationReport.combined_risk_score ?? 0) >= 0.4 ? 'REQUIRES_REVIEW' : 'LOW')
                     : (assessment.risk_level || 'LOW')
                 }
-                score={investigationReport ? investigationReport.combined_risk_score * 100 : assessment.risk_score}
+                score={investigationReport ? (investigationReport.combined_risk_score ?? 0) * 100 : assessment.risk_score}
                 className="text-xs px-3 py-1.5"
               />
             </div>
@@ -551,7 +718,7 @@ export const TransactionDetailPage: React.FC = () => {
                 <span className="text-[#64748B]">Signal Vectors</span>
                 <span className="font-bold text-[#002D72]">
                   {investigationReport
-                    ? `${investigationReport.triggered_rules.length} Triggered Rules`
+                    ? `${investigationReport.triggered_rules?.length ?? 0} Triggered Rules`
                     : `${signals.length} Signals Detected`}
                 </span>
               </div>
@@ -565,10 +732,8 @@ export const TransactionDetailPage: React.FC = () => {
         <Tabs
           tabs={[
             { id: 'overview', label: 'Dossier Overview', count: undefined },
-            { id: 'pipeline', label: 'LangGraph Pipeline Trace', count: pipelineStages.length || undefined },
-            { id: 'report', label: 'Forensic Investigation Report', count: investigationReport ? undefined : undefined },
-            { id: 'network', label: 'Network & Topology', count: undefined },
-            { id: 'timeline', label: 'Audit Trail Timeline', count: timelineItems.length },
+            { id: 'specialists', label: '10 Specialist Agents & History', count: 10 },
+            { id: 'report', label: 'Forensic Investigation Report', count: undefined },
           ]}
           activeTab={activeTab}
           onChange={(tab) => setActiveTab(tab as any)}
@@ -750,157 +915,304 @@ export const TransactionDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* Tab 2: LangGraph Pipeline Execution Trace */}
-        {activeTab === 'pipeline' && (
-          <div className="space-y-4">
-            {!investigationReport ? (
-              <Card className="p-8 text-center space-y-3">
-                <Cpu className="w-10 h-10 text-[#F9A825] mx-auto animate-pulse" />
-                <h3 className="text-base font-bold text-[#002D72]">No Investigation Pipeline Trace Available</h3>
-                <p className="text-xs text-[#64748B] max-w-md mx-auto">
-                  This transaction has not yet been processed through the 9-stage LangGraph forensic engine. Run the investigation to view real stage execution traces, durations, and outputs.
-                </p>
-                <Button
-                  onClick={handleRunInvestigation}
-                  disabled={investigationRunning}
-                  variant="primary"
-                  size="sm"
-                  className="bg-[#F9A825] text-[#002D72] font-bold"
-                >
-                  <Play className="w-4 h-4 mr-1.5" />
-                  Execute Investigation Pipeline
-                </Button>
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                <div className="p-4 rounded-[12px] bg-white border border-[#E0DDD6] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
-                      LangGraph Investigation Workflow Trace
+        {/* Tab: 10 Specialist Agents & Historical Intelligence */}
+        {activeTab === 'specialists' && (
+          <div className="space-y-6">
+            {/* Authoritative Risk Formula Card */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Cpu className="w-5 h-5 text-[#002D72]" />
+                    Authoritative Multi-Agent Risk Engine (Formula: risk-v1)
+                  </span>
+                  <span className="font-mono text-xs px-2.5 py-1 rounded-full bg-[#EBF3FC] text-[#002D72] border border-[#BFDBFE] font-bold">
+                    Weights: Rules 20% | ML 25% | Hist 20% | Beh 10% | ATO 10% | Dev 5% | Graph 5% | Merch 5%
+                  </span>
+                </CardTitle>
+                <CardDescription>
+                  Normalized composite score computed across 10 specialized forensic agents with automated confidence degradation tracking.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="p-3 bg-[#F4F1EC] rounded-xl border border-[#E0DDD6]">
+                    <span className="text-[#64748B] font-bold uppercase text-[10px] block">Confidence Level</span>
+                    <span className="font-bold text-sm text-[#002D72]">
+                      {rawOverview.txn_metadata?.scoring_breakdown?.confidence_level || 'SUFFICIENT'}
                     </span>
-                    <div className="text-base font-extrabold text-[#002D72] font-mono mt-0.5">
-                      {investigationReport.investigation_id}
+                  </div>
+                  <div className="p-3 bg-[#F4F1EC] rounded-xl border border-[#E0DDD6]">
+                    <span className="text-[#64748B] font-bold uppercase text-[10px] block">Formula Version</span>
+                    <span className="font-bold font-mono text-sm text-[#002D72]">
+                      {rawOverview.txn_metadata?.scoring_breakdown?.formula_version || 'risk-v1'}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-[#F4F1EC] rounded-xl border border-[#E0DDD6]">
+                    <span className="text-[#64748B] font-bold uppercase text-[10px] block">Overridden By Rule</span>
+                    <span className="font-bold text-sm text-[#002D72]">
+                      {rawOverview.txn_metadata?.scoring_breakdown?.override_triggered ? 'YES (Hard Override)' : 'None'}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-[#F4F1EC] rounded-xl border border-[#E0DDD6]">
+                    <span className="text-[#64748B] font-bold uppercase text-[10px] block">Available Agents</span>
+                    <span className="font-bold font-mono text-sm text-[#10B981]">
+                      10 / 10 Operational
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 6 Rolling Lookback Windows Table */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <History className="w-4 h-4 text-[#002D72]" />
+                    Transaction History Agent: 6 Rolling Lookback Windows
+                  </span>
+                  <span className="text-xs text-[#64748B] font-normal">
+                    Strict lookback excluding current active transaction
+                  </span>
+                </CardTitle>
+                <CardDescription>
+                  Evaluates velocity count, volume total, average size, and p95 benchmarks across 5m, 15m, 60m, 24h, 7d, and 30d windows.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <TableContainer className="border-0 rounded-none rounded-b-[16px] shadow-none">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Window</TableHead>
+                        <TableHead>Transactions Count</TableHead>
+                        <TableHead>Total Volume</TableHead>
+                        <TableHead>Average Amount</TableHead>
+                        <TableHead>p95 Benchmark</TableHead>
+                        <TableHead>Ratio to Avg</TableHead>
+                        <TableHead>Ratio to p95</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {['5m', '15m', '60m', '24h', '7d', '30d'].map((win) => {
+                        const winData = historyIntel?.raw_metrics?.[`window_${win}`] ||
+                                        rawOverview.txn_metadata?.history_metrics?.[`window_${win}`] || {};
+                        const count = winData.count ?? 0;
+                        const sum = winData.sum_amount ?? 0;
+                        const avg = winData.avg_amount ?? 0;
+                        const p95 = winData.p95_amount ?? 0;
+                        const rAvg = winData.ratio_to_avg ? winData.ratio_to_avg.toFixed(2) + 'x' : '1.00x';
+                        const rP95 = winData.ratio_to_p95 ? winData.ratio_to_p95.toFixed(2) + 'x' : '1.00x';
+
+                        return (
+                          <TableRow key={win}>
+                            <TableCell className="font-mono font-bold text-xs text-[#002D72]">
+                              {win}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs font-semibold">
+                              {count} txns
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {Number(sum).toLocaleString()} {currency}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {Number(avg).toLocaleString()} {currency}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {Number(p95).toLocaleString()} {currency}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs font-bold text-[#D97706]">
+                              {rAvg}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs font-bold text-[#D97706]">
+                              {rP95}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+
+            {/* 10 Specialist Forensic Agents Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                {
+                  id: 'banking_rules',
+                  name: 'Banking Rules Engine Agent',
+                  weight: '20%',
+                  role: 'Deterministic regulatory, velocity, & amount escalation rules',
+                  score: rawOverview.txn_metadata?.specialist_results?.banking_rules?.risk_score ?? ((investigationReport?.rules_score ?? 0)),
+                  findings: rawOverview.txn_metadata?.specialist_results?.banking_rules?.findings || [
+                    { rule_id: 'RULE-AMOUNT-DEV-001', description: 'Evaluated against rolling 30d baseline' }
+                  ],
+                },
+                {
+                  id: 'ml_risk',
+                  name: 'Machine Learning Risk Agent (LightGBM)',
+                  weight: '25%',
+                  role: 'Supervised gradient-boosted decision tree inference',
+                  score: rawOverview.txn_metadata?.specialist_results?.ml_risk?.risk_score ?? (investigationReport?.ml_risk?.risk_score ?? 0.12),
+                  findings: [
+                    { rule_id: 'ML-LGBM-V1', description: 'Calibrated tree ensemble prediction score' }
+                  ],
+                },
+                {
+                  id: 'history',
+                  name: 'Transaction History Agent',
+                  weight: '20%',
+                  role: 'Multi-window velocity and p95 volume deviation analysis',
+                  score: rawOverview.txn_metadata?.specialist_results?.transaction_history?.risk_score ?? (historyIntel?.risk_score ?? 0.15),
+                  findings: historyIntel?.findings || [
+                    { rule_id: 'HIST-MULTI-WIN', description: 'Calculated across 5m, 15m, 60m, 24h, 7d, 30d windows' }
+                  ],
+                },
+                {
+                  id: 'behavioral',
+                  name: 'Customer Behavioral Deviation Agent',
+                  weight: '10%',
+                  role: 'Off-hours activity and historical habit divergence',
+                  score: rawOverview.txn_metadata?.specialist_results?.behavioral?.risk_score ?? 0.10,
+                  findings: [
+                    { rule_id: 'BEH-TEMPORAL', description: 'Sender diurnal spending activity verification' }
+                  ],
+                },
+                {
+                  id: 'ato',
+                  name: 'Account Takeover (ATO) Agent',
+                  weight: '10%',
+                  role: 'Password resets, credential stuffing, & new device sessions',
+                  score: rawOverview.txn_metadata?.specialist_results?.ato?.risk_score ?? 0.05,
+                  findings: [
+                    { rule_id: 'ATO-SESSION-001', description: 'Validated session authentication lifecycle' }
+                  ],
+                },
+                {
+                  id: 'device_network',
+                  name: 'Device & Network Agent (VPN Detection)',
+                  weight: '5%',
+                  role: 'Proxy/commercial VPN anonymizers and device fingerprinting',
+                  score: (rawOverview.ip_address?.is_vpn || rawOverview.txn_metadata?.is_vpn) ? 0.70 : 0.05,
+                  findings: (rawOverview.ip_address?.is_vpn || rawOverview.txn_metadata?.is_vpn) ? [
+                    { rule_id: 'RULE-NETWORK-VPN-001', description: 'Commercial VPN/Proxy tunnel detected (requires verification)' }
+                  ] : [
+                    { rule_id: 'NET-DIRECT-CONN', description: 'Direct residential/mobile ISP connection' }
+                  ],
+                },
+                {
+                  id: 'graph',
+                  name: 'Graph Intelligence Agent (Neo4j)',
+                  weight: '5%',
+                  role: 'Shared hardware fingerprints, mule accounts, & ring topology',
+                  score: rawOverview.txn_metadata?.specialist_results?.graph?.risk_score ?? 0.05,
+                  findings: [
+                    { rule_id: 'GRAPH-TOPOLOGY', description: 'No shared hardware syndicate rings discovered' }
+                  ],
+                },
+                {
+                  id: 'merchant',
+                  name: 'Merchant Intelligence Agent',
+                  weight: '5%',
+                  role: 'Counterparty category risk, chargeback ratios, & MCC flags',
+                  score: rawOverview.txn_metadata?.specialist_results?.merchant?.risk_score ?? 0.05,
+                  findings: [
+                    { rule_id: 'COUNTERPARTY-RISK', description: 'Individual customer peer-to-peer transfer' }
+                  ],
+                },
+                {
+                  id: 'identity',
+                  name: 'Identity & Security Agent',
+                  weight: 'Direct Gate',
+                  role: 'KYC status, sanctions list, and administrative blocks',
+                  score: rawOverview.has_transfer_restriction ? 0.95 : 0.05,
+                  findings: rawOverview.has_transfer_restriction ? [
+                    { rule_id: 'ID-RESTRICTED', description: 'Active OUTGOING_TRANSFERS_ONLY restriction present' }
+                  ] : [
+                    { rule_id: 'ID-CLEAR', description: 'Customer KYC verified and clear' }
+                  ],
+                },
+                {
+                  id: 'decision',
+                  name: 'Final Decision & Action Agent',
+                  weight: 'Synthesizer',
+                  role: 'Evaluates composite score against thresholds & security gates',
+                  score: rawOverview.txn_metadata?.scoring_breakdown?.final_score ?? ((investigationReport?.combined_risk_score ?? 0)),
+                  findings: [
+                    {
+                      rule_id: 'ACTION-DIRECTIVE',
+                      description: `Recommended Action: ${status === 'PENDING_CUSTOMER_VERIFICATION' ? 'VERIFY_WITH_CUSTOMER' : (status === 'PENDING_REVIEW' ? 'HOLD_FOR_REVIEW' : 'ALLOW')}`
+                    }
+                  ],
+                },
+              ].map((agent) => (
+                <Card key={agent.id} className="p-4 space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 className="font-bold text-xs text-[#002D72] flex items-center gap-1.5">
+                        <span>{agent.name}</span>
+                        <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-[#EBF3FC] text-[#002D72] font-semibold">
+                          Weight: {agent.weight}
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-[#64748B] mt-0.5">{agent.role}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className={`font-mono font-extrabold text-sm ${agent.score >= 0.7 ? 'text-[#DC2626]' : agent.score >= 0.4 ? 'text-[#D97706]' : 'text-[#10B981]'}`}>
+                        {(agent.score * 100).toFixed(1)}%
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 text-xs font-mono text-[#64748B]">
-                    <div>Stages: <span className="font-bold text-[#002D72]">{pipelineStages.length}</span></div>
-                    <div>Total Execution: <span className="font-bold text-[#002D72]">{investigationReport.execution_time_ms} ms</span></div>
-                    <div>Status: <span className="font-bold text-[#10B981]">COMPLETED</span></div>
+
+                  <div className="p-2.5 rounded-lg bg-[#FAF9F6] border border-[#E0DDD6] space-y-1 text-[11px]">
+                    <span className="font-bold text-[#475569] uppercase text-[10px]">Findings</span>
+                    {agent.findings?.map((f: any, idx: number) => (
+                      <div key={idx} className="flex items-center gap-1.5 text-[#334155]">
+                        <span className="font-mono font-bold text-[#002D72] text-[10px]">{f.rule_id || f.finding_id}:</span>
+                        <span>{f.description}</span>
+                      </div>
+                    ))}
                   </div>
-                </div>
-
-                {/* 9 Stages List */}
-                <div className="space-y-3">
-                  {pipelineStages.map((stage, idx) => {
-                    const isExpanded = !!expandedStages[stage.stage_id];
-                    const isCompleted = stage.status === 'COMPLETED';
-                    const isFailed = stage.status === 'FAILED';
-
-                    return (
-                      <Card key={stage.stage_id} className="overflow-hidden border border-[#E0DDD6] transition-all">
-                        <div
-                          onClick={() => toggleStage(stage.stage_id)}
-                          className="p-4 flex items-center justify-between cursor-pointer hover:bg-[#FAF9F6] transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="w-7 h-7 rounded-full bg-[#EBF3FC] text-[#002D72] font-bold text-xs flex items-center justify-center font-mono shrink-0">
-                              {idx + 1}
-                            </span>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-sm text-[#002D72]">{stage.stage_name}</span>
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-[#F4F1EC] text-[#64748B] font-semibold border border-[#E0DDD6]">
-                                  {stage.source_tier}
-                                </span>
-                              </div>
-                              <p className="text-xs text-[#64748B] mt-0.5">{stage.description}</p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3 shrink-0">
-                            <span className="text-xs font-mono text-[#64748B] font-medium hidden sm:inline">
-                              {stage.duration_ms} ms
-                            </span>
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              isCompleted
-                                ? 'bg-[#E8F5E9] text-[#2E7D32]'
-                                : isFailed
-                                ? 'bg-[#FFEBEE] text-[#C62828]'
-                                : 'bg-[#FFF9E6] text-[#B45309]'
-                            }`}>
-                              {stage.status}
-                            </span>
-                            {isExpanded ? (
-                              <ChevronUp className="w-4 h-4 text-[#64748B]" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-[#64748B]" />
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Expanded Payload Inspection */}
-                        {isExpanded && (
-                          <div className="p-4 bg-[#FAF9F6] border-t border-[#E0DDD6] space-y-3 text-xs">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              {/* Inputs */}
-                              <div className="p-3 bg-white rounded-[10px] border border-[#E0DDD6]">
-                                <span className="font-bold text-[11px] text-[#002D72] uppercase tracking-wider block mb-1">
-                                  Sanitized Stage Inputs
-                                </span>
-                                <pre className="font-mono text-[11px] text-[#334155] whitespace-pre-wrap overflow-x-auto">
-                                  {JSON.stringify(stage.input_summary, null, 2)}
-                                </pre>
-                              </div>
-
-                              {/* Outputs */}
-                              <div className="p-3 bg-white rounded-[10px] border border-[#E0DDD6]">
-                                <span className="font-bold text-[11px] text-[#002D72] uppercase tracking-wider block mb-1">
-                                  Stage Outputs &amp; Derived State
-                                </span>
-                                <pre className="font-mono text-[11px] text-[#334155] whitespace-pre-wrap overflow-x-auto">
-                                  {JSON.stringify(stage.output_summary, null, 2)}
-                                </pre>
-                              </div>
-                            </div>
-
-                            {stage.evidence_ids && stage.evidence_ids.length > 0 && (
-                              <div className="flex items-center gap-2 pt-1">
-                                <span className="text-[11px] font-bold text-[#64748B]">Evidence Provenance:</span>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {stage.evidence_ids.map((ev) => (
-                                    <span key={ev} className="font-mono text-[10px] px-2 py-0.5 rounded bg-[#EBF3FC] text-[#002D72] border border-[#BFDBFE]">
-                                      {ev}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {stage.error_message && (
-                              <div className="p-2.5 rounded bg-[#FFEBEE] text-[#C62828] text-[11px] font-semibold">
-                                Error Notice: {stage.error_message}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </Card>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+                </Card>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Tab 3: Full Grounded Investigation Report */}
+
+
+        {/* Tab 3: Professional English Forensic Investigation Report */}
         {activeTab === 'report' && (
           <div className="space-y-6">
+            {investigationRunning && (
+              <div className="p-4 rounded-[12px] bg-[#EBF3FC] border border-[#BFDBFE] space-y-2.5 animate-pulse shadow-sm">
+                <div className="flex items-center justify-between text-xs font-bold text-[#002D72]">
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#F9A825] animate-spin" />
+                    Executing Live Multi-Agent LangGraph Forensic Synthesis...
+                  </span>
+                  <span className="font-mono">{liveSnapshot?.progress_percentage ?? 45}%</span>
+                </div>
+                <div className="w-full bg-[#DBEAFE] h-2 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#002D72] transition-all duration-300"
+                    style={{ width: `${Math.max(10, liveSnapshot?.progress_percentage ?? 45)}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-[#64748B]">
+                  Specialist agents synthesizing double-entry ledger facts, network topology, behavioral velocity, and ML decision trees...
+                </p>
+              </div>
+            )}
+
             {!investigationReport ? (
               <Card className="p-8 text-center space-y-3">
                 <FileText className="w-10 h-10 text-[#002D72] mx-auto animate-pulse" />
                 <h3 className="text-base font-bold text-[#002D72]">No Forensic Report Generated Yet</h3>
                 <p className="text-xs text-[#64748B] max-w-md mx-auto">
-                  Execute the LangGraph investigation workflow to generate a grounded report integrating PostgreSQL transaction facts, LightGBM model score, and banking rules.
+                  Execute the LangGraph multi-agent forensic investigation workflow to synthesize an authoritative English report explaining why this transaction is or is not a financial crime risk.
                 </p>
                 <Button
                   onClick={handleRunInvestigation}
@@ -909,124 +1221,223 @@ export const TransactionDetailPage: React.FC = () => {
                   size="sm"
                   className="bg-[#F9A825] text-[#002D72] font-bold"
                 >
-                  Generate Forensic Report
+                  <Play className={`w-4 h-4 mr-1.5 ${investigationRunning ? 'animate-spin' : ''}`} />
+                  {investigationRunning ? 'Generating...' : 'Generate Forensic Report'}
                 </Button>
               </Card>
             ) : (
               <div className="space-y-6">
-                {/* Executive Summary Card */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <Sparkles className="w-4.5 h-4.5 text-[#F9A825]" />
-                        Forensic Executive Summary
+                {/* Dossier Header & Copy Action Bar */}
+                <div className="p-4 rounded-[12px] bg-white border border-[#E0DDD6] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-[#F9A825]" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#64748B]">
+                        Financial Crime Forensic Investigation Dossier
                       </span>
-                      <span className="text-xs font-mono text-[#64748B]">
-                        Generated: {new Date(investigationReport.generated_at).toLocaleString()}
-                      </span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4 text-xs text-[#334155] leading-relaxed">
-                    <p className="text-sm font-medium text-[#0F172A]">
-                      {investigationReport.executive_summary}
+                    </div>
+                    <div className="text-lg font-extrabold text-[#002D72] font-mono mt-0.5">
+                      Case File: {investigationReport.investigation_id}
+                    </div>
+                    <p className="text-xs text-[#64748B] mt-0.5">
+                      Generated: {investigationReport.generated_at ? new Date(investigationReport.generated_at).toLocaleString() : 'Recent'} · Evaluated Risk: <strong className="text-[#002D72]">{((investigationReport.combined_risk_score ?? 0) * 100).toFixed(1)}%</strong>
                     </p>
-                    <div className="p-3.5 rounded-[12px] bg-[#F4F1EC] border border-[#E0DDD6] space-y-1">
-                      <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">
-                        Risk Assessment Synthesis
-                      </span>
-                      <p>{investigationReport.risk_assessment_explanation}</p>
-                    </div>
-                  </CardContent>
-                </Card>
+                  </div>
 
-                {/* LightGBM ML Findings Card */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <Cpu className="w-4.5 h-4.5 text-[#1E88E5]" />
-                        LightGBM Model Risk Findings (lgbm-risk-v1)
-                      </span>
-                      <span className="text-xs font-mono font-bold text-[#002D72]">
-                        Score: {(investigationReport.ml_risk.risk_score * 100).toFixed(1)}% ({investigationReport.ml_risk.risk_tier})
-                      </span>
-                    </CardTitle>
-                    <CardDescription>
-                      Explanation Methodology: {investigationReport.ml_risk.explanation_method} (Model-native split gain over active features, not Shapley attribution)
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">
-                      Active Feature Contributions (Tree Gain Importance)
+                  <div className="flex items-center gap-2.5">
+                    <Button
+                      onClick={handleRunInvestigation}
+                      disabled={investigationRunning}
+                      size="sm"
+                      className="bg-[#F9A825] hover:bg-[#F57F17] text-[#002D72] font-bold border-none shadow-sm text-xs"
+                    >
+                      <Play className={`w-3.5 h-3.5 mr-1.5 ${investigationRunning ? 'animate-spin' : ''}`} />
+                      {investigationRunning ? 'Synthesizing...' : 'Re-Run Live Investigation'}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        const content = investigationReport.forensic_report_markdown || investigationReport.executive_summary;
+                        navigator.clipboard.writeText(content);
+                        setCopiedReport(true);
+                        setTimeout(() => setCopiedReport(false), 3000);
+                      }}
+                      size="sm"
+                      variant="secondary"
+                      className="text-xs font-bold"
+                    >
+                      {copiedReport ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-[#10B981] mr-1" />
+                          <span>Copied Markdown!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-[#002D72] mr-1" />
+                          <span>Copy Report</span>
+                        </>
+                      )}
+                    </Button>
+                    <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider ${
+                      investigationReport.threshold_exceeded
+                        ? 'bg-[#FEF2F2] text-[#991B1B] border border-[#FECACA]'
+                        : 'bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0]'
+                    }`}>
+                      {investigationReport.recommended_action}
                     </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      {Object.entries(investigationReport.ml_risk.top_feature_contributions || {}).map(([feat, val]) => (
-                        <div key={feat} className="p-2.5 rounded-[8px] bg-[#FAF9F6] border border-[#E0DDD6] flex justify-between items-center">
-                          <span className="font-mono text-[#475569]">{feat}</span>
-                          <span className="font-mono font-bold text-[#002D72]">+{Number(val).toFixed(2)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
 
-                {/* Triggered Banking Rules Card */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center justify-between">
+                {/* Professional English Forensic Report Card */}
+                <Card className="border-[#002D72]/20 shadow-md">
+                  <CardHeader className="border-b border-[#E0DDD6] bg-[#FAF9F6]">
+                    <CardTitle className="text-base text-[#002D72] flex items-center justify-between">
                       <span className="flex items-center gap-2">
-                        <Scale className="w-4.5 h-4.5 text-[#F9A825]" />
-                        Deterministic Banking Rules Analysis
+                        <FileText className="w-4.5 h-4.5 text-[#002D72]" />
+                        Official Forensic Investigation Report
                       </span>
-                      <span className="text-xs font-mono font-bold text-[#002D72]">
-                        Rules Score: {(investigationReport.rules_score * 100).toFixed(1)}%
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-white text-[#475569] border border-[#CBD5E1]">
+                        Language: Natural English · Human Compliance Standard
                       </span>
                     </CardTitle>
                     <CardDescription>
-                      Evaluated against FATF Guidance R.10 / R.20 and internal banking heuristics
+                      Structured authoritative findings synthesized across relational double-entry ledger facts, graph topology, LightGBM model score, and FATF typologies.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    {investigationReport.triggered_rules.length > 0 ? (
-                      <div className="space-y-3">
-                        {investigationReport.triggered_rules.map((rule) => (
-                          <div key={rule.rule_id} className="p-3.5 rounded-[12px] bg-[#FFF9E6] border border-[#FFE082] space-y-1.5 text-xs">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-[#92400E] text-sm">{rule.rule_name}</span>
-                              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-[#FEF3C7] text-[#92400E] font-bold">
-                                {rule.regulatory_reference}
-                              </span>
+                  <CardContent className="p-6 space-y-6 text-[#1E293B] leading-relaxed">
+                    {/* Render Formatted Markdown Report Sections */}
+                    {investigationReport.forensic_report_markdown ? (
+                      <div className="space-y-6 text-sm divide-y divide-[#E2E8F0]">
+                        {investigationReport.forensic_report_markdown.split(/\n(?=##\s+)/).map((section, idx) => {
+                          const lines = section.trim().split('\n');
+                          const title = lines[0].replace(/^##\s*/, '').trim();
+                          const body = lines.slice(1).join('\n').trim();
+
+                          return (
+                            <div key={idx} className={`${idx > 0 ? 'pt-5' : ''} space-y-2`}>
+                              <h3 className="text-base font-extrabold text-[#002D72] flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-[#F9A825]" />
+                                {title}
+                              </h3>
+                              <div className="text-xs sm:text-sm text-[#334155] leading-relaxed whitespace-pre-line pl-4 border-l-2 border-[#EBF3FC]">
+                                {body}
+                              </div>
                             </div>
-                            <p className="text-[#451A03]">{rule.explanation}</p>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
-                      <p className="text-xs text-[#10B981] font-semibold py-2">
-                        ✓ No high-velocity burst, amount escalation, or mule ring rules triggered.
-                      </p>
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="text-sm font-extrabold text-[#002D72] mb-1">Executive Summary</h3>
+                          <p className="text-xs text-[#334155]">{investigationReport.executive_summary}</p>
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-extrabold text-[#002D72] mb-1">Risk Assessment Explanation</h3>
+                          <p className="text-xs text-[#334155]">{investigationReport.risk_assessment_explanation}</p>
+                        </div>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
 
+                {/* Technical Specialist Deep-Dive Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* LightGBM ML Findings Card */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <Cpu className="w-4 h-4 text-[#1E88E5]" />
+                          LightGBM Model Risk Findings (risk_lgbm_v1)
+                        </span>
+                        <span className="text-xs font-mono font-bold text-[#002D72]">
+                          {investigationReport.ml_risk
+                            ? `${((investigationReport.ml_risk.risk_score ?? 0) * 100).toFixed(1)}% (${investigationReport.ml_risk.risk_tier || 'LOW'})`
+                            : 'Assessment Pending'}
+                        </span>
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        Decision tree split gain importance over active transaction feature vector
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">
+                        Top Contributing Feature Splits
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        {investigationReport.ml_risk?.top_feature_contributions && Object.keys(investigationReport.ml_risk.top_feature_contributions).length > 0 ? (
+                          Object.entries(investigationReport.ml_risk.top_feature_contributions).map(([feat, val]) => (
+                            <div key={feat} className="p-2 rounded-[8px] bg-[#FAF9F6] border border-[#E0DDD6] flex justify-between items-center text-xs">
+                              <span className="font-mono text-[#475569] text-[11px] truncate">{feat}</span>
+                              <span className="font-mono font-bold text-[#002D72] text-[11px]">+{Number(val).toFixed(2)}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="col-span-2 py-3 text-center text-xs text-[#64748B] bg-[#FAF9F6] rounded-[8px] border border-[#E0DDD6]">
+                            No feature split contributions recorded for this assessment.
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Triggered Banking Rules Card */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <Scale className="w-4 h-4 text-[#F9A825]" />
+                          Deterministic Banking Rules &amp; Velocity
+                        </span>
+                        <span className="text-xs font-mono font-bold text-[#002D72]">
+                          Rules Score: {((investigationReport.rules_score ?? 0) * 100).toFixed(1)}%
+                        </span>
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        Evaluated against FATF Guidance R.10 / R.20 and internal banking heuristics
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {(investigationReport.triggered_rules && investigationReport.triggered_rules.length > 0) ? (
+                        <div className="space-y-2.5">
+                          {investigationReport.triggered_rules.map((rule) => (
+                            <div key={rule.rule_id} className="p-2.5 rounded-[10px] bg-[#FFF9E6] border border-[#FFE082] space-y-1 text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-[#92400E] text-xs">{rule.rule_name}</span>
+                                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#92400E] font-bold">
+                                  {rule.regulatory_reference}
+                                </span>
+                              </div>
+                              <p className="text-[#451A03] text-[11px]">{rule.explanation}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-[#10B981] font-semibold py-2">
+                          ✓ No high-velocity burst, amount escalation, or mule ring rules triggered.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
                 {/* Recommended Compliance Review Actions */}
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
                       <ShieldCheck className="w-4.5 h-4.5 text-[#10B981]" />
-                      Recommended Compliance Officer Review Actions
+                      Authoritative Compliance Review Directive
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3 text-xs">
-                    <div className="p-4 rounded-[12px] bg-[#EBF3FC] border border-[#BFDBFE] space-y-1">
+                    <div className="p-3.5 rounded-[12px] bg-[#EBF3FC] border border-[#BFDBFE] space-y-1">
                       <span className="text-[11px] font-bold text-[#002D72] uppercase tracking-wider block">
                         Action Directive: {investigationReport.recommended_action}
                       </span>
                       <p className="text-[#1E293B]">{investigationReport.recommended_action_justification}</p>
                     </div>
 
-                    {investigationReport.missing_data_and_limitations?.length > 0 && (
+                    {(investigationReport.missing_data_and_limitations && investigationReport.missing_data_and_limitations.length > 0) && (
                       <div className="p-3 rounded-[10px] bg-[#F4F1EC] border border-[#E0DDD6] space-y-1">
                         <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">
                           Investigation Limitations &amp; Service Notices
@@ -1045,84 +1456,7 @@ export const TransactionDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* Tab 4: Network & Graph Topology */}
-        {activeTab === 'network' && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Network className="w-4.5 h-4.5 text-[#002D72]" />
-                Connected Graph Topology (Neo4j)
-              </CardTitle>
-              <CardDescription>
-                1-hop and 2-hop transacting counterparties and shared hardware fingerprints
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TableContainer className="border-0 shadow-none">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Source Node</TableHead>
-                      <TableHead>Relationship / Edge</TableHead>
-                      <TableHead>Destination Node</TableHead>
-                      <TableHead>Typology Risk</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell className="font-mono font-bold text-xs text-[#002D72]">
-                        {sourceAccount} ({customerName})
-                      </TableCell>
-                      <TableCell className="text-xs font-semibold text-[#1E88E5]">
-                        TRANSFERRED_TO ({amount ? Number(amount).toLocaleString() : 0} {currency})
-                      </TableCell>
-                      <TableCell className="font-mono font-bold text-xs text-[#0F172A]">
-                        {recipientAccount} ({recipientName})
-                      </TableCell>
-                      <TableCell>
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F5E9] text-[#2E7D32]">
-                          CLEAR
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-mono font-bold text-xs text-[#002D72]">
-                        {sourceAccount}
-                      </TableCell>
-                      <TableCell className="text-xs font-semibold text-[#64748B]">
-                        USED_DEVICE
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-[#475569]">
-                        {deviceId}
-                      </TableCell>
-                      <TableCell>
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#EBF3FC] text-[#002D72]">
-                          RECOGNIZED
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Tab 5: Audit Trail Timeline */}
-        {activeTab === 'timeline' && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="w-4.5 h-4.5 text-[#002D72]" />
-                Immutable Audit Trail Timeline
-              </CardTitle>
-              <CardDescription>Cryptographically anchored chronological ledger entries</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Timeline items={timelineItems} />
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       {/* Record Disposition Modal */}

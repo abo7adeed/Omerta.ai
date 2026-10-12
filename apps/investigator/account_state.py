@@ -62,6 +62,7 @@ class AccountInvestigationState(BaseModel):
     risk_assessment_explanation: str = ""
     factor_explanations: list[str] = Field(default_factory=list)
     missing_data_and_limitations: list[str] = Field(default_factory=list)
+    forensic_report_markdown: str = ""
 
     # Provenance, Stages & Audit
     pipeline_stages: Annotated[list[PipelineStageTrace], operator.add] = []

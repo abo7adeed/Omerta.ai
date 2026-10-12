@@ -74,7 +74,15 @@ async def investigate_transaction_endpoint(
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> AccountInvestigationReport:
     """Execute LangGraph transaction investigation workflow."""
-    from apps.investigator.account_workflow import run_transaction_investigation
+    from apps.investigator.account_workflow import get_active_run_for_txn, run_transaction_investigation
+
+    # Check for active running investigation to prevent accidental duplicate runs
+    existing_tracker = get_active_run_for_txn(body.transaction_id)
+    if existing_tracker and existing_tracker.status == "RUNNING":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"An investigation is already running for transaction '{body.transaction_id}'. Investigation ID: {existing_tracker.investigation_id}.",
+        )
 
     role = current_user.get("role", "INVESTIGATOR")
     user_id = current_user.get("id") or current_user.get("sub")
@@ -83,6 +91,86 @@ async def investigate_transaction_endpoint(
         caller_role=role,
         caller_id=str(user_id) if user_id else None,
     )
+
+
+@router.get(
+    "/transaction/{transaction_id}/live",
+    summary="Get Live Investigation Execution State & Stage Timings",
+    description="Retrieve live monotonic stage timings, running specialist nodes, and execution snapshot for a transaction.",
+)
+async def get_transaction_investigation_live_endpoint(
+    transaction_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Retrieve live execution snapshot with monotonic elapsed timings or persisted result."""
+    from apps.investigator.account_workflow import get_active_run, get_active_run_for_txn
+
+    # 1. Check in-memory active run tracker
+    tracker = get_active_run_for_txn(transaction_id) or get_active_run(transaction_id)
+    if tracker:
+        return tracker.get_snapshot()
+
+    # 2. Check if transaction exists and has a persisted InvestigationCase
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        txn = await session.scalar(
+            select(Transaction).where(
+                or_(
+                    Transaction.external_id == transaction_id,
+                    Transaction.id == int(transaction_id) if transaction_id.isdigit() else False,
+                )
+            )
+        )
+        if not txn:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Transaction '{transaction_id}' not found.",
+            )
+
+        case = await session.scalar(
+            select(InvestigationCase).where(
+                or_(
+                    InvestigationCase.transaction_id == txn.id,
+                    InvestigationCase.external_id == f"INV-TXN-{txn.external_id}",
+                )
+            ).order_by(desc(InvestigationCase.id))
+        )
+
+        if case and case.report:
+            stages = case.report.get("pipeline_stages", [])
+            return {
+                "investigation_id": case.external_id,
+                "subject_id": txn.external_id,
+                "is_transaction": True,
+                "status": "COMPLETED",
+                "started_at": case.created_at.isoformat() if case.created_at else None,
+                "completed_at": case.updated_at.isoformat() if case.updated_at else None,
+                "elapsed_ms": sum(float(s.get("duration_ms", 0)) for s in stages),
+                "progress_percentage": 100.0,
+                "active_stage_ids": [],
+                "completed_count": len(stages),
+                "total_stages": len(stages) or 9,
+                "stages": stages,
+                "final_report": case.report,
+                "error_message": None,
+            }
+
+    # 3. Not started yet
+    return {
+        "investigation_id": f"INV-TXN-{transaction_id}",
+        "subject_id": transaction_id,
+        "is_transaction": True,
+        "status": "NOT_STARTED",
+        "started_at": None,
+        "completed_at": None,
+        "elapsed_ms": 0.0,
+        "progress_percentage": 0.0,
+        "active_stage_ids": [],
+        "completed_count": 0,
+        "total_stages": 9,
+        "stages": [],
+        "final_report": None,
+        "error_message": None,
+    }
 
 
 @router.get(
@@ -95,6 +183,13 @@ async def get_transaction_investigation_endpoint(
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Retrieve persisted report for a transaction or return 404."""
+    from apps.investigator.account_workflow import get_active_run_for_txn
+
+    # If actively running, return current live snapshot
+    tracker = get_active_run_for_txn(transaction_id)
+    if tracker and tracker.status == "RUNNING":
+        return tracker.get_snapshot()
+
     async with AsyncSession(get_engine(), expire_on_commit=False) as session:
         # 1. Check if transaction exists
         txn = await session.scalar(

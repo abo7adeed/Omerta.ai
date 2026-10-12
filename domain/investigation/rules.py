@@ -91,60 +91,30 @@ def evaluate_banking_rules(
             )
         )
 
-    # 3. Structuring / Smurfing Pattern (FATF R.10 / R.20: Amounts near 25,000 or 50,000 reporting limits)
-    is_structuring_single = (
-        (Decimal("24000.00") <= metrics.max_withdrawal_amount < Decimal("25000.00"))
-        or (Decimal("45000.00") <= metrics.max_withdrawal_amount < Decimal("50000.00"))
-    )
-    is_structuring_aggregate = (
-        metrics.withdrawal_count >= 2 and metrics.withdrawal_volume >= Decimal("40000.00")
-    )
-    if metrics.total_transactions > 0 and (is_structuring_single or is_structuring_aggregate):
-        alerts.append(
-            TriggeredRuleAlert(
-                rule_id="RULE-STR-001",
-                rule_name="Potential Cash Structuring / Smurfing",
-                severity=RuleSeverity.CRITICAL,
-                reference_type=RuleReferenceType.STATUTORY_REGULATION,
-                regulatory_reference="FATF Recommendation 20 (Suspicious Transaction Reporting Mandate) & AML Statutory Rules",
-                applicable_window="Rolling Analysis Period",
-                observed_values={
-                    "max_withdrawal": float(metrics.max_withdrawal_amount),
-                    "withdrawal_count": metrics.withdrawal_count,
-                    "withdrawal_volume": float(metrics.withdrawal_volume),
-                },
-                threshold_value={"reporting_thresholds": [25000.00, 50000.00]},
-                explanation=(
-                    f"Outbound transfer patterns indicate deliberate threshold evasion (peak: {metrics.max_withdrawal_amount:,.2f} {currency}, "
-                    f"total volume: {metrics.withdrawal_volume:,.2f} {currency} across {metrics.withdrawal_count} operations), "
-                    f"characteristic of structured transfers designed to evade regulatory mandatory reporting."
-                ),
-                evidence_references=["METRIC: max_withdrawal_amount", "METRIC: withdrawal_volume"],
+    # 3. Structuring / Smurfing Pattern (FATF R.10 / R.20: Amounts just below 50,000 EGP reporting limit)
+    if metrics.total_transactions > 0 and metrics.withdrawal_count >= 2:
+        if Decimal("45000.00") <= metrics.max_withdrawal_amount < Decimal("50000.00"):
+            alerts.append(
+                TriggeredRuleAlert(
+                    rule_id="RULE-STR-001",
+                    rule_name="Potential Cash Structuring / Smurfing",
+                    severity=RuleSeverity.CRITICAL,
+                    reference_type=RuleReferenceType.STATUTORY_REGULATION,
+                    regulatory_reference="FATF Recommendation 20 (Suspicious Transaction Reporting Mandate) & National AML Statutory Reporting Laws",
+                    applicable_window="30-Day Analysis Period",
+                    observed_values={
+                        "max_withdrawal": float(metrics.max_withdrawal_amount),
+                        "withdrawal_count": metrics.withdrawal_count,
+                    },
+                    threshold_value={"reporting_threshold": 50000.00, "lower_bound": 45000.00},
+                    explanation=(
+                        f"Withdrawal amounts closely approach but remain beneath the 50,000 {currency} statutory "
+                        f"reporting threshold (peak: {metrics.max_withdrawal_amount:,.2f} {currency}), "
+                        f"warranting SAR review for deliberate threshold evasion."
+                    ),
+                    evidence_references=["METRIC: max_withdrawal_amount"],
+                )
             )
-        )
-
-    # 3b. High Value Single Outbound Movement
-    if metrics.max_withdrawal_amount >= Decimal("20000.00"):
-        alerts.append(
-            TriggeredRuleAlert(
-                rule_id="RULE-VOL-001",
-                rule_name="Elevated Value Outbound Movement",
-                severity=RuleSeverity.HIGH,
-                reference_type=RuleReferenceType.REGULATORY_GUIDANCE,
-                regulatory_reference="FATF Guidance on Financial Investigations — High-value retail transaction monitoring",
-                applicable_window="Single Transaction Event",
-                observed_values={
-                    "max_withdrawal": float(metrics.max_withdrawal_amount),
-                    "currency": currency,
-                },
-                threshold_value={"threshold": 20000.00},
-                explanation=(
-                    f"Peak single transaction amount of {metrics.max_withdrawal_amount:,.2f} {currency} "
-                    f"substantially exceeds routine retail baseline threshold (20,000.00 {currency})."
-                ),
-                evidence_references=["METRIC: max_withdrawal_amount"],
-            )
-        )
 
     # 4. Off-Hours Financial Activity (DOC-OPS-001 Section 1: Account Lifecycle & Session Governance)
     if metrics.off_hours_count >= 2:

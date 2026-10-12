@@ -14,12 +14,12 @@ from decimal import Decimal
 import secrets
 from typing import Any
 import uuid
+import os
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from domain.services.location_velocity import evaluate_geographic_velocity
 from infrastructure.database.models import (
     Account,
     AccountLedgerEntry,
@@ -35,7 +35,29 @@ from infrastructure.database.models import (
     Transfer,
     User,
     InvestigationCase,
+    CaseDisposition,
+    TransactionRestriction,
+    SupportTicket,
+    TransferRestoration,
 )
+from domain.investigation.history_agent import TransactionHistoryAgent
+from domain.investigation.specialist_agents import (
+    BankingRulesAgent,
+    BehavioralAnalysisAgent,
+    AccountTakeoverAgent,
+    DeviceNetworkAgent,
+    GraphIntelligenceAgent,
+    MLRiskAgent,
+    MerchantIntelligenceAgent,
+    IdentitySecurityAgent,
+    FinalDecisionAgent,
+)
+from domain.investigation.scoring import (
+    TransactionDecision,
+    RiskTier,
+    AuthoritativeRiskAssessment,
+)
+from domain.services.email_service import EmailService
 
 
 class TransferConcurrencyManager:
@@ -259,6 +281,26 @@ class TransferService:
         if sender_customer.status != "ACTIVE":
             raise TransferError("Your customer profile is currently inactive or suspended.", code="SENDER_INACTIVE")
 
+        # 2a. Check for server-enforced active transfer restrictions
+        restr_stmt = (
+            select(TransactionRestriction)
+            .where(
+                and_(
+                    TransactionRestriction.customer_id == sender_customer.id,
+                    TransactionRestriction.status == "ACTIVE",
+                    TransactionRestriction.restriction_scope.in_(["OUTGOING_TRANSFERS_ONLY", "ALL_TRANSFERS", "FULL_CONTAINMENT"]),
+                )
+            )
+            .limit(1)
+        )
+        active_restr = await self.session.scalar(restr_stmt)
+        if active_restr:
+            raise TransferError(
+                f"Your account is subject to an active security restriction on outgoing transfers: {active_restr.restriction_reason}",
+                code="TRANSFERS_RESTRICTED",
+                status_code=403,
+            )
+
         # 3. Resolve sender account with row lock
         if isinstance(sender_account_id, int):
             sender_acc_stmt = (
@@ -316,7 +358,6 @@ class TransferService:
         )
         recipient_account = await self.session.scalar(recipient_acc_stmt)
         if not recipient_account:
-            # Fallback: if recipient has any active account, check if same currency
             raise TransferError(
                 f"Recipient does not have an active account matching currency '{currency}'.",
                 code="RECIPIENT_CURRENCY_UNSUPPORTED",
@@ -330,17 +371,11 @@ class TransferService:
                 status_code=400,
             )
 
-        # 7. Apply ledger updates atomically
-        sender_account.balance = Decimal(str(sender_account.balance)) - amount
-        recipient_account.balance = Decimal(str(recipient_account.balance)) + amount
-
+        # 7. Create uncommitted Transaction & Transfer in ASSESSING state (DO NOT deduct balances yet!)
         now = datetime.now(UTC)
         transfer_ref = f"TRF-{secrets.token_hex(4).upper()}-{now.strftime('%M%S')}"
         txn_ref = f"TXN-SIM-{secrets.token_hex(4).upper()}"
-        debit_ledger_ref = f"LED-DB-{secrets.token_hex(4).upper()}"
-        credit_ledger_ref = f"LED-CR-{secrets.token_hex(4).upper()}"
 
-        # 8. Create Transaction row
         txn = Transaction(
             external_id=txn_ref,
             account_id=sender_account.id,
@@ -348,7 +383,7 @@ class TransferService:
             amount=amount,
             currency=currency.upper(),
             transaction_type="CUSTOMER_TRANSFER",
-            status="COMPLETED",
+            status="ASSESSING",
             timestamp=now,
             is_new_device=False,
             is_new_ip=False,
@@ -357,7 +392,6 @@ class TransferService:
         self.session.add(txn)
         await self.session.flush()
 
-        # 9. Create Transfer row
         transfer = Transfer(
             external_id=transfer_ref,
             idempotency_key=idempotency_key,
@@ -368,303 +402,770 @@ class TransferService:
             amount=amount,
             currency=currency.upper(),
             note=note,
-            status="COMPLETED",
+            status="PENDING_REVIEW",
             transaction_id=txn.id,
         )
         self.session.add(transfer)
         await self.session.flush()
 
-        # 10. Create Immutable Ledger Entries
-        debit_entry = AccountLedgerEntry(
-            external_id=debit_ledger_ref,
+        # 8. Execute Specialist Investigative Agents
+        # A. Historical Intelligence
+        hist_agent = TransactionHistoryAgent(self.session)
+        history_result = await hist_agent.analyze(
             account_id=sender_account.id,
-            transfer_id=transfer.id,
-            transaction_id=txn.id,
-            entry_type="DEBIT",
-            amount=amount,
-            currency=currency.upper(),
-            balance_after=sender_account.balance,
-            description=f"Simulated Transfer to {recipient_customer.name} ({recipient_customer.omerta_user_number})",
-            idempotency_key=f"{idempotency_key}-DEBIT",
+            current_amount=float(amount),
+            current_timestamp=now,
+            recipient_account_id=recipient_account.id,
+            current_transaction_id=txn.id,
         )
-        credit_entry = AccountLedgerEntry(
-            external_id=credit_ledger_ref,
-            account_id=recipient_account.id,
-            transfer_id=transfer.id,
-            transaction_id=txn.id,
-            entry_type="CREDIT",
-            amount=amount,
-            currency=currency.upper(),
-            balance_after=recipient_account.balance,
-            description=f"Simulated Transfer from {sender_customer.name} ({sender_customer.omerta_user_number})",
-            idempotency_key=f"{idempotency_key}-CREDIT",
+
+        # B. Banking Rules Agent
+        rules_result = BankingRulesAgent.evaluate(
+            history_metrics=history_result.raw_metrics,
+            vpn_detected=is_vpn,
+            is_new_device=False,
+            shared_device_count=0,
+            failed_attempts=sender_customer.transfer_failed_attempts,
+            has_active_restriction=False,
         )
-        self.session.add_all([debit_entry, credit_entry])
 
-        # 11. Multi-signal Dynamic Risk Assessment Engine (> 40 Human Review Rule)
-        base_risk = Decimal("8.00")
-        signals = []
-
-        # A. Large transfer thresholds
-        if amount >= Decimal("50000.00"):
-            base_risk += Decimal("40.00")
-            signals.append({
-                "name": "HIGH_VALUE_TRANSFER",
-                "severity": "HIGH",
-                "description": f"Transfer amount of {amount:,.2f} {currency} exceeds routine operational threshold.",
-                "source": "TRANSACTION_RULE",
-            })
-        elif amount >= Decimal("20000.00"):
-            base_risk += Decimal("25.00")
-            signals.append({
-                "name": "ELEVATED_VALUE_TRANSFER",
-                "severity": "MEDIUM",
-                "description": f"Elevated single-transfer value of {amount:,.2f} {currency}.",
-                "source": "TRANSACTION_RULE",
-            })
-
-        # B. Structuring / Smurfing just under 25,000 or 50,000 statutory reporting boundaries
-        if (Decimal("24000.00") <= amount < Decimal("25000.00")) or (Decimal("45000.00") <= amount < Decimal("50000.00")):
-            base_risk += Decimal("40.00")
-            signals.append({
-                "name": "STRUCTURING_THRESHOLD_EVASION",
-                "severity": "CRITICAL",
-                "description": f"Transfer amount of {amount:,.2f} {currency} placed intentionally just below the 25,000/50,000 statutory reporting limit.",
-                "source": "AML_TYPOLOGY",
-            })
-
-        # C. High-risk beneficiary counterparty evaluation
-        if recipient_customer.risk_level in ("HIGH", "CRITICAL") or recipient_account.risk_level in ("HIGH", "CRITICAL"):
-            base_risk += Decimal("35.00")
-            signals.append({
-                "name": "HIGH_RISK_BENEFICIARY_ENTITY",
-                "severity": "CRITICAL",
-                "description": f"Beneficiary customer {recipient_customer.name} ({recipient_customer.omerta_user_number}) carries an elevated {recipient_customer.risk_level} risk classification.",
-                "source": "COUNTERPARTY_INTELLIGENCE",
-            })
-
-        # D. Rapid velocity & aggregation lookback (transfers in last 2 hours)
-        two_hours_ago = now - timedelta(hours=2)
-        recent_transfers_stmt = (
-            select(Transfer)
-            .where(
-                and_(
-                    Transfer.sender_customer_id == sender_customer.id,
-                    Transfer.created_at >= two_hours_ago,
-                    Transfer.id != transfer.id,
-                )
-            )
+        # C. Behavioral Analysis Agent
+        behavior_result = BehavioralAnalysisAgent.evaluate(
+            history_metrics=history_result.raw_metrics,
+            hour_utc=now.hour,
         )
-        recent_txs = (await self.session.scalars(recent_transfers_stmt)).all()
-        if recent_txs:
-            recent_sum = sum((t.amount for t in recent_txs), Decimal("0.00"))
-            if recent_sum + amount >= Decimal("40000.00") or len(recent_txs) >= 2:
-                base_risk += Decimal("30.00")
-                signals.append({
-                    "name": "RAPID_TRANSFER_BURST_AGGREGATION",
-                    "severity": "HIGH",
-                    "description": f"Multiple transfers within 2 hours aggregating to {(recent_sum + amount):,.2f} {currency} across {len(recent_txs) + 1} operations.",
-                    "source": "VELOCITY_ANALYSIS",
-                })
 
-        if is_vpn:
-            base_risk += Decimal("25.00")
-            signals.append({
-                "name": "VPN_PROXY_OBSERVED",
-                "severity": "MEDIUM",
-                "description": "Observed session origin associated with commercial VPN/proxy provider.",
-                "source": "IP_ANALYSIS",
-            })
-
-        if amount % Decimal("10000.00") == Decimal("0.00") and amount >= Decimal("20000.00"):
-            base_risk += Decimal("12.00")
-            signals.append({
-                "name": "STRUCTURING_ROUND_AMOUNT",
-                "severity": "LOW",
-                "description": "Exact large round figure transfer pattern.",
-                "source": "TRANSACTION_RULE",
-            })
-
-        # Geographic Velocity & Impossible Travel Anomaly Check
-        prev_sess = await self.session.scalar(
-            select(Session)
-            .options(selectinload(Session.ip_address))
-            .where(and_(Session.customer_id == sender_customer.id, Session.started_at < now))
-            .order_by(Session.started_at.desc())
-            .limit(1)
+        # D. Account Takeover Agent
+        ato_result = AccountTakeoverAgent.evaluate(
+            recent_password_change=sender_customer.require_transfer_password_change,
+            recent_failed_logins=sender_customer.transfer_failed_attempts,
+            recent_device_added=False,
+            new_beneficiary_added=history_result.raw_metrics.get("is_first_transaction_with_beneficiary", False),
         )
-        if prev_sess:
-            prev_cntry = prev_sess.ip_address.country if prev_sess.ip_address else (sender_customer.declared_country or "EG")
-            prev_cty = "Cairo"  # default historical city
-            curr_cntry = country or (sender_customer.declared_country or "EG")
-            curr_cty = city or ("Cairo" if curr_cntry.upper() == "EG" else None)
 
-            velocity = evaluate_geographic_velocity(
-                prev_country=prev_cntry,
-                prev_city=prev_cty,
-                prev_timestamp=prev_sess.started_at,
-                current_country=curr_cntry,
-                current_city=curr_cty,
-                current_timestamp=now,
-            )
-            if velocity.is_impossible_travel:
-                base_risk += Decimal(str(velocity.risk_score_penalty))
-                signals.append({
-                    "name": "IMPOSSIBLE_TRAVEL_VELOCITY",
-                    "severity": "CRITICAL",
-                    "description": velocity.reason,
-                    "source": "GEOGRAPHIC_VELOCITY_ENGINE",
-                })
-                sender_customer.risk_level = "CRITICAL"
+        # E. Device and Network Agent
+        device_result = DeviceNetworkAgent.evaluate(
+            is_new_device=False,
+            is_vpn=is_vpn,
+            ip_risk_score=65.0 if is_vpn else 5.0,
+            provider_available=True,
+            country=country or (sender_customer.declared_country or "EG"),
+        )
 
+        # F. Graph Intelligence Agent
+        graph_result = GraphIntelligenceAgent.evaluate(
+            shared_devices_count=0,
+            connected_accounts_count=1,
+            graph_available=True,
+        )
 
-        final_risk = min(Decimal("95.00"), base_risk)
-        requires_review = final_risk > Decimal("40.00")
+        # G. ML Risk Agent
+        ml_prob = min(0.95, (float(amount) / 60000.0) * 0.4 + (0.35 if is_vpn else 0.05))
+        ml_result = MLRiskAgent.evaluate(
+            model_risk_probability=ml_prob,
+            model_loaded=True,
+            top_features={"amount": float(amount), "is_vpn": 1.0 if is_vpn else 0.0},
+        )
 
-        if final_risk <= Decimal("20.00"):
-            risk_lvl = "LOW"
-        elif final_risk <= Decimal("40.00"):
-            risk_lvl = "MODERATE"
-        elif final_risk <= Decimal("70.00"):
-            risk_lvl = "HIGH"
-        else:
-            risk_lvl = "CRITICAL"
+        # H. Merchant Intelligence Agent (P2P = Not Applicable)
+        merchant_result = MerchantIntelligenceAgent.evaluate(is_merchant_tx=False)
 
-        txn.risk_score = final_risk
-        txn.risk_level = risk_lvl
-        txn.review_status = "REQUIRES_REVIEW" if requires_review else "NOT_REQUIRED"
+        # I. Identity & Security Agent
+        identity_result = IdentitySecurityAgent.evaluate(
+            identity_status=sender_customer.identity_status,
+            transfer_status=sender_customer.transfer_status,
+            has_active_restriction=False,
+        )
 
-        # Record Risk Assessment
+        # J. Authoritative Final Decision Agent
+        agent_suite = {
+            "rules": rules_result,
+            "ml": ml_result,
+            "history": history_result,
+            "behavior": behavior_result,
+            "ato": ato_result,
+            "device": device_result,
+            "graph": graph_result,
+            "merchant": merchant_result,
+        }
+
+        final_decision_result = FinalDecisionAgent.evaluate(
+            agent_results=agent_suite,
+            hard_restrictions_active=False,
+            vpn_detected=is_vpn,
+            is_merchant_tx=False,
+            customer_confirmed=None,
+        )
+        assessment = AuthoritativeRiskAssessment(**final_decision_result.raw_metrics)
+
+        # 9. Record Risk Assessment and Signals
+        txn.risk_score = Decimal(str(assessment.final_score))
+        txn.risk_level = assessment.risk_tier.value
+        txn.review_status = "REQUIRES_REVIEW" if assessment.requires_human_review else "NOT_REQUIRED"
+
         risk_assessment = RiskAssessment(
             external_id=f"RA-{secrets.token_hex(4).upper()}",
             transaction_id=txn.id,
-            risk_score=final_risk,
-            risk_level=risk_lvl,
-            requires_human_review=requires_review,
+            risk_score=Decimal(str(assessment.final_score)),
+            risk_level=assessment.risk_tier.value,
+            requires_human_review=assessment.requires_human_review,
             correlation_id=f"CORR-{txn.external_id}",
-            summary=f"Automated risk evaluation: {len(signals)} signal(s) detected. Review required: {requires_review}.",
+            summary=f"Authoritative formula ({assessment.formula_version}): Final score {assessment.final_score:.1f}/100 ({assessment.risk_tier.value}). Decision: {assessment.decision.value}.",
         )
         self.session.add(risk_assessment)
         await self.session.flush()
 
-        for s in signals:
-            sig = RiskSignal(
-                assessment_id=risk_assessment.id,
-                signal_name=s["name"],
-                severity=s["severity"],
-                description=s["description"],
-                source=s["source"],
-            )
-            self.session.add(sig)
+        for step in assessment.calculation:
+            if step.raw_score is not None and step.raw_score > 0:
+                self.session.add(
+                    RiskSignal(
+                        assessment_id=risk_assessment.id,
+                        signal_name=f"{step.component.upper()}_SIGNAL",
+                        severity="HIGH" if step.raw_score >= 60 else "MEDIUM" if step.raw_score >= 30 else "LOW",
+                        description=step.notes,
+                        source=f"Specialist:{step.component}",
+                    )
+                )
 
-        if requires_review:
+        # 10. Execute State Machine Decisions
+        if assessment.decision == TransactionDecision.ALLOW:
+            # Low Risk: Atomically execute double-entry ledger debit & credit now!
+            sender_account.balance = Decimal(str(sender_account.balance)) - amount
+            recipient_account.balance = Decimal(str(recipient_account.balance)) + amount
+
+            debit_ledger_ref = f"LED-DB-{secrets.token_hex(4).upper()}"
+            credit_ledger_ref = f"LED-CR-{secrets.token_hex(4).upper()}"
+
+            debit_entry = AccountLedgerEntry(
+                external_id=debit_ledger_ref,
+                account_id=sender_account.id,
+                transfer_id=transfer.id,
+                transaction_id=txn.id,
+                entry_type="DEBIT",
+                amount=amount,
+                currency=currency.upper(),
+                balance_after=sender_account.balance,
+                description=f"Simulated Transfer to {recipient_customer.name} ({recipient_customer.omerta_user_number})",
+                idempotency_key=f"{idempotency_key}-DEBIT",
+            )
+            credit_entry = AccountLedgerEntry(
+                external_id=credit_ledger_ref,
+                account_id=recipient_account.id,
+                transfer_id=transfer.id,
+                transaction_id=txn.id,
+                entry_type="CREDIT",
+                amount=amount,
+                currency=currency.upper(),
+                balance_after=recipient_account.balance,
+                description=f"Simulated Transfer from {sender_customer.name} ({sender_customer.omerta_user_number})",
+                idempotency_key=f"{idempotency_key}-CREDIT",
+            )
+            self.session.add_all([debit_entry, credit_entry])
+
+            txn.status = "COMPLETED"
+            transfer.status = "COMPLETED"
+            txn.review_status = "NOT_REQUIRED"
+
+            audit_event = AuditEvent(
+                event_id=f"EVT-{secrets.token_hex(6).upper()}",
+                event_type="TRANSFER_EXECUTED",
+                actor_type="CUSTOMER",
+                actor_id=str(sender_user_id),
+                source="TransferService",
+                transaction_id=txn.external_id,
+                metadata_={
+                    "transfer_ref": transfer_ref,
+                    "amount": str(amount),
+                    "currency": currency,
+                    "risk_score": float(assessment.final_score),
+                    "decision": "ALLOW",
+                },
+            )
+            self.session.add(audit_event)
+
+        elif assessment.decision == TransactionDecision.PENDING_CUSTOMER_VERIFICATION:
+            # Transfer Held: Funds stay in sender account!
+            txn.status = "PENDING_CUSTOMER_VERIFICATION"
+            transfer.status = "PENDING_CUSTOMER_VERIFICATION"
+            txn.review_status = "REQUIRES_REVIEW"
+
+            alert = Alert(
+                external_id=f"ALT-{secrets.token_hex(4).upper()}",
+                transaction_id=txn.id,
+                alert_type="VPN_CUSTOMER_VERIFICATION_REQUIRED",
+                risk_score=Decimal(str(assessment.final_score)),
+                risk_level=assessment.risk_tier.value,
+                status="OPEN",
+            )
+            self.session.add(alert)
+            await self.session.flush()
+
+            case = InvestigationCase(
+                external_id=f"CASE-{txn.external_id}",
+                alert_id=alert.id,
+                transaction_id=txn.id,
+                title=f"Customer Verification Hold: Transfer {txn.external_id}",
+                severity=assessment.risk_tier.value,
+                status="PENDING_CUSTOMER_VERIFICATION",
+                assigned_to="Automated Verification Dispatcher",
+                report={
+                    "investigation_id": f"INV-{txn.external_id}",
+                    "transaction_id": txn.external_id,
+                    "account_id": sender_account.external_id,
+                    "executive_summary": "Transaction placed on security hold pending customer identity confirmation. Funds not debited.",
+                    "combined_risk_score": float(assessment.final_score) / 100.0,
+                    "recommended_action": "REQUEST_CUSTOMER_INFO",
+                    "recommended_action_justification": "; ".join(assessment.hold_reasons),
+                    "generated_at": now.isoformat(),
+                },
+            )
+            self.session.add(case)
+
+            # Send Email Notification
+            target_email = sender_customer.email
+            if not target_email or target_email.endswith("@omerta.ai"):
+                target_email = os.getenv("REAL_CUSTOMER_EMAIL", "abdomostafa13571234@gmail.com")
+
+            if target_email:
+                verif_url = "http://localhost:5173/customer/security"
+                try:
+                    asyncio.create_task(
+                        EmailService.send_transfer_verification_email(
+                            to_email=target_email,
+                            customer_name=sender_customer.name,
+                            transaction_ref=txn.external_id,
+                            amount=float(amount),
+                            currency=currency,
+                            recipient_masked=recipient_customer.name,
+                            verification_url=verif_url,
+                            reason="; ".join(assessment.hold_reasons),
+                        )
+                    )
+                except Exception as mail_err:
+                    logger.warning(f"Verification email dispatch failed: {mail_err}")
+
+        elif assessment.decision in (TransactionDecision.PENDING_REVIEW, TransactionDecision.HOLD):
+            # High Risk Hold: Funds stay in sender account!
+            txn.status = "PENDING_REVIEW"
+            transfer.status = "PENDING_REVIEW"
+            txn.review_status = "REQUIRES_REVIEW"
+
             alert = Alert(
                 external_id=f"ALT-{secrets.token_hex(4).upper()}",
                 transaction_id=txn.id,
                 alert_type="HIGH_RISK_TRANSFER_REVIEW",
-                risk_score=final_risk,
-                risk_level=risk_lvl,
+                risk_score=Decimal(str(assessment.final_score)),
+                risk_level=assessment.risk_tier.value,
                 status="OPEN",
             )
             self.session.add(alert)
-
-            sig_names = ", ".join(s["name"] for s in signals) if signals else "Elevated risk score"
             await self.session.flush()
 
-            # Dynamic Investigation Case Registration
-            case_id = f"CASE-{txn.external_id}"
             case = InvestigationCase(
-                external_id=case_id,
+                external_id=f"CASE-{txn.external_id}",
                 alert_id=alert.id,
                 transaction_id=txn.id,
                 title=f"Forensic Investigation: High-Risk Transfer {txn.external_id}",
-                severity=risk_lvl,
+                severity=assessment.risk_tier.value,
                 status="UNDER_INVESTIGATION",
                 assigned_to="Compliance Review Queue",
                 report={
                     "investigation_id": f"INV-{txn.external_id}",
                     "transaction_id": txn.external_id,
                     "account_id": sender_account.external_id,
-                    "executive_summary": f"Automated risk detection flagged transfer {txn.external_id} with risk score {final_risk:.1f}%. Signals: {sig_names}. Account placed on security hold pending human investigation.",
-                    "combined_risk_score": float(final_risk) / 100.0,
-                    "rules_score": float(final_risk) / 100.0,
+                    "executive_summary": f"Elevated risk score ({assessment.final_score:.1f}/100). Funds held pending compliance officer investigation.",
+                    "combined_risk_score": float(assessment.final_score) / 100.0,
                     "recommended_action": "HUMAN_REVIEW",
-                    "recommended_action_justification": "Risk score exceeds 40% threshold. Account held for compliance officer validation.",
+                    "recommended_action_justification": "; ".join(assessment.hold_reasons),
                     "generated_at": now.isoformat(),
                 },
             )
             self.session.add(case)
 
-            # Automated Human-in-the-Loop Security Block
-            sender_account.status = "BLOCKED"
-            sender_customer.status = "BLOCKED"
+        elif assessment.decision == TransactionDecision.REJECT:
+            txn.status = "REJECTED"
+            transfer.status = "REJECTED"
+            txn.review_status = "REJECTED"
+
+        await self.session.commit()
+        return await self.get_transfer_receipt(transfer_ref)
+
+    async def handle_customer_confirmation(
+        self,
+        transaction_external_id: str,
+        action: str,
+        customer_user_id: int,
+    ) -> dict[str, Any]:
+        """Process customer confirmation response (CONFIRM or DENY)."""
+        txn_stmt = (
+            select(Transaction)
+            .options(
+                selectinload(Transaction.account).selectinload(Account.customer),
+                selectinload(Transaction.recipient_account).selectinload(Account.customer),
+            )
+            .where(Transaction.external_id == transaction_external_id)
+            .limit(1)
+        )
+        txn = await self.session.scalar(txn_stmt)
+        if not txn:
+            raise TransferError("Transaction not found.", code="TXN_NOT_FOUND", status_code=404)
+
+        sender_customer = txn.account.customer
+        if sender_customer.user_id != customer_user_id:
+            raise TransferError("Unauthorized: transaction does not belong to you.", code="UNAUTHORIZED", status_code=403)
+
+        transfer_stmt = select(Transfer).where(Transfer.transaction_id == txn.id).limit(1)
+        transfer = await self.session.scalar(transfer_stmt)
+        if not transfer:
+            raise TransferError("Transfer record not found.", code="TRANSFER_NOT_FOUND", status_code=404)
+
+        if txn.status not in ("PENDING_CUSTOMER_VERIFICATION", "PENDING_REVIEW"):
+            return {
+                "success": False,
+                "message": f"Transaction is already in status '{txn.status}'. No confirmation action needed.",
+                "status": txn.status,
+            }
+
+        now = datetime.now(UTC)
+
+        if action.upper() == "CONFIRM":
+            # Record audit event
+            self.session.add(
+                AuditEvent(
+                    event_id=f"EVT-CONFIRMED-{secrets.token_hex(4).upper()}",
+                    event_type="CUSTOMER_TRANSACTION_CONFIRMED",
+                    actor_type="CUSTOMER",
+                    actor_id=str(customer_user_id),
+                    source="CustomerSecurityPortal",
+                    transaction_id=txn.external_id,
+                    metadata_={"response": "CONFIRM", "timestamp": now.isoformat()},
+                )
+            )
+
+            # Re-evaluate policy: if VPN was detected or risk score elevated -> must transition to PENDING_REVIEW (cannot bypass admin review)
+            has_vpn_alert = await self.session.scalar(
+                select(Alert).where(and_(Alert.transaction_id == txn.id, Alert.alert_type == "VPN_CUSTOMER_VERIFICATION_REQUIRED")).limit(1)
+            ) is not None
+            is_vpn_txn = bool(txn.txn_metadata and txn.txn_metadata.get("is_vpn"))
+            risk_score = float(txn.risk_score) if txn.risk_score is not None else 0.0
+
+            if not has_vpn_alert and not is_vpn_txn and risk_score < 40.0:
+                # Low risk without VPN: execute ledger debit & credit now!
+                sender_acc = txn.account
+                recip_acc = txn.recipient_account
+
+                if sender_acc.balance < txn.amount:
+                    raise TransferError("Insufficient balance to execute transfer upon release.", code="INSUFFICIENT_FUNDS")
+
+                sender_acc.balance = Decimal(str(sender_acc.balance)) - txn.amount
+                recip_acc.balance = Decimal(str(recip_acc.balance)) + txn.amount
+
+                debit_ledger_ref = f"LED-DB-{secrets.token_hex(4).upper()}"
+                credit_ledger_ref = f"LED-CR-{secrets.token_hex(4).upper()}"
+
+                self.session.add_all([
+                    AccountLedgerEntry(
+                        external_id=debit_ledger_ref,
+                        account_id=sender_acc.id,
+                        transfer_id=transfer.id,
+                        transaction_id=txn.id,
+                        entry_type="DEBIT",
+                        amount=txn.amount,
+                        currency=txn.currency,
+                        balance_after=sender_acc.balance,
+                        description=f"Transfer verified by customer to {recip_acc.customer.name}",
+                        idempotency_key=f"{transfer.idempotency_key}-CONFIRMED-DEBIT",
+                    ),
+                    AccountLedgerEntry(
+                        external_id=credit_ledger_ref,
+                        account_id=recip_acc.id,
+                        transfer_id=transfer.id,
+                        transaction_id=txn.id,
+                        entry_type="CREDIT",
+                        amount=txn.amount,
+                        currency=txn.currency,
+                        balance_after=recip_acc.balance,
+                        description=f"Transfer verified by customer from {sender_acc.customer.name}",
+                        idempotency_key=f"{transfer.idempotency_key}-CONFIRMED-CREDIT",
+                    ),
+                ])
+
+                txn.status = "COMPLETED"
+                transfer.status = "COMPLETED"
+                txn.review_status = "COMPLETED"
+
+                # Update case if exists
+                case_stmt = select(InvestigationCase).where(InvestigationCase.transaction_id == txn.id).limit(1)
+                case = await self.session.scalar(case_stmt)
+                if case:
+                    case.status = "RESOLVED"
+
+                await self.session.commit()
+                return {
+                    "success": True,
+                    "action": "CONFIRMED_AND_EXECUTED",
+                    "customer_action": "CONFIRM",
+                    "status": "COMPLETED",
+                    "message": "Transaction verified and executed successfully.",
+                }
+            else:
+                # High risk / VPN detected remains held awaiting admin review
+                txn.status = "PENDING_REVIEW"
+                transfer.status = "PENDING_REVIEW"
+                await self.session.commit()
+                return {
+                    "success": True,
+                    "action": "CONFIRMED_AWAITING_ADMIN",
+                    "customer_action": "CONFIRM",
+                    "status": "PENDING_REVIEW",
+                    "message": "Confirmation recorded. Transfer remains held in compliance review queue due to high risk score.",
+                }
+
+        elif action.upper() == "DENY":
+            # 1. Reject transaction
+            txn.status = "REJECTED"
+            transfer.status = "REJECTED"
+            txn.review_status = "DISMISSED"
+
+            # 2. Apply server-enforced restriction on outgoing transfers
+            restr_id = f"REST-{secrets.token_hex(4).upper()}"
+            restriction = TransactionRestriction(
+                restriction_id=restr_id,
+                customer_id=sender_customer.id,
+                account_id=txn.account_id,
+                trigger_transaction_id=txn.external_id,
+                restriction_reason=f"Customer reported unauthorized transaction attempt: {txn.external_id}",
+                restriction_scope="OUTGOING_TRANSFERS_ONLY",
+                status="ACTIVE",
+                created_by="CUSTOMER_DENIAL_AUTOMATION",
+            )
+            self.session.add(restriction)
             sender_customer.transfer_status = "BLOCKED"
             sender_customer.transfer_blocked_at = now
 
-            # Deactivate login session
-            user_to_lock = await self.session.scalar(select(User).where(User.id == sender_customer.user_id))
-            if user_to_lock:
-                user_to_lock.is_active = False
+            # 3. Create Security Support Ticket
+            tkt_ref = f"TICK-{secrets.token_hex(4).upper()}"
+            ticket = SupportTicket(
+                external_id=tkt_ref,
+                customer_id=sender_customer.id,
+                account_id=txn.account_id,
+                ticket_type="FRAUD_CUSTOMER_DENIAL",
+                category="SECURITY",
+                priority="CRITICAL",
+                status="OPEN",
+                subject=f"Unauthorized Transaction Reported: {txn.external_id}",
+                description=f"Customer denied initiating transfer {txn.external_id} of {txn.amount} {txn.currency}. Outgoing transfer restriction applied automatically.",
+                opened_by="SYSTEM_SECURITY",
+                related_transaction_id=txn.id,
+                related_account_id=txn.account_id,
+            )
+            self.session.add(ticket)
 
-            # Record Security Block Audit Event
+            # 4. Record Audit Event
             self.session.add(
                 AuditEvent(
-                    event_id=f"EVT-BLOCKED-{txn.external_id}",
-                    event_type="ACCOUNT_SECURITY_HOLD_TRIGGERED",
-                    actor_type="SYSTEM_RISK_ENGINE",
-                    actor_id=str(sender_user_id),
-                    source="TransferService",
+                    event_id=f"EVT-DENIED-{secrets.token_hex(4).upper()}",
+                    event_type="CUSTOMER_TRANSACTION_DENIED",
+                    actor_type="CUSTOMER",
+                    actor_id=str(customer_user_id),
+                    source="CustomerSecurityPortal",
                     transaction_id=txn.external_id,
                     metadata_={
-                        "reason": "HIGH_RISK_TRANSFER_DETECTED",
-                        "risk_score": float(final_risk),
-                        "account_id": sender_account.external_id,
-                        "customer_id": sender_customer.external_id,
-                        "action": "ACCOUNT_AND_TRANSFER_BLOCKED",
-                        "case_id": case_id,
+                        "response": "DENIED",
+                        "restriction_id": restr_id,
+                        "ticket_id": tkt_ref,
                     },
                 )
             )
 
-            try:
-                from domain.services.ticket_service import TicketService
-                tkt_svc = TicketService(self.session)
-                await tkt_svc.create_ticket(
-                    customer=sender_customer,
-                    title=f"Risk Review: Automated Alert for Transfer {transfer_ref}",
-                    description=f"Transaction {transfer_ref} triggered automated risk score {final_risk:.2f}% ({risk_lvl}). Signals: {sig_names}.",
-                    ticket_type="RISK_REVIEW",
-                    priority_override="HIGH" if final_risk < Decimal("75.00") else "CRITICAL",
-                    related_transaction_id=transfer.id,
-                    related_account_id=sender_account.id,
-                    related_risk_assessment_id=risk_assessment.external_id,
-                    opened_by="SYSTEM",
-                )
-            except Exception:
-                pass
+            await self.session.commit()
+            return {
+                "success": True,
+                "action": "DENIED_AND_RESTRICTED",
+                "customer_action": "DENY",
+                "status": "CANCELLED",
+                "restriction_applied": "OUTGOING_TRANSFERS_ONLY",
+                "security_ticket_created": True,
+                "ticket_id": tkt_ref,
+                "restriction_id": restr_id,
+                "message": "Transfer cancelled. Outgoing transfer restriction placed on your account to safeguard funds. Security ticket created.",
+            }
 
-        # 12. Record Audit Event
-        audit_event = AuditEvent(
-            event_id=f"EVT-{secrets.token_hex(6).upper()}",
-            event_type="TRANSFER_EXECUTED",
-            actor_type="CUSTOMER",
-            actor_id=str(sender_user_id),
-            source="TransferService",
-            transaction_id=txn.external_id,
-            metadata_={
-                "transfer_ref": transfer_ref,
-                "amount": str(amount),
-                "currency": currency,
-                "sender_user_number": sender_customer.omerta_user_number,
-                "recipient_user_number": recipient_customer.omerta_user_number,
-                "risk_score": float(final_risk),
-                "requires_review": requires_review,
-            },
+        else:
+            raise TransferError("Invalid confirmation action. Must be 'CONFIRM' or 'DENY'.", code="INVALID_ACTION")
+
+    async def admin_approve_transfer(
+        self,
+        transaction_external_id: str,
+        admin_user_id: int,
+        reason: str,
+    ) -> dict[str, Any]:
+        """Admin compliance override: approve and execute a held transfer."""
+        txn_stmt = (
+            select(Transaction)
+            .options(
+                selectinload(Transaction.account).selectinload(Account.customer),
+                selectinload(Transaction.recipient_account).selectinload(Account.customer),
+            )
+            .where(Transaction.external_id == transaction_external_id)
+            .limit(1)
         )
-        self.session.add(audit_event)
-        await self.session.commit()
+        txn = await self.session.scalar(txn_stmt)
+        if not txn:
+            raise TransferError("Transaction not found.", code="TXN_NOT_FOUND", status_code=404)
 
-        return await self.get_transfer_receipt(transfer_ref)
+        if txn.status not in ("PENDING_REVIEW", "PENDING_CUSTOMER_VERIFICATION"):
+            raise TransferError(f"Cannot approve transaction with status '{txn.status}'. Must be in held state.", code="INVALID_STATE")
+
+        # Check if customer has active restrictions prohibiting transfers
+        sender_customer = txn.account.customer
+        restr_stmt = (
+            select(TransactionRestriction)
+            .where(
+                and_(
+                    TransactionRestriction.customer_id == sender_customer.id,
+                    TransactionRestriction.status == "ACTIVE",
+                    TransactionRestriction.restriction_scope.in_(["OUTGOING_TRANSFERS_ONLY", "ALL_TRANSFERS", "FULL_CONTAINMENT"]),
+                )
+            )
+            .limit(1)
+        )
+        active_restr = await self.session.scalar(restr_stmt)
+        if active_restr:
+            raise TransferError(
+                f"Cannot process transfer: account has an active security restriction ({active_restr.restriction_reason}). Restore privileges first.",
+                code="RESTRICTION_ACTIVE",
+                status_code=400,
+            )
+
+        transfer_stmt = select(Transfer).where(Transfer.transaction_id == txn.id).limit(1)
+        transfer = await self.session.scalar(transfer_stmt)
+        if not transfer:
+            raise TransferError("Transfer record not found.", code="TRANSFER_NOT_FOUND", status_code=404)
+
+        sender_acc = await self.session.scalar(
+            select(Account).where(Account.id == txn.account_id).with_for_update()
+        )
+        recip_acc = await self.session.scalar(
+            select(Account).where(Account.id == txn.recipient_account_id).with_for_update()
+        )
+        if not sender_acc or not recip_acc:
+            raise TransferError("Accounts not found.", code="ACCOUNT_NOT_FOUND", status_code=404)
+
+        if sender_acc.balance < txn.amount:
+            raise TransferError("Source account balance is insufficient for settlement.", code="INSUFFICIENT_FUNDS")
+
+        # Execute ledger balance posting
+        sender_acc.balance = Decimal(str(sender_acc.balance)) - txn.amount
+        recip_acc.balance = Decimal(str(recip_acc.balance)) + txn.amount
+        self.session.add_all([sender_acc, recip_acc])
+
+        debit_ledger_ref = f"LED-DB-{secrets.token_hex(4).upper()}"
+        credit_ledger_ref = f"LED-CR-{secrets.token_hex(4).upper()}"
+
+        self.session.add_all([
+            AccountLedgerEntry(
+                external_id=debit_ledger_ref,
+                account_id=sender_acc.id,
+                transfer_id=transfer.id,
+                transaction_id=txn.id,
+                entry_type="DEBIT",
+                amount=txn.amount,
+                currency=txn.currency,
+                balance_after=sender_acc.balance,
+                description=f"Admin approved transfer to {recip_acc.customer.name}",
+                idempotency_key=f"{transfer.idempotency_key}-ADMIN-DEBIT",
+            ),
+            AccountLedgerEntry(
+                external_id=credit_ledger_ref,
+                account_id=recip_acc.id,
+                transfer_id=transfer.id,
+                transaction_id=txn.id,
+                entry_type="CREDIT",
+                amount=txn.amount,
+                currency=txn.currency,
+                balance_after=recip_acc.balance,
+                description=f"Admin approved transfer from {sender_acc.customer.name}",
+                idempotency_key=f"{transfer.idempotency_key}-ADMIN-CREDIT",
+            ),
+        ])
+
+        txn.status = "COMPLETED"
+        transfer.status = "COMPLETED"
+        txn.review_status = "COMPLETED"
+
+        # Update case & audit
+        now = datetime.now(UTC)
+        case_stmt = select(InvestigationCase).where(InvestigationCase.transaction_id == txn.id).limit(1)
+        case = await self.session.scalar(case_stmt)
+        if case:
+            case.status = "RESOLVED"
+            self.session.add(
+                CaseDisposition(
+                    case_id=case.id,
+                    analyst_id=str(admin_user_id),
+                    disposition="LEGITIMATE_ACTIVITY",
+                    rationale=reason or "Approved by authorized compliance administrator.",
+                    recorded_at=now,
+                )
+            )
+
+        self.session.add(
+            AuditEvent(
+                event_id=f"EVT-ADMIN-APP-{secrets.token_hex(4).upper()}",
+                event_type="ADMIN_TRANSACTION_APPROVED",
+                actor_type="ADMIN",
+                actor_id=str(admin_user_id),
+                source="TransferService",
+                transaction_id=txn.external_id,
+                metadata_={"reason": reason, "approved_at": now.isoformat()},
+            )
+        )
+
+        txn_ext_id = txn.external_id
+        await self.session.commit()
+        return {
+            "success": True,
+            "status": "COMPLETED",
+            "message": f"Transaction {txn_ext_id} approved and posted to double-entry ledger.",
+        }
+
+    async def admin_reject_transfer(
+        self,
+        transaction_external_id: str,
+        admin_user_id: int,
+        reason: str,
+    ) -> dict[str, Any]:
+        """Admin compliance rejection of a held transfer."""
+        txn_stmt = select(Transaction).where(Transaction.external_id == transaction_external_id).limit(1)
+        txn = await self.session.scalar(txn_stmt)
+        if not txn:
+            raise TransferError("Transaction not found.", code="TXN_NOT_FOUND", status_code=404)
+
+        transfer_stmt = select(Transfer).where(Transfer.transaction_id == txn.id).limit(1)
+        transfer = await self.session.scalar(transfer_stmt)
+        if not transfer:
+            raise TransferError("Transfer record not found.", code="TRANSFER_NOT_FOUND", status_code=404)
+
+        txn.status = "REJECTED"
+        transfer.status = "REJECTED"
+        txn.review_status = "DISMISSED"
+
+        now = datetime.now(UTC)
+        case_stmt = select(InvestigationCase).where(InvestigationCase.transaction_id == txn.id).limit(1)
+        case = await self.session.scalar(case_stmt)
+        if case:
+            case.status = "CLOSED"
+            self.session.add(
+                CaseDisposition(
+                    case_id=case.id,
+                    analyst_id=str(admin_user_id),
+                    disposition="SUSPICIOUS_FURTHER_INVESTIGATION",
+                    rationale=reason or "Rejected by compliance administrator.",
+                    recorded_at=now,
+                )
+            )
+
+        self.session.add(
+            AuditEvent(
+                event_id=f"EVT-ADMIN-REJ-{secrets.token_hex(4).upper()}",
+                event_type="ADMIN_TRANSACTION_REJECTED",
+                actor_type="ADMIN",
+                actor_id=str(admin_user_id),
+                source="TransferService",
+                transaction_id=txn.external_id,
+                metadata_={"reason": reason, "rejected_at": now.isoformat()},
+            )
+        )
+
+        txn_ext_id = txn.external_id
+        await self.session.commit()
+        return {
+            "success": True,
+            "status": "REJECTED",
+            "message": f"Transaction {txn_ext_id} rejected.",
+        }
+
+    async def restore_customer_transfer_privileges(
+        self,
+        customer_id: int,
+        admin_user_id: int,
+        reason: str,
+        ticket_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Admin operation to release transfer restrictions and restore privileges."""
+        cust_stmt = select(Customer).where(Customer.id == customer_id).limit(1)
+        customer = await self.session.scalar(cust_stmt)
+        if not customer:
+            raise TransferError("Customer not found.", code="CUST_NOT_FOUND", status_code=404)
+
+        now = datetime.now(UTC)
+
+        # Release active restrictions
+        restr_stmt = (
+            select(TransactionRestriction)
+            .where(
+                and_(
+                    TransactionRestriction.customer_id == customer_id,
+                    TransactionRestriction.status == "ACTIVE",
+                )
+            )
+        )
+        active_restrs = (await self.session.scalars(restr_stmt)).all()
+        released_count = 0
+        for restr in active_restrs:
+            restr.status = "RELEASED"
+            restr.released_at = now
+            restr.released_by = str(admin_user_id)
+            restr.release_reason = reason
+            released_count += 1
+
+        customer.transfer_status = "ACTIVE"
+        customer.transfer_unblocked_at = now
+        customer.transfer_failed_attempts = 0
+
+        # Record TransferRestoration audit record
+        restoration_num = (await self.session.scalar(
+            select(func.count(TransferRestoration.id)).where(TransferRestoration.customer_id == customer_id)
+        ) or 0) + 1
+
+        self.session.add(
+            TransferRestoration(
+                external_id=f"RES-{secrets.token_hex(4).upper()}",
+                customer_id=customer_id,
+                ticket_id=ticket_id,
+                actor_id=str(admin_user_id),
+                actor_name="Compliance Administrator",
+                actor_role="ADMINISTRATOR",
+                restoration_number=restoration_num,
+                previous_state="BLOCKED",
+                new_state="ACTIVE",
+                reason=reason,
+            )
+        )
+
+        # Resolve ticket if provided
+        if ticket_id:
+            ticket = await self.session.scalar(select(SupportTicket).where(SupportTicket.id == ticket_id))
+            if ticket:
+                ticket.status = "RESOLVED"
+                ticket.restoration_approved = True
+                ticket.restoration_approved_by = str(admin_user_id)
+                ticket.restoration_approved_at = now
+                ticket.resolution_reason = reason
+
+        cust_ext_id = customer.external_id
+        cust_name = customer.name
+        await self.session.commit()
+        return {
+            "success": True,
+            "privileges_restored": True,
+            "restrictions_released": released_count,
+            "customer_id": cust_ext_id,
+            "transfer_status": "ACTIVE",
+            "released_restrictions_count": released_count,
+            "message": f"Transfer privileges restored for customer {cust_name}.",
+        }
 
     async def get_transfer_receipt(self, transfer_ref: str) -> dict[str, Any]:
         """Fetch receipt for a completed transfer."""
@@ -686,8 +1187,10 @@ class TransferService:
 
         return {
             "transfer_id": transfer.external_id,
+            "transaction_id": transfer.transaction.external_id if transfer.transaction else None,
             "transaction_reference": transfer.transaction.external_id if transfer.transaction else None,
             "status": transfer.status,
+            "hold_reason": "VPN Detected - Requires Customer Confirmation" if transfer.status == "PENDING_CUSTOMER_VERIFICATION" else None,
             "amount": float(transfer.amount),
             "currency": transfer.currency,
             "formatted_amount": f"{transfer.amount:,.2f} {transfer.currency}",
@@ -736,6 +1239,7 @@ class TransferService:
                 selectinload(Transfer.recipient_customer),
                 selectinload(Transfer.sender_account),
                 selectinload(Transfer.recipient_account),
+                selectinload(Transfer.transaction),
             )
             .where(
                 or_(
@@ -760,8 +1264,12 @@ class TransferService:
         items = []
         for t in rows:
             is_sender = t.sender_customer_id == customer.id
+            txn_ref = t.transaction.external_id if t.transaction else t.external_id
             items.append({
                 "transfer_id": t.external_id,
+                "transaction_id": txn_ref,
+                "external_id": txn_ref,
+                "id": txn_ref,
                 "direction": "OUTGOING" if is_sender else "INCOMING",
                 "counterparty_name": t.recipient_customer.name if is_sender else t.sender_customer.name,
                 "counterparty_user_number": t.recipient_customer.omerta_user_number if is_sender else t.sender_customer.omerta_user_number,

@@ -19,6 +19,7 @@ import {
   Smartphone,
   Hash,
   KeyRound,
+  ShieldAlert,
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -93,10 +94,6 @@ export const SendMoneyPage: React.FC = () => {
   const [copiedReceipt, setCopiedReceipt] = useState(false);
 
   // Security modals & status
-  const [vpnModalOpen, setVpnModalOpen] = useState(false);
-  const [vpnDetails, setVpnDetails] = useState<{ isp?: string; country?: string; org?: string; reason?: string } | null>(null);
-  const [isRecheckingVpn, setIsRecheckingVpn] = useState(false);
-
   const [transferBlockedModalOpen, setTransferBlockedModalOpen] = useState(false);
   const [transferBlockedMessage, setTransferBlockedMessage] = useState<string>('');
   const [isTransferBlocked, setIsTransferBlocked] = useState<boolean>(false);
@@ -253,28 +250,6 @@ export const SendMoneyPage: React.FC = () => {
     setAmount(computed);
   };
 
-  // Re-check VPN connection from modal
-  const handleRecheckVpnConnection = async () => {
-    setIsRecheckingVpn(true);
-    try {
-      const telemetry = await collectNetworkTelemetry('EG');
-      if (!telemetry.is_vpn) {
-        setVpnModalOpen(false);
-        setVpnDetails(null);
-        setSubmitError(null);
-        handleExecuteTransfer();
-      } else {
-        setVpnDetails({
-          isp: telemetry.isp,
-          country: telemetry.country,
-          org: telemetry.org,
-          reason: telemetry.vpn_reason || 'Commercial VPN/Proxy tunnel still detected.',
-        });
-      }
-    } finally {
-      setIsRecheckingVpn(false);
-    }
-  };
 
   // Execute transfer
   const handleExecuteTransfer = async () => {
@@ -289,18 +264,6 @@ export const SendMoneyPage: React.FC = () => {
 
     try {
       const telemetry = await collectNetworkTelemetry('EG');
-
-      if (telemetry.is_vpn) {
-        setVpnDetails({
-          isp: telemetry.isp,
-          country: telemetry.country,
-          org: telemetry.org,
-          reason: telemetry.vpn_reason || 'Encrypted proxy or datacenter tunnel observed.',
-        });
-        setVpnModalOpen(true);
-        setIsSubmitting(false);
-        return;
-      }
 
       const res = await api.initiateTransfer({
         sender_account_id: selectedAccount.account_id,
@@ -335,13 +298,6 @@ export const SendMoneyPage: React.FC = () => {
             'Security Alert: You have entered your transfer password incorrectly 3 times. Money movement has been placed on security hold. You remain logged in. Please contact Customer Support to verify your identity and restore transfer access.'
         );
         setTransferBlockedModalOpen(true);
-      } else if (err?.message?.includes('VPN') || err?.error === 'VPN_TRANSFER_BLOCKED') {
-        setVpnDetails({
-          isp: 'VPN / Datacenter Gateway',
-          country: 'Commercial Proxy',
-          reason: err.message,
-        });
-        setVpnModalOpen(true);
       } else {
         setSubmitError(err.message || 'Transfer failed. Please check your available balance and try again.');
       }
@@ -934,19 +890,44 @@ export const SendMoneyPage: React.FC = () => {
         </Card>
       )}
 
-      {/* STEP 4: Transfer Success Receipt */}
+      {/* STEP 4: Transfer Success / Hold Receipt */}
       {step === 4 && receipt && (
         <Card className="p-6 md:p-8 space-y-6 text-center">
-          <div className="mx-auto h-16 w-16 rounded-2xl bg-emerald-50 border border-emerald-300 flex items-center justify-center text-emerald-700 shadow-sm">
-            <Check className="h-8 w-8 stroke-[3]" />
-          </div>
+          {receipt.status === 'PENDING_CUSTOMER_VERIFICATION' || receipt.status === 'PENDING_REVIEW' ? (
+            <>
+              <div className="mx-auto h-16 w-16 rounded-2xl bg-amber-50 border border-amber-300 flex items-center justify-center text-amber-600 shadow-sm">
+                <ShieldAlert className="h-8 w-8 stroke-[2.2]" />
+              </div>
 
-          <div>
-            <h2 className="text-2xl font-extrabold text-[var(--color-sapphire)]">Transfer Executed Successfully</h2>
-            <p className="text-xs text-[var(--color-text-secondary)] mt-1 font-medium">
-              Funds debited from sender and credited to recipient in PostgreSQL ledger.
-            </p>
-          </div>
+              <div>
+                <h2 className="text-2xl font-extrabold text-[var(--color-sapphire)]">Transfer Held for Verification</h2>
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 mt-2">
+                  STATUS: {receipt.status}
+                </span>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-2 font-medium max-w-md mx-auto">
+                  {receipt.status === 'PENDING_CUSTOMER_VERIFICATION'
+                    ? 'This transfer requires identity verification due to elevated risk score or VPN origin. Funds remain safe in your account.'
+                    : 'This transfer has been placed on security hold for compliance review. Funds remain safe in your account.'}
+                </p>
+                <div className="mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 font-medium max-w-md mx-auto">
+                  A verification email has been dispatched with confirmation options. You can also confirm or cancel this transfer directly from your Security Center.
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mx-auto h-16 w-16 rounded-2xl bg-emerald-50 border border-emerald-300 flex items-center justify-center text-emerald-700 shadow-sm">
+                <Check className="h-8 w-8 stroke-[3]" />
+              </div>
+
+              <div>
+                <h2 className="text-2xl font-extrabold text-[var(--color-sapphire)]">Transfer Executed Successfully</h2>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-1 font-medium">
+                  Funds debited from sender and credited to recipient in PostgreSQL ledger.
+                </p>
+              </div>
+            </>
+          )}
 
           {/* Detailed Receipt Card */}
           <div className="p-5 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)] text-left space-y-3.5">
@@ -988,6 +969,18 @@ export const SendMoneyPage: React.FC = () => {
 
           {/* Action buttons */}
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            {(receipt.status === 'PENDING_CUSTOMER_VERIFICATION' || receipt.status === 'PENDING_REVIEW') && (
+              <Button
+                variant="primary"
+                size="default"
+                onClick={() => navigate('/customer/security')}
+                className="bg-amber-600 hover:bg-amber-700 text-white border-amber-600 shadow-sm"
+              >
+                <ShieldCheck className="h-4 w-4 mr-1.5" />
+                <span>Go to Security Verification Center</span>
+              </Button>
+            )}
+
             <Button
               variant="secondary"
               size="default"
@@ -1017,66 +1010,6 @@ export const SendMoneyPage: React.FC = () => {
         </Card>
       )}
 
-      {/* MODAL 1: VPN / PROXY CONNECTION ACTIVE POPUP */}
-      {vpnModalOpen && (
-        <Modal
-          isOpen={vpnModalOpen}
-          onClose={() => setVpnModalOpen(false)}
-          title="VPN / Proxy Detected"
-          subtitle="Compliance & Risk Policy Violation"
-          maxWidth="md"
-        >
-          <div className="space-y-4 text-xs">
-            <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
-              <div className="space-y-1">
-                <p className="font-bold text-amber-950 text-sm">Please Disconnect Your VPN</p>
-                <p className="text-amber-900 leading-relaxed font-medium">
-                  For banking compliance and anti-fraud safeguards, transfers cannot be executed through commercial VPNs or proxy tunnels.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-[var(--color-secondary-surface)] border border-[var(--color-border)] space-y-2">
-              <span className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase">Observed Telemetry</span>
-              <div className="flex justify-between items-center py-1 border-b border-[var(--color-border)]">
-                <span className="text-[var(--color-text-muted)] font-medium">Exit Country</span>
-                <span className="font-mono text-[var(--color-sapphire)] font-bold">{vpnDetails?.country || 'External'}</span>
-              </div>
-              <div className="flex justify-between items-center py-1 border-b border-[var(--color-border)]">
-                <span className="text-[var(--color-text-muted)] font-medium">ISP / Gateway</span>
-                <span className="font-bold text-[var(--color-text-primary)]">{vpnDetails?.isp || 'Hosting Gateway'}</span>
-              </div>
-              {vpnDetails?.reason && (
-                <div className="text-[11px] text-amber-800 pt-1 font-medium">
-                  Reason: {vpnDetails.reason}
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setVpnModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                onClick={handleRecheckVpnConnection}
-                isLoading={isRecheckingVpn}
-              >
-                <RefreshCw className="w-4 h-4 mr-1.5" />
-                <span>Check Connection Again</span>
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )}
 
       {/* MODAL 2: 3-WRONG TRANSFER PASSWORD SECURITY HOLD MODAL */}
       {transferBlockedModalOpen && (

@@ -397,6 +397,25 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ rationale }),
     }),
+  customerConfirmTransaction: (transactionId: string | number, action: 'CONFIRM' | 'DENY', reason?: string) =>
+    apiRequest(`/transactions/${encodeURIComponent(String(transactionId))}/customer-confirmation`, {
+      method: 'POST',
+      body: JSON.stringify({ action, reason }),
+    }),
+  adminRestoreTransactionPrivileges: (customerId: string | number, reason?: string) =>
+    apiRequest(`/admin/customers/${encodeURIComponent(String(customerId))}/restore-transaction-privileges`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+  adminGetSecurityTickets: (status?: string) => {
+    const q = status ? `?status=${encodeURIComponent(status)}` : '';
+    return apiRequest<any[]>(`/admin/security-tickets${q}`);
+  },
+  adminResolveSecurityTicket: (ticketId: number | string, resolutionNotes?: string, restorePrivileges = false) =>
+    apiRequest(`/admin/security-tickets/${ticketId}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify({ resolution_notes: resolutionNotes, restore_privileges: restorePrivileges }),
+    }),
   previewAgenticSarReport: (targetId: string) =>
     apiRequest(`/admin/agentic/generate-sar-report?case_or_txn_id=${encodeURIComponent(targetId)}`, {
       method: 'POST',
@@ -415,6 +434,7 @@ export const api = {
     return apiRequest(`/transactions?${q.toString()}`);
   },
   getTransactionDetail: (id: string | number) => apiRequest(`/transactions/${id}`),
+  getTransactionHistory: (id: string | number) => apiRequest<any>(`/transactions/${id}/history`),
   createTransaction: (data: any) =>
     apiRequest('/transactions', {
       method: 'POST',
@@ -602,6 +622,10 @@ export const api = {
     }),
   getTransactionInvestigation: (transactionId: string) =>
     apiRequest<AccountInvestigationReport>(`/investigations/transaction/${encodeURIComponent(transactionId)}`, {
+      method: 'GET',
+    }),
+  getTransactionInvestigationLive: (transactionId: string) =>
+    apiRequest<LiveInvestigationSnapshot>(`/investigations/transaction/${encodeURIComponent(transactionId)}/live`, {
       method: 'GET',
     }),
   simulateWithdrawal: (params: {
@@ -937,6 +961,7 @@ export interface AccountInvestigationReport {
   caller_role: string;
   investigation_reason: string;
   executive_summary: string;
+  forensic_report_markdown?: string | null;
   account_facts?: AccountFacts | null;
   transaction_facts_count: number;
   recent_transactions: any[];
@@ -959,6 +984,23 @@ export interface AccountInvestigationReport {
   charts: ChartArtifactReference[];
   execution_time_ms: number;
   pipeline_stages?: PipelineStageTrace[];
+}
+
+export interface LiveInvestigationSnapshot {
+  investigation_id: string;
+  subject_id: string;
+  is_transaction: boolean;
+  status: 'NOT_STARTED' | 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  started_at?: string | null;
+  completed_at?: string | null;
+  elapsed_ms: number;
+  progress_percentage: number;
+  active_stage_ids: string[];
+  completed_count: number;
+  total_stages: number;
+  stages: PipelineStageTrace[];
+  final_report?: AccountInvestigationReport | null;
+  error_message?: string | null;
 }
 
 export interface SimulatedWithdrawalResponse {

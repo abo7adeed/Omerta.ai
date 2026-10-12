@@ -68,6 +68,9 @@ class RecommendedReviewAction(StrEnum):
     HUMAN_REVIEW = "HUMAN_REVIEW"
     ESCALATE_TO_FIU = "ESCALATE_TO_FIU"
     FREEZE_RECOMMENDATION = "FREEZE_RECOMMENDATION"
+    HOLD_FOR_CUSTOMER_VERIFICATION = "HOLD_FOR_CUSTOMER_VERIFICATION"
+    MANUAL_COMPLIANCE_REVIEW = "MANUAL_COMPLIANCE_REVIEW"
+    RESTRICT_AND_INVESTIGATE = "RESTRICT_AND_INVESTIGATE"
 
 
 class AccountInvestigationRequest(BaseModel):
@@ -324,6 +327,7 @@ class AccountInvestigationReport(BaseModel):
     # 8. LLM Synthesis & Explanations
     risk_assessment_explanation: str
     factor_explanations: list[str] = Field(default_factory=list)
+    forensic_report_markdown: str | None = None
 
     # 9. Data Limitations & Missing Data
     missing_data_and_limitations: list[str] = Field(default_factory=list)

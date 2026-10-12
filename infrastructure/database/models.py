@@ -151,6 +151,9 @@ class Customer(TimestampMixin, Base):
     transfer_restorations: Mapped[list["TransferRestoration"]] = relationship(
         back_populates="customer", cascade="all, delete-orphan"
     )
+    transaction_restrictions: Mapped[list["TransactionRestriction"]] = relationship(
+        back_populates="customer", cascade="all, delete-orphan"
+    )
 
 
 class Account(Base):
@@ -753,6 +756,35 @@ class TransferRestoration(Base):
 
     customer: Mapped["Customer"] = relationship(back_populates="transfer_restorations")
     ticket: Mapped["SupportTicket | None"] = relationship(back_populates="transfer_restorations")
+
+
+class TransactionRestriction(TimestampMixin, Base):
+    """Server-enforced, granular transaction and account privilege restriction."""
+
+    __tablename__ = "transaction_restrictions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    restriction_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("customers.id", ondelete="CASCADE"), index=True
+    )
+    account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("accounts.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    case_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    trigger_transaction_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    restriction_reason: Mapped[str] = mapped_column(Text, nullable=False)
+    # OUTGOING_TRANSFERS_ONLY | ALL_TRANSFERS | FULL_CONTAINMENT
+    restriction_scope: Mapped[str] = mapped_column(String(64), default="OUTGOING_TRANSFERS_ONLY", index=True)
+    # ACTIVE | RELEASED
+    status: Mapped[str] = mapped_column(String(32), default="ACTIVE", index=True)
+    created_by: Mapped[str | None] = mapped_column(String(255), default="SYSTEM")
+    released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    released_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    release_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    customer: Mapped["Customer"] = relationship(back_populates="transaction_restrictions")
+    account: Mapped["Account | None"] = relationship()
 
 
 class SupportMessage(Base):

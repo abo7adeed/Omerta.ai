@@ -201,7 +201,32 @@ async def initiate_transfer(
                 detail={"error": "NOT_A_CUSTOMER", "message": "Only registered customers can send transfers."},
             )
 
-        # 0. Enforce Transfer Block Check
+        # 0a. Enforce Active Transaction Restrictions Check (OUTGOING_TRANSFERS_ONLY, etc.)
+        from infrastructure.database.models import TransactionRestriction
+        restr_stmt = (
+            select(TransactionRestriction)
+            .where(
+                and_(
+                    TransactionRestriction.customer_id == customer.id,
+                    TransactionRestriction.status == "ACTIVE",
+                    TransactionRestriction.restriction_scope.in_(["OUTGOING_TRANSFERS_ONLY", "ALL_TRANSFERS", "FULL_CONTAINMENT"]),
+                )
+            )
+            .limit(1)
+        )
+        active_restr = await session.scalar(restr_stmt)
+        if active_restr:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "TRANSFERS_RESTRICTED",
+                    "restriction_scope": active_restr.restriction_scope,
+                    "reason": active_restr.restriction_reason,
+                    "message": f"Your account is subject to an active security restriction on outgoing transfers: {active_restr.restriction_reason}",
+                },
+            )
+
+        # 0b. Enforce Password Failure Transfer Block Check
         if getattr(customer, "transfer_status", "ACTIVE") == "BLOCKED":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -310,35 +335,24 @@ async def initiate_transfer(
         )
 
         if is_vpn_detected:
-            # Elevate customer risk level to HIGH
-            customer.risk_level = "HIGH"
-
-            # Create Audit Event
+            # Audit VPN detection event; transfer_service will place transaction on verification hold
             session.add(
                 AuditEvent(
                     event_id=f"EVT-VPN-{secrets.token_hex(4).upper()}",
-                    event_type="VPN_TRANSFER_BLOCKED",
+                    event_type="VPN_TRANSFER_HELD_FOR_VERIFICATION",
                     actor_type="CUSTOMER",
                     actor_id=str(customer.user_id),
                     source="SecurityRiskEngine",
                     metadata_={
                         "vpn_reason": vpn_reason,
-                        "risk_level": "HIGH",
                         "amount": str(body.amount),
                         "customer_id": customer.external_id,
                         "client_ip": effective_ip,
+                        "action": "PENDING_CUSTOMER_VERIFICATION",
                     },
                 )
             )
             await session.commit()
-
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={
-                    "error": "VPN_TRANSFER_BLOCKED",
-                    "message": f"Security Policy Restriction: Transfers initiated through commercial VPNs or proxy anonymizers are blocked ({vpn_reason}) and your account risk has been elevated to HIGH. Please disconnect your VPN and use a verified direct connection to proceed.",
-                },
-            )
 
         try:
             sender_acc = body.resolved_sender_account_id

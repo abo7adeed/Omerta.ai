@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
+  ShieldAlert,
   Smartphone,
   Laptop,
   Globe,
@@ -10,6 +11,8 @@ import {
   ToggleRight,
   Info,
   CheckCircle2,
+  XCircle,
+  ArrowRight,
   Loader2,
   RefreshCw,
   Radio,
@@ -31,6 +34,46 @@ export const CustomerSecurityPage: React.FC = () => {
   const [isProbing, setIsProbing] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [secondsRemaining, setSecondsRemaining] = useState(30);
+  const [pendingTransfers, setPendingTransfers] = useState<any[]>([]);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+
+  const fetchPendingTransfers = async () => {
+    try {
+      const res = await api.getCustomerTransfers({ status: 'PENDING_CUSTOMER_VERIFICATION' });
+      const items = res?.items || (Array.isArray(res) ? res : []);
+      setPendingTransfers(items.filter((t: any) => t.status === 'PENDING_CUSTOMER_VERIFICATION'));
+    } catch (e) {
+      console.warn('Failed to fetch pending transfers', e);
+    }
+  };
+
+  const handleCustomerConfirm = async (transactionId: string) => {
+    setConfirmLoading(true);
+    try {
+      await api.customerConfirmTransaction(transactionId, 'CONFIRM');
+      setMsg(`Transfer ${transactionId} confirmed! You verified this transfer. If risk score is elevated, it will proceed to compliance review.`);
+      await fetchPendingTransfers();
+      await fetchSessions(false);
+    } catch (err: any) {
+      setMsg(err?.message || 'Failed to confirm transaction.');
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  const handleCustomerDeny = async (transactionId: string) => {
+    setConfirmLoading(true);
+    try {
+      await api.customerConfirmTransaction(transactionId, 'DENY');
+      setMsg(`Transfer ${transactionId} denied! The transfer was cancelled, outgoing transfers are restricted for your safety, and a high-priority security ticket was created.`);
+      await fetchPendingTransfers();
+      await fetchSessions(false);
+    } catch (err: any) {
+      setMsg(err?.message || 'Failed to deny transaction.');
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
 
   const fetchSessions = async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
@@ -71,6 +114,7 @@ export const CustomerSecurityPage: React.FC = () => {
         user_agent: telemetry.user_agent,
       });
       await fetchSessions(false);
+      await fetchPendingTransfers();
       setSecondsRemaining(30);
     } catch (e) {
       console.warn('Telemetry probe notice:', e);
@@ -82,6 +126,19 @@ export const CustomerSecurityPage: React.FC = () => {
   // Initial load
   useEffect(() => {
     fetchSessions();
+    fetchPendingTransfers();
+
+    // Handle incoming verification email links: ?action=CONFIRM&tx_id=TXN-...
+    const searchParams = new URLSearchParams(window.location.search);
+    const actionParam = searchParams.get('action');
+    const targetTxId = searchParams.get('tx_id') || searchParams.get('transaction_id');
+    if (actionParam && targetTxId) {
+      if (actionParam.toUpperCase() === 'CONFIRM') {
+        handleCustomerConfirm(targetTxId);
+      } else if (actionParam.toUpperCase() === 'DENY') {
+        handleCustomerDeny(targetTxId);
+      }
+    }
   }, []);
 
   // 30-Second recurring countdown timer
@@ -188,6 +245,95 @@ export const CustomerSecurityPage: React.FC = () => {
           <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
           <span>{msg}</span>
         </div>
+      )}
+
+      {/* Pending Transfers Held for Customer Verification */}
+      {pendingTransfers.length > 0 && (
+        <Card className="p-6 md:p-8 bg-amber-50/80 border-2 border-amber-300 shadow-sm space-y-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500 text-white shadow-xs">
+                <ShieldAlert className="h-6 w-6 stroke-[2.2]" />
+              </div>
+              <div>
+                <h2 className="text-lg font-extrabold text-amber-950 flex items-center gap-2">
+                  <span>Transfer Verification Required</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900 border border-amber-400">
+                    {pendingTransfers.length} PENDING ACTION
+                  </span>
+                </h2>
+                <p className="text-xs text-amber-800 font-medium mt-0.5">
+                  A recent transfer was initiated from an encrypted commercial VPN or proxy tunnel. Funds are currently on hold.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {pendingTransfers.map((tx: any) => {
+              const txId = tx.transaction_id || tx.external_id || tx.transfer_id || tx.id;
+              const amountFormatted = `${Number(tx.amount).toLocaleString()} ${tx.currency || 'EGP'}`;
+              const recipientDisplay = tx.receiver_name || tx.recipient_account || 'Beneficiary Account';
+              const createdDate = tx.timestamp ? new Date(tx.timestamp).toLocaleString() : 'Just now';
+
+              return (
+                <div
+                  key={txId}
+                  className="p-4 rounded-xl bg-white border border-amber-300 shadow-xs space-y-3 text-xs"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-amber-100">
+                    <div>
+                      <span className="font-mono font-bold text-[var(--color-sapphire)]">{txId}</span>
+                      <span className="text-[11px] text-[var(--color-text-secondary)] ml-2">({createdDate})</span>
+                    </div>
+                    <div className="text-sm font-extrabold text-[var(--color-sapphire)] font-mono">
+                      {amountFormatted}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-[var(--color-text-secondary)]">
+                    <div>
+                      <span className="font-bold text-[var(--color-text-primary)]">Recipient:</span> {recipientDisplay}
+                    </div>
+                    <div>
+                      <span className="font-bold text-[var(--color-text-primary)]">Status:</span>{' '}
+                      <span className="font-bold text-amber-800">PENDING CUSTOMER CONFIRMATION</span>
+                    </div>
+                    <div className="sm:col-span-2 text-amber-900 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                      <strong>Security Notice:</strong> Funds have NOT been transferred. The ledger debit remains paused until you confirm or deny this transfer.
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="sm"
+                      disabled={confirmLoading}
+                      onClick={() => handleCustomerDeny(txId)}
+                      className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+                    >
+                      <XCircle className="w-4 h-4 mr-1.5" />
+                      <span>No, this was NOT me (Freeze My Account)</span>
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      disabled={confirmLoading}
+                      onClick={() => handleCustomerConfirm(txId)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                      <span>Yes, I initiated this transfer</span>
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
       )}
 
       {/* Privacy & Consent Section */}

@@ -157,7 +157,7 @@ class BankingTransactionService:
     async def get_transaction_detail(self, identifier: str) -> dict[str, Any] | None:
         """Load deep 6-section transaction detail view."""
         query = select(Transaction).options(
-            selectinload(Transaction.account).selectinload(Account.customer),
+            selectinload(Transaction.account).selectinload(Account.customer).selectinload(Customer.transaction_restrictions),
             selectinload(Transaction.recipient_account),
             selectinload(Transaction.device),
             selectinload(Transaction.ip_address),
@@ -176,6 +176,10 @@ class BankingTransactionService:
 
         # 1. Overview
         customer = txn.account.customer if txn.account else None
+        active_restrictions = [r.restriction_type for r in customer.transaction_restrictions if r.is_active] if (customer and customer.transaction_restrictions) else []
+        has_transfer_restriction = len(active_restrictions) > 0
+        hold_reason = txn.txn_metadata.get("hold_reason") if txn.txn_metadata else None
+
         overview = {
             "id": txn.id,
             "external_id": txn.external_id,
@@ -184,6 +188,9 @@ class BankingTransactionService:
             "transaction_type": txn.transaction_type,
             "status": txn.status,
             "timestamp": txn.timestamp.isoformat(),
+            "hold_reason": hold_reason,
+            "has_transfer_restriction": has_transfer_restriction,
+            "active_restrictions": active_restrictions,
             "source_account": {
                 "id": txn.account.id if txn.account else None,
                 "external_id": txn.account.external_id if txn.account else "N/A",
@@ -205,6 +212,8 @@ class BankingTransactionService:
                 "customer_type": customer.customer_type if customer else "INDIVIDUAL",
                 "country": customer.country if customer else "EG",
                 "risk_level": customer.risk_level if customer else "LOW",
+                "has_transfer_restriction": has_transfer_restriction,
+                "active_restrictions": active_restrictions,
             } if (customer or txn.account) else None,
             "device": {
                 "id": txn.device.id if txn.device else None,
