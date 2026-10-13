@@ -8,9 +8,9 @@
 
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![React 18](https://img.shields.io/badge/React-18.3-61DAFB?style=flat-square&logo=react&logoColor=black)](https://reactjs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
+[![React 19](https://img.shields.io/badge/React-19.2-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5+-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.3-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
 [![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16_Alpine-336791?style=flat-square&logo=postgresql&logoColor=white)](https://postgresql.org)
 [![Neo4j 5](https://img.shields.io/badge/Neo4j-5.26_Graph-008CC1?style=flat-square&logo=neo4j&logoColor=white)](https://neo4j.com)
 [![LangGraph](https://img.shields.io/badge/LangGraph-Multi--Agent-FF6F00?style=flat-square&logo=langchain&logoColor=white)](https://langchain-ai.github.io/langgraph/)
@@ -29,8 +29,11 @@
 Traditional fraud detection platforms rely on static rule engines that flag suspicious activity after the fact, burdening human analysts with manual evidence collection across disjointed tools.
 
 **Omerta.ai** bridges modern fintech core banking with autonomous agentic artificial intelligence:
-- 💳 **Secure Double-Entry Banking Core**: Concurrent-safe, multi-currency ledger (`account_ledger_entries`) with row-level locks (`SELECT ... FOR UPDATE`).
+- 💳 **Secure Double-Entry Banking Core**: Concurrent-safe, multi-currency ledger (`account_ledger_entries`) with deterministic row-level locks (`SELECT ... FOR UPDATE` ordered by account ID) preventing deadlocks and race conditions.
 - 🔐 **Dual-Password Security & Non-Logout 3-Strikes Hold**: Segregates account login from transfer authorization; 3 wrong transfer passwords lock transfers on a security hold while preserving user session access.
+- 🔑 **Cryptographic Step-Up Confirmation**: High-risk and verification-hold transactions issue time-limited, single-use SHA-256 tokens (`TransactionConfirmationToken`) preventing unauthorized release and replay attacks.
+- ⏱️ **Multi-Window Rolling Velocity Engine**: Evaluates strict temporal windows (`5m`, `15m`, `60m`, `24h`, `7d`, `30d`) strictly bounded `[start, anchor_time)` to eliminate future data leakage, paired with database aggregates for lifetime account velocity.
+- 🌐 **Intelligent Telemetry Classification**: Differentiates domestic Egyptian IP telemetry (held for customer verification) from foreign datacenter/hosting IP proxies (immediately blocked with HTTP 403).
 - 🕸️ **Universal Search & Multi-Hop Network Topology (`/network`)**: Real-time entity-relationship graph computing itemized money inflows (*"from where got money"*) and outflows (*"where money went"*).
 - 📱 **Device Intelligence & Localhost Co-Location (`/devices`)**: Detects multiple accounts sharing the same physical hardware, elevating risk to **HIGH** (2 accounts) or **CRITICAL** ($\ge 3$ accounts).
 - 💬 **WhatsApp-Style Support Desk & Identity Verification (`/portal/support`, `/support-cases`)**: End-to-end case resolution, Egyptian National ID card verification, and administrative transfer restorations.
@@ -43,7 +46,7 @@ Traditional fraud detection platforms rely on static rule engines that flag susp
 ```mermaid
 flowchart TB
     subgraph ClientLayer [" 💻 Client Layer & Telemetry "]
-        ReactSPA[" React 18 + TypeScript + Vite SPA "]
+        ReactSPA[" React 19 + TypeScript + Vite SPA "]
         CustomerPortal[" 👤 Customer Banking Portal "]
         AdminHub[" 🛡️ Compliance & Forensic Command Center "]
         TelemetryStream[" 📡 Device, IP & Geolocation Telemetry "]
@@ -338,6 +341,14 @@ npm run dev
 | `POST` | `/api/v1/auth/forgot-password` | Dispatch live SMTP password reset email with cryptographic JWT token |
 | `POST` | `/api/v1/auth/reset-password` | Verify token and update login password |
 
+### 💳 Transaction Execution & AML Scoring Endpoints
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/transactions` | Submit transaction for real-time risk scoring (`APPROVED`, `HELD`, `BLOCKED`, `REJECTED`) |
+| `POST` | `/api/v1/transactions/{id}/customer-confirmation` | Submit single-use SHA-256 confirmation token to release `HELD` transactions |
+| `GET` | `/api/v1/transactions/{id}/history` | Cryptographically audited transaction event trail with IDOR protection |
+| `GET` | `/api/v1/customer/lookup` | Instant recipient account and KYC name verification |
+
 ### 💳 Customer Banking & Support Endpoints
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
@@ -364,17 +375,28 @@ npm run dev
 
 ## 🧪 Test Suite & Verification
 
+The test suite validates core double-entry accounting invariants, row-locking race safety, single-session RBAC enforcement, single-use confirmation token security, and multi-agent consensus:
+
 ```bash
-# Run the complete test suite
-uv run pytest -v
+# 1. Master AML Fraud Workflow (Scoring, Velocity & Rules)
+uv run pytest tests/test_master_fraud_workflow.py -v
 
-# Run network topology & fund tracing tests
-uv run pytest tests/test_network_graph_and_fund_tracing.py -v
+# 2. Authentication, Single-Active-Session & RBAC
+uv run pytest tests/test_auth_session_reset_and_rbac.py -v
 
-# Run transfer security and support ticket tests
+# 3. Core Banking Double-Entry Ledger & Admin Provisioning
+uv run pytest tests/test_stage2_banking_and_admin.py -v
+
+# 4. Support Ticket Security, ID Cards & Identity Restorations
+uv run pytest tests/test_ticket_security_and_restorations.py -v
+
+# 5. Dual-Password Transfer Security & 3-Strikes Hold
 uv run pytest tests/test_transfer_security_and_support.py -v
 
-# Verify frontend production build
+# 6. Network Topology Subgraph & Fund Tracing
+uv run pytest tests/test_network_graph_and_fund_tracing.py -v
+
+# 7. Frontend Production Type-Check & Bundle Build
 npm --prefix frontend run build
 ```
 
