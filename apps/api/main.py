@@ -7,6 +7,7 @@ services out; no SQL, no investigation logic, no Neo4j access in routes.
 
 
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -48,9 +49,21 @@ ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
 ]
+frontend_url_binding = os.getenv("FRONTEND_URL")
+if frontend_url_binding and frontend_url_binding.rstrip("/") not in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS.append(frontend_url_binding.rstrip("/"))
+
+custom_allowed_origins = os.getenv("ALLOWED_ORIGINS")
+if custom_allowed_origins:
+    for origin in custom_allowed_origins.split(","):
+        cleaned = origin.strip().rstrip("/")
+        if cleaned and cleaned not in ALLOWED_ORIGINS:
+            ALLOWED_ORIGINS.append(cleaned)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],

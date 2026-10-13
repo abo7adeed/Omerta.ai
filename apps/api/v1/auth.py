@@ -5,9 +5,10 @@ multi-role login (CUSTOMER, ADMINISTRATOR, FRAUD_ANALYST, SENIOR_INVESTIGATOR, A
 and authenticated user payload resolution.
 """
 
+import os
+import secrets
 from datetime import UTC, datetime
 from decimal import Decimal
-import secrets
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -454,7 +455,8 @@ async def forgot_password(body: ForgotPasswordRequest, request: Request) -> dict
 
         # Generate signed reset token
         reset_token = create_password_reset_token(user_id=user.external_id, email=user.email, expires_minutes=15)
-        reset_url = f"http://localhost:5173/reset-password?token={reset_token}"
+        base_app_url = os.getenv("FRONTEND_URL", os.getenv("APP_URL", "http://localhost:5173")).rstrip("/")
+        reset_url = f"{base_app_url}/reset-password?token={reset_token}"
         client_ip = request.client.host if request.client else "127.0.0.1"
 
         # Transmit real email from abdomostafa13571234@gmail.com

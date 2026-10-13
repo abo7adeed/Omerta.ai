@@ -558,7 +558,7 @@ async def withdraw_funds(
                 target_email = os.getenv("REAL_CUSTOMER_EMAIL", "abdomostafa13571234@gmail.com")
 
             if target_email:
-                base_app_url = os.getenv("APP_URL", "http://localhost:5173").rstrip("/")
+                base_app_url = os.getenv("FRONTEND_URL", os.getenv("APP_URL", "http://localhost:5173")).rstrip("/")
                 verif_url = f"{base_app_url}/customer/security?token={confirm_token}&txn={txn.external_id}"
                 asyncio.create_task(
                     EmailService.send_transfer_verification_email(
