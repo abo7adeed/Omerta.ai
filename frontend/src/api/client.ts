@@ -397,10 +397,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ rationale }),
     }),
-  customerConfirmTransaction: (transactionId: string | number, action: 'CONFIRM' | 'DENY', reason?: string) =>
+  customerConfirmTransaction: (transactionId: string | number, action: 'CONFIRM' | 'DENY', token?: string, reason?: string) =>
     apiRequest(`/transactions/${encodeURIComponent(String(transactionId))}/customer-confirmation`, {
       method: 'POST',
-      body: JSON.stringify({ action, reason }),
+      body: JSON.stringify({ action, token: token || undefined, reason }),
     }),
   adminRestoreTransactionPrivileges: (customerId: string | number, reason?: string) =>
     apiRequest(`/admin/customers/${encodeURIComponent(String(customerId))}/restore-transaction-privileges`, {

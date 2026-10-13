@@ -160,8 +160,26 @@ class TransactionHistoryAgent:
         historical_beneficiaries = {t.recipient_account_id for t in tx_history}
         distinct_beneficiaries_count = len(historical_beneficiaries)
         is_first_with_beneficiary = False
+        recipient_distinct_senders_15m = 0
+        recipient_incoming_count_15m = 0
         if recipient_account_id:
             is_first_with_beneficiary = recipient_account_id not in historical_beneficiaries
+            recip_fifteen_min_ago = anchor_time - timedelta(minutes=15)
+            recip_stmt = (
+                select(Transaction.account_id)
+                .where(
+                    and_(
+                        Transaction.recipient_account_id == recipient_account_id,
+                        Transaction.timestamp >= recip_fifteen_min_ago,
+                        Transaction.timestamp < anchor_time,
+                        Transaction.status.in_(["COMPLETED", "PENDING_CUSTOMER_VERIFICATION", "PENDING_REVIEW"]),
+                    )
+                )
+            )
+            recip_res = await self.session.scalars(recip_stmt)
+            recip_senders = list(recip_res.all())
+            recipient_incoming_count_15m = len(recip_senders)
+            recipient_distinct_senders_15m = len(set(recip_senders))
 
         # Statistical Calculations (Average, Median, Max, P95 computed on verified 30-day outgoing baseline)
         if total_30d_count >= 1:
@@ -220,6 +238,8 @@ class TransactionHistoryAgent:
             time_since_last_transaction_seconds=time_since_last_sec,
             account_age_days=account_age_days,
             available_balance=available_balance,
+            recipient_distinct_senders_15m=recipient_distinct_senders_15m,
+            recipient_incoming_count_15m=recipient_incoming_count_15m,
         )
 
         # 6. Evaluate Findings & Compute Agent Risk Score

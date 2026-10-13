@@ -319,6 +319,57 @@ BANKING_RULES_REGISTRY: dict[str, BankingRuleDefinition] = {
         regulatory_reference="Internal Security Governance — Server-Enforced Transfer Restriction",
         evidence_fields=["restriction_id", "restriction_scope"],
     ),
+
+    # 17. High-Value Transfer Threshold Exceeded
+    "RULE-HIGH-VALUE": BankingRuleDefinition(
+        rule_id="RULE-HIGH-VALUE",
+        version="1.0.0",
+        name="High-Value Transfer Threshold Exceeded",
+        description="Transfer amount exceeds 50,000 EGP statutory threshold, or exceeds 10,000 EGP on a newly registered account (< 14 days).",
+        enabled=True,
+        severity=RuleSeverity.CRITICAL,
+        points=45.0,
+        requires_transaction_hold=True,
+        requires_customer_verification=True,
+        requires_human_review=True,
+        reference_type=RuleReferenceType.STATUTORY_REGULATION,
+        regulatory_reference="Anti-Fraud High-Value Escalation Directive — Mandatory Customer Authorization Hold",
+        evidence_fields=["current_amount", "account_age_days"],
+    ),
+
+    # 18. Rapid Multi-Source Inflow Funnel (Mule Collector)
+    "RULE-MULE-COLLECTOR-001": BankingRuleDefinition(
+        rule_id="RULE-MULE-COLLECTOR-001",
+        version="1.0.0",
+        name="Rapid Multi-Source Inflow Funnel (Mule Collector)",
+        description="Beneficiary account received transfers from 2 or more distinct accounts in a 15-minute window, indicative of rapid mule fund aggregation.",
+        enabled=True,
+        severity=RuleSeverity.CRITICAL,
+        points=50.0,
+        requires_transaction_hold=True,
+        requires_customer_verification=True,
+        requires_human_review=True,
+        reference_type=RuleReferenceType.REGULATORY_GUIDANCE,
+        regulatory_reference="FATF Typologies on Digital Money Mules & Aggregation Nodes",
+        evidence_fields=["recipient_distinct_senders_15m", "recipient_incoming_count_15m"],
+    ),
+
+    # 19. Rapid Velocity Burst Security Hold
+    "RULE-VEL-BURST-HOLD": BankingRuleDefinition(
+        rule_id="RULE-VEL-BURST-HOLD",
+        version="1.0.0",
+        name="Rapid Velocity Burst Security Hold",
+        description="Account dispatched 2 or more transactions within 5 minutes or 4 or more within 15 minutes, triggering mandatory customer verification hold.",
+        enabled=True,
+        severity=RuleSeverity.HIGH,
+        points=35.0,
+        requires_transaction_hold=True,
+        requires_customer_verification=True,
+        requires_human_review=True,
+        reference_type=RuleReferenceType.REGULATORY_GUIDANCE,
+        regulatory_reference="FATF High-Velocity Rapid Dispatch Monitoring",
+        evidence_fields=["previous_transactions_5m", "previous_transactions_15m"],
+    ),
 }
 
 

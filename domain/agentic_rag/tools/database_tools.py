@@ -22,6 +22,7 @@ from infrastructure.database.models import (
     InvestigationCase,
     Session as UserSession,
     Transaction,
+    User,
 )
 from infrastructure.database.session import get_engine
 from sqlalchemy import Date, desc, func, select
@@ -141,11 +142,11 @@ class DatabaseTools:
         # 2. Extract significant tokens (filter out common conversational words and typo variants)
         stop_words = {
             "user", "users", "customer", "customers", "client", "clients", "person", "persons",
-            "and", "their", "thier", "his", "her", "its", "the", "a", "an", "in", "of", "for", "with",
-            "transication", "transications", "transaction", "transactions", "transfers", "transfer",
+            "and", "their", "thier", "tbhier", "his", "her", "its", "the", "a", "an", "in", "of", "for", "with", "what",
+            "transication", "transications", "transaction", "transactions", "transtion", "transtions", "transction", "transctions", "transfers", "transfer",
             "history", "profile", "account", "accounts", "balance", "details", "record", "records",
             "database", "data", "info", "information", "authorized", "show", "find", "search", "lookup",
-            "status", "stauts", "statue", "statu", "staus", "statuss", "state", "active", "tier", "level",
+            "status", "stauts", "statue", "statu", "staus", "stsuas", "statuss", "state", "active", "tier", "level",
             "score", "risk", "tell", "me", "about", "give", "gave", "get", "who", "is", "this", "was",
             "all", "please", "list"
         }
@@ -575,6 +576,28 @@ class DatabaseTools:
                 "count": int(total),
                 "status_filter": status,
                 "entity": "customers",
+            }
+
+    @staticmethod
+    async def count_users(role: str | None = None) -> dict[str, Any]:
+        """Count total registered users in PostgreSQL with role breakdown."""
+        async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+            stmt = select(func.count(User.id))
+            if role:
+                stmt = stmt.where(User.role == role.upper())
+            total = await session.scalar(stmt) or 0
+
+            # Roles breakdown
+            role_stmt = select(User.role, func.count(User.id)).group_by(User.role)
+            role_rows = (await session.execute(role_stmt)).all()
+            roles_dict = {str(r[0]): int(r[1]) for r in role_rows}
+
+            return {
+                "count": int(total),
+                "total_users": int(total),
+                "roles_breakdown": roles_dict,
+                "role_filter": role,
+                "entity": "users",
             }
 
     @staticmethod

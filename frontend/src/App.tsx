@@ -40,7 +40,12 @@ import { CustomerSupportPage } from './pages/customer/CustomerSupportPage';
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
-  if (isLoading) {
+  // Allow token-based transaction verification flow from email without mandatory pre-login
+  const isEmailTokenConfirmation =
+    window.location.pathname.includes('/customer/security') &&
+    new URLSearchParams(window.location.search).has('token');
+
+  if (isLoading && !isEmailTokenConfirmation) {
     return (
       <div className="min-h-screen bg-[#FFF8E1] flex flex-col items-center justify-center text-[#002D72]">
         <div className="w-9 h-9 border-3 border-[#002D72] border-t-[#F9A825] rounded-full animate-spin mb-4" />
@@ -51,7 +56,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !isEmailTokenConfirmation) {
     return <Navigate to="/login" replace />;
   }
 

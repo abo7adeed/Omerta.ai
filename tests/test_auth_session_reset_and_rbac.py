@@ -152,7 +152,7 @@ async def test_transfer_vpn_blocking_and_risk_escalation(seeded_db):
         accs_res = await client.get("/api/v1/customer/accounts", headers=headers)
         acc_id = accs_res.json()[0]["account_id"]
 
-        # Transfer attempt with VPN telemetry -> blocked with 403
+        # Transfer attempt with VPN telemetry -> placed on security hold (PENDING status, not debited)
         res_vpn = await client.post(
             "/api/v1/customer/transfers",
             json={
@@ -167,9 +167,9 @@ async def test_transfer_vpn_blocking_and_risk_escalation(seeded_db):
             },
             headers=headers,
         )
-        assert res_vpn.status_code == 403
-        assert res_vpn.json()["detail"]["error"] == "VPN_TRANSFER_BLOCKED"
-        assert "commercial VPNs" in res_vpn.json()["detail"]["message"]
+        assert res_vpn.status_code == 201
+        vpn_receipt = res_vpn.json()
+        assert vpn_receipt["status"] in ("PENDING_CUSTOMER_VERIFICATION", "PENDING_REVIEW")
 
         # Direct Transfer without VPN -> succeeds with 201
         res_direct = await client.post(

@@ -8,8 +8,11 @@ and automatic mock risk evaluation (> 40.00 human review trigger).
 import asyncio
 from collections import defaultdict
 from contextlib import asynccontextmanager
+import logging
 import re
 from datetime import UTC, datetime, timedelta
+
+logger = logging.getLogger(__name__)
 from decimal import Decimal
 import secrets
 from typing import Any
@@ -655,12 +658,39 @@ class TransferService:
             graph_available=True,
         )
 
-        # G. ML Risk Agent
-        ml_prob = min(0.95, (float(amount) / 60000.0) * 0.4 + (0.35 if is_vpn else 0.05))
+        # G. ML Risk Agent (Real LightGBM Supervised Model Inference)
+        from infrastructure.risk.ml_provider import MLRiskProvider
+        from domain import schemas as risk_schemas
+        try:
+            ml_provider = MLRiskProvider()
+            sender_acc_age = (now - sender_account.created_at).days if sender_account.created_at else 365
+            recip_acc_age = (now - recipient_account.created_at).days if recipient_account.created_at else 365
+            features = risk_schemas.RiskFeatures(
+                transaction_id=txn.external_id,
+                transaction_amount=Decimal(str(amount)),
+                currency=currency.upper(),
+                is_new_device=False,
+                is_new_ip=bool(is_vpn),
+                transaction_velocity_7d=max(1, history_result.raw_metrics.get("previous_transactions_24h", 0) + 1),
+                account_age_days=max(0, sender_acc_age),
+                recipient_age_days=max(0, recip_acc_age),
+                originator_risk_level=sender_customer.risk_level or "LOW",
+                recipient_risk_level=recipient_customer.risk_level or "LOW",
+                previous_alert_count=0,
+                previous_suspicious_activity=False,
+            )
+            ml_scored = await ml_provider.score(features)
+            ml_prob = ml_scored.risk_score
+            top_feats = ml_scored.contributions if isinstance(ml_scored.contributions, dict) else {getattr(c, "feature_name", str(k)): getattr(c, "importance", v) for k, v in ml_scored.contributions.items()} if hasattr(ml_scored.contributions, "items") else {}
+        except Exception as e:
+            logger.warning("MLRiskProvider fallback in transfer_service: %s", e)
+            ml_prob = min(0.95, (float(amount) / 60000.0) * 0.4 + (0.35 if is_vpn else 0.05))
+            top_feats = {"amount": float(amount), "is_vpn": 1.0 if is_vpn else 0.0}
+
         ml_result = MLRiskAgent.evaluate(
             model_risk_probability=ml_prob,
             model_loaded=True,
-            top_features={"amount": float(amount), "is_vpn": 1.0 if is_vpn else 0.0},
+            top_features=top_feats,
         )
 
         # H. Merchant Intelligence Agent (P2P = Not Applicable)
@@ -866,6 +896,38 @@ class TransferService:
             )
             self.session.add(case)
 
+            # Generate Single-Use Cryptographic Confirmation Token for email flow
+            confirm_token = await self.create_confirmation_token(
+                transaction_id=txn.id,
+                customer_id=sender_customer.id,
+                action="CONFIRM",
+                expires_minutes=30,
+            )
+
+            # Send Email Notification
+            target_email = sender_customer.email
+            if not target_email or target_email.endswith("@omerta.ai"):
+                target_email = os.getenv("REAL_CUSTOMER_EMAIL", "abdomostafa13571234@gmail.com")
+
+            if target_email:
+                base_app_url = os.getenv("APP_URL", "http://localhost:5173").rstrip("/")
+                verif_url = f"{base_app_url}/customer/security?token={confirm_token}&txn={txn.external_id}"
+                try:
+                    asyncio.create_task(
+                        EmailService.send_transfer_verification_email(
+                            to_email=target_email,
+                            customer_name=sender_customer.name,
+                            transaction_ref=txn.external_id,
+                            amount=float(amount),
+                            currency=currency,
+                            recipient_masked=recipient_customer.name,
+                            verification_url=verif_url,
+                            reason="; ".join(assessment.hold_reasons),
+                        )
+                    )
+                except Exception as mail_err:
+                    logger.warning(f"Verification email dispatch failed: {mail_err}")
+
         elif assessment.decision == TransactionDecision.REJECT:
             txn.status = "REJECTED"
             transfer.status = "REJECTED"
@@ -917,7 +979,7 @@ class TransferService:
 
         transfer_stmt = select(Transfer).where(Transfer.transaction_id == txn.id).limit(1)
         transfer = await self.session.scalar(transfer_stmt)
-        if not transfer:
+        if not transfer and txn.transaction_type != "WITHDRAWAL":
             raise TransferError("Transfer record not found.", code="TRANSFER_NOT_FOUND", status_code=404)
 
         if txn.status not in ("PENDING_CUSTOMER_VERIFICATION", "PENDING_REVIEW"):
@@ -936,22 +998,33 @@ class TransferService:
                     event_id=f"EVT-CONFIRMED-{secrets.token_hex(4).upper()}",
                     event_type="CUSTOMER_TRANSACTION_CONFIRMED",
                     actor_type="CUSTOMER",
-                    actor_id=str(customer_user_id or sender_customer.user_id or "TOKEN_USER"),
+                    actor_id=str(customer_user_id or (sender_customer.user_id if sender_customer else "TOKEN_USER")),
                     source="CustomerSecurityPortal",
                     transaction_id=txn.external_id,
                     metadata_={"response": "CONFIRM", "timestamp": now.isoformat()},
                 )
             )
 
-            # Re-evaluate policy: if VPN was detected or risk score elevated -> must transition to PENDING_REVIEW (cannot bypass admin review)
-            has_vpn_alert = await self.session.scalar(
-                select(Alert).where(and_(Alert.transaction_id == txn.id, Alert.alert_type == "VPN_CUSTOMER_VERIFICATION_REQUIRED")).limit(1)
-            ) is not None
-            is_vpn_txn = bool(txn.txn_metadata and txn.txn_metadata.get("is_vpn"))
-            risk_score = float(txn.risk_score) if txn.risk_score is not None else 0.0
-
-            if not has_vpn_alert and not is_vpn_txn and risk_score < 40.0:
-                # Low risk without VPN: execute ledger debit & credit atomically!
+            if txn.transaction_type == "WITHDRAWAL":
+                src_acc = await self.session.scalar(select(Account).where(Account.id == txn.account_id).with_for_update())
+                if not src_acc or src_acc.balance < txn.amount:
+                    raise TransferError("Insufficient account balance for withdrawal settlement.", code="INSUFFICIENT_FUNDS")
+                src_acc.balance -= txn.amount
+                debit_entry = AccountLedgerEntry(
+                    external_id=f"LED-WDL-{secrets.token_hex(4).upper()}",
+                    account_id=src_acc.id,
+                    transaction_id=txn.id,
+                    entry_type="DEBIT",
+                    amount=txn.amount,
+                    currency=txn.currency,
+                    balance_after=src_acc.balance,
+                    description=f"Customer confirmed withdrawal ({txn.external_id})",
+                    idempotency_key=f"IDEMP-WDL-CONFIRM-{txn.external_id}",
+                )
+                self.session.add(debit_entry)
+            elif transfer:
+                # Customer verified transaction identity: atomically execute double-entry ledger debit & credit
+                recipient_display = txn.recipient_account.customer_name if txn.recipient_account else "Recipient"
                 await self._execute_atomic_settlement(
                     transaction_id=txn.id,
                     transfer_id=transfer.id,
@@ -960,39 +1033,33 @@ class TransferService:
                     amount=txn.amount,
                     currency=txn.currency,
                     idempotency_prefix=f"{transfer.idempotency_key}-CONFIRMED",
-                    description_prefix=f"Customer confirmed transfer to {txn.recipient_account.customer_name}",
+                    description_prefix=f"Customer confirmed transfer to {recipient_display}",
                 )
 
-                txn.status = "COMPLETED"
-                transfer.status = "COMPLETED"
-                txn.review_status = "COMPLETED"
+            txn.status = "COMPLETED"
+            transfer.status = "COMPLETED"
+            txn.review_status = "COMPLETED"
 
-                # Update case if exists
-                case_stmt = select(InvestigationCase).where(InvestigationCase.transaction_id == txn.id).limit(1)
-                case = await self.session.scalar(case_stmt)
-                if case:
-                    case.status = "RESOLVED"
+            # Resolve associated case if exists
+            case_stmt = select(InvestigationCase).where(InvestigationCase.transaction_id == txn.id).limit(1)
+            case = await self.session.scalar(case_stmt)
+            if case:
+                case.status = "RESOLVED"
 
-                await self.session.commit()
-                return {
-                    "success": True,
-                    "action": "CONFIRMED_AND_EXECUTED",
-                    "customer_action": "CONFIRM",
-                    "status": "COMPLETED",
-                    "message": "Transaction verified and executed successfully.",
-                }
-            else:
-                # High risk / VPN detected remains held awaiting admin review
-                txn.status = "PENDING_REVIEW"
-                transfer.status = "PENDING_REVIEW"
-                await self.session.commit()
-                return {
-                    "success": True,
-                    "action": "CONFIRMED_AWAITING_ADMIN",
-                    "customer_action": "CONFIRM",
-                    "status": "PENDING_REVIEW",
-                    "message": "Confirmation recorded. Transfer remains held in compliance review queue due to high risk score.",
-                }
+            # Resolve alerts
+            alert_stmt = select(Alert).where(Alert.transaction_id == txn.id)
+            alerts = (await self.session.scalars(alert_stmt)).all()
+            for al in alerts:
+                al.status = "RESOLVED"
+
+            await self.session.commit()
+            return {
+                "success": True,
+                "action": "CONFIRMED_AND_EXECUTED",
+                "customer_action": "CONFIRM",
+                "status": "COMPLETED",
+                "message": "Transaction verified and executed successfully. Funds have been transferred.",
+            }
 
         elif action.upper() == "DENY":
             # 1. Reject transaction

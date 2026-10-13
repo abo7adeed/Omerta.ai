@@ -334,18 +334,12 @@ async def initiate_transfer(
             headers=dict(request.headers),
         )
 
-        # Untrusted foreign exit nodes or commercial hosting datacenter origins are blocked outright with 403
-        is_hard_block = is_vpn_detected and (
-            (body.isp and any(kw in body.isp.lower() for kw in ["hosting", "m247", "datacenter", "nordvpn"]))
-            or (body.country and body.country.upper() != (customer.declared_country or "EG").upper())
-        )
-
-        if is_hard_block:
-            # Audit VPN detection event and block transfer attempt
+        # If VPN/proxy detected: audit telemetry signal and route to pending verification / admin review
+        if is_vpn_detected:
             session.add(
                 AuditEvent(
                     event_id=f"EVT-VPN-{secrets.token_hex(4).upper()}",
-                    event_type="VPN_TRANSFER_BLOCKED_POLICY",
+                    event_type="VPN_TRANSFER_HELD_FOR_REVIEW",
                     actor_type="CUSTOMER",
                     actor_id=str(customer.user_id),
                     source="SecurityRiskEngine",
@@ -354,19 +348,11 @@ async def initiate_transfer(
                         "amount": str(body.amount),
                         "customer_id": customer.external_id,
                         "client_ip": effective_ip,
-                        "action": "VPN_TRANSFER_BLOCKED",
+                        "action": "HELD_FOR_VERIFICATION",
                     },
                 )
             )
             await session.commit()
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={
-                    "error": "VPN_TRANSFER_BLOCKED",
-                    "message": f"Security Policy Violation: Financial transfers originated through commercial VPNs, proxies, or anonymizer tunnels ({vpn_reason}) are strictly prohibited. Please disconnect from your VPN and use a verified direct connection.",
-                    "vpn_reason": vpn_reason,
-                },
-            )
 
         try:
             sender_acc = body.resolved_sender_account_id
@@ -483,11 +469,125 @@ async def withdraw_funds(
                 },
             )
 
-        # Deduct balance
-        import uuid
+        # Check velocity in 5 minutes
         now_dt = datetime.now(UTC)
+        five_m_ago = now_dt - timedelta(minutes=5)
+        recent_tx_count = await session.scalar(
+            select(func.count(Transaction.id)).where(
+                and_(
+                    Transaction.account_id == acc.id,
+                    Transaction.timestamp >= five_m_ago,
+                )
+            )
+        ) or 0
+
+        is_high_value = body.amount >= Decimal("50000.00")
+        is_velocity_burst = recent_tx_count >= 2
+        is_structuring = (Decimal("24000.00") <= body.amount < Decimal("25000.00")) or (Decimal("45000.00") <= body.amount < Decimal("50000.00"))
         ext_txn_id = f"TXN-WDL-{uuid.uuid4().hex[:8].upper()}"
 
+        if is_high_value or is_velocity_burst or is_structuring:
+            hold_reason = (
+                "High-value cash-out threshold exceeded (>= 50,000 EGP)"
+                if is_high_value
+                else (
+                    f"Rapid multi-transaction burst ({recent_tx_count} transactions in 5 minutes)"
+                    if is_velocity_burst
+                    else "Statutory AML reporting threshold evasion (Structuring pattern)"
+                )
+            )
+            # Create Transaction on Security Hold (Funds held safely in account, not debited!)
+            txn = Transaction(
+                external_id=ext_txn_id,
+                account_id=acc.id,
+                recipient_account_id=acc.id,
+                amount=body.amount,
+                currency=acc.currency,
+                transaction_type="WITHDRAWAL",
+                status="PENDING_CUSTOMER_VERIFICATION",
+                timestamp=now_dt,
+                risk_score=Decimal("85.00") if is_high_value else Decimal("75.00"),
+                risk_level="CRITICAL" if is_high_value else "HIGH",
+                review_status="REQUIRES_REVIEW",
+                txn_metadata={
+                    "withdrawal_method": body.method,
+                    "destination_details": body.destination_details or "Direct Cash-out",
+                    "client_ip": client_ip,
+                    "hold_reason": hold_reason,
+                },
+            )
+            session.add(txn)
+            await session.flush()
+
+            # Record Risk Assessment & Signals
+            ra = RiskAssessment(
+                external_id=f"RA-{uuid.uuid4().hex[:8].upper()}",
+                transaction_id=txn.id,
+                risk_score=txn.risk_score,
+                risk_level=txn.risk_level,
+                requires_human_review=True,
+                correlation_id=f"CORR-{txn.external_id}",
+                version="lgbm-risk-v1",
+                summary=f"Security hold applied: {hold_reason}. Customer confirmation required.",
+            )
+            session.add(ra)
+            await session.flush()
+
+            session.add(
+                RiskSignal(
+                    assessment_id=ra.id,
+                    signal_name="WITHDRAWAL_SECURITY_HOLD",
+                    severity="CRITICAL" if is_high_value else "HIGH",
+                    description=hold_reason,
+                    source="WITHDRAWAL_ENGINE",
+                )
+            )
+
+            # Create confirmation token
+            transfer_service = TransferService(session)
+            confirm_token = await transfer_service.create_confirmation_token(
+                transaction_id=txn.id,
+                customer_id=customer.id,
+                action="CONFIRM",
+                expires_minutes=30,
+            )
+
+            # Dispatch live email
+            target_email = customer.email
+            if not target_email or target_email.endswith("@omerta.ai"):
+                target_email = os.getenv("REAL_CUSTOMER_EMAIL", "abdomostafa13571234@gmail.com")
+
+            if target_email:
+                base_app_url = os.getenv("APP_URL", "http://localhost:5173").rstrip("/")
+                verif_url = f"{base_app_url}/customer/security?token={confirm_token}&txn={txn.external_id}"
+                asyncio.create_task(
+                    EmailService.send_transfer_verification_email(
+                        to_email=target_email,
+                        customer_name=customer.name,
+                        transaction_ref=txn.external_id,
+                        amount=f"{body.amount:,.2f} {acc.currency}",
+                        recipient=f"Cash withdrawal via {body.method}",
+                        verification_url=verif_url,
+                    )
+                )
+
+            await session.commit()
+            return {
+                "success": True,
+                "transaction_id": txn.external_id,
+                "account_id": acc.external_id,
+                "amount": float(body.amount),
+                "currency": acc.currency,
+                "method": body.method,
+                "balance_after": float(acc.balance),
+                "risk_score": float(txn.risk_score),
+                "risk_level": txn.risk_level,
+                "requires_review": True,
+                "status": "PENDING_CUSTOMER_VERIFICATION",
+                "message": f"Security Verification Hold: {hold_reason}. A verification email has been dispatched. Confirm via email or await compliance review.",
+            }
+
+        # Clean/Low Risk: Deduct balance atomically
         acc.balance -= body.amount
 
         txn = Transaction(
@@ -521,108 +621,23 @@ async def withdraw_funds(
         )
         session.add(ledger_entry)
 
-        # Dynamic Risk Evaluation on Withdrawal
-        base_risk = Decimal("10.00")
-        signals = []
-
-        if body.amount >= Decimal("50000.00"):
-            base_risk += Decimal("45.00")
-            signals.append({
-                "name": "HIGH_VALUE_CASH_OUT",
-                "severity": "CRITICAL",
-                "description": f"Cash withdrawal of {body.amount:,.2f} {acc.currency} exceeds threshold.",
-            })
-        elif body.amount >= Decimal("20000.00"):
-            base_risk += Decimal("30.00")
-            signals.append({
-                "name": "ELEVATED_WITHDRAWAL_VALUE",
-                "severity": "HIGH",
-                "description": f"Elevated single-operation withdrawal of {body.amount:,.2f} {acc.currency}.",
-            })
-
-        # Structuring check just below 25,000 or 50,000
-        if (Decimal("24000.00") <= body.amount < Decimal("25000.00")) or (Decimal("45000.00") <= body.amount < Decimal("50000.00")):
-            base_risk += Decimal("40.00")
-            signals.append({
-                "name": "STRUCTURING_CASH_OUT",
-                "severity": "CRITICAL",
-                "description": f"Withdrawal of {body.amount:,.2f} {acc.currency} positioned just under statutory threshold.",
-            })
-
-        final_risk = min(Decimal("95.00"), base_risk)
-        requires_review = final_risk > Decimal("40.00")
-        risk_lvl = "CRITICAL" if final_risk >= Decimal("80.00") else ("HIGH" if final_risk >= Decimal("70.00") else ("REQUIRES_REVIEW" if requires_review else "LOW"))
-
+        # Baseline Risk Assessment
+        final_risk = Decimal("10.00")
         txn.risk_score = final_risk
-        txn.risk_level = risk_lvl
-        txn.review_status = "REQUIRES_REVIEW" if requires_review else "CLEARED"
+        txn.risk_level = "LOW"
+        txn.review_status = "CLEARED"
 
-        # Record Risk Assessment
         ra = RiskAssessment(
             external_id=f"RA-{uuid.uuid4().hex[:8].upper()}",
             transaction_id=txn.id,
             risk_score=final_risk,
-            risk_level=risk_lvl,
-            requires_human_review=requires_review,
+            risk_level="LOW",
+            requires_human_review=False,
             correlation_id=f"CORR-{txn.external_id}",
             version="lgbm-risk-v1",
-            summary=f"Automated evaluation completed with {len(signals)} signals. Score: {final_risk:.1f}%",
+            summary=f"Automated withdrawal cleared. Score: {final_risk:.1f}%",
         )
         session.add(ra)
-        await session.flush()
-
-        for s in signals:
-            session.add(
-                RiskSignal(
-                    assessment_id=ra.id,
-                    signal_name=s["name"],
-                    severity=s["severity"],
-                    description=s["description"],
-                    source="WITHDRAWAL_ENGINE",
-                )
-            )
-
-        if requires_review:
-            # Containment Hold: Block account, customer, and user
-            acc.status = "BLOCKED"
-            customer.status = "BLOCKED"
-            customer.transfer_status = "BLOCKED"
-            if user_rec:
-                user_rec.is_active = False
-
-            inv_case = InvestigationCase(
-                external_id=f"CASE-WDL-{uuid.uuid4().hex[:8].upper()}",
-                title=f"High Risk Withdrawal: {acc.external_id} ({customer.name}) - {body.amount:,.2f} {acc.currency}",
-                transaction_id=txn.id,
-                status="NEW",
-                severity="HIGH" if final_risk >= Decimal("70.00") else "MEDIUM",
-                report={
-                    "account_id": acc.external_id,
-                    "customer_name": customer.name,
-                    "amount": float(body.amount),
-                    "currency": acc.currency,
-                    "risk_score": float(final_risk),
-                    "description": f"Automated security containment triggered on withdrawal of {body.amount:,.2f} {acc.currency}. Risk: {final_risk:.1f}%.",
-                },
-            )
-            session.add(inv_case)
-            session.add(
-                AuditEvent(
-                    event_id=f"EVT-WDL-HOLD-{uuid.uuid4().hex[:8].upper()}",
-                    event_type="ACCOUNT_SECURITY_HOLD_TRIGGERED",
-                    actor_type="SYSTEM",
-                    actor_id="AutomatedRiskEngine",
-                    source="WithdrawalSecurity",
-                    metadata_={
-                        "account_id": acc.external_id,
-                        "transaction_id": txn.external_id,
-                        "risk_score": float(final_risk),
-                        "amount": float(body.amount),
-                        "reason": "Automated security containment on elevated withdrawal risk.",
-                    },
-                )
-            )
-
         await session.commit()
 
         return {
@@ -634,14 +649,11 @@ async def withdraw_funds(
             "method": body.method,
             "balance_after": float(acc.balance),
             "risk_score": float(final_risk),
-            "risk_level": risk_lvl,
-            "requires_review": requires_review,
+            "risk_level": "LOW",
+            "requires_review": False,
+            "status": "COMPLETED",
             "account_status": acc.status,
-            "message": (
-                "Withdrawal processed successfully. Funds dispensed."
-                if not requires_review
-                else "Withdrawal processed. Account placed under security hold for compliance review. Contact +20 2 19876."
-            ),
+            "message": "Withdrawal processed successfully. Funds dispensed.",
         }
 
 

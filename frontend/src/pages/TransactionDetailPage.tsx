@@ -1306,24 +1306,56 @@ export const TransactionDetailPage: React.FC = () => {
                   <CardContent className="p-6 space-y-6 text-[#1E293B] leading-relaxed">
                     {/* Render Formatted Markdown Report Sections */}
                     {investigationReport.forensic_report_markdown ? (
-                      <div className="space-y-6 text-sm divide-y divide-[#E2E8F0]">
-                        {investigationReport.forensic_report_markdown.split(/\n(?=##\s+)/).map((section, idx) => {
-                          const lines = section.trim().split('\n');
-                          const title = lines[0].replace(/^##\s*/, '').trim();
-                          const body = lines.slice(1).join('\n').trim();
+                      <div className="space-y-4 text-sm divide-y divide-[#E2E8F0]">
+                        {investigationReport.forensic_report_markdown.includes('##')
+                          ? investigationReport.forensic_report_markdown.split(/\n(?=##\s+)/).map((section, idx) => {
+                              const lines = section.trim().split('\n');
+                              const title = lines[0].replace(/^##\s*/, '').trim();
+                              const body = lines.slice(1).join('\n').trim();
 
-                          return (
-                            <div key={idx} className={`${idx > 0 ? 'pt-5' : ''} space-y-2`}>
-                              <h3 className="text-base font-extrabold text-[#002D72] flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-[#F9A825]" />
-                                {title}
-                              </h3>
-                              <div className="text-xs sm:text-sm text-[#334155] leading-relaxed whitespace-pre-line pl-4 border-l-2 border-[#EBF3FC]">
-                                {body}
-                              </div>
-                            </div>
-                          );
-                        })}
+                              return (
+                                <div key={idx} className={`${idx > 0 ? 'pt-4' : ''} space-y-1.5`}>
+                                  <h3 className="text-sm font-extrabold text-[#002D72] flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-[#F9A825]" />
+                                    {title}
+                                  </h3>
+                                  <div className="text-xs sm:text-sm text-[#334155] leading-relaxed whitespace-pre-line pl-4 border-l-2 border-[#EBF3FC]">
+                                    {body}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          : investigationReport.forensic_report_markdown
+                              .split(/\n+(?=•\s*)/)
+                              .filter((s) => s.trim())
+                              .map((item, idx) => {
+                                const clean = item.replace(/^•\s*/, '').trim();
+                                const colonIdx = clean.indexOf(':');
+                                const rawTitle = colonIdx !== -1 ? clean.substring(0, colonIdx).replace(/\*\*/g, '').trim() : `Finding ${idx + 1}`;
+                                const content = colonIdx !== -1 ? clean.substring(colonIdx + 1).trim() : clean;
+
+                                const badgeColor =
+                                  idx === 0
+                                    ? 'bg-[#EBF3FC] text-[#002D72] border-[#BFDBFE]'
+                                    : idx === 1
+                                    ? 'bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]'
+                                    : idx === 2
+                                    ? 'bg-[#EFF6FF] text-[#1D4ED8] border-[#DBEAFE]'
+                                    : idx === 3
+                                    ? 'bg-[#F3E8FF] text-[#6B21A8] border-[#E9D5FF]'
+                                    : 'bg-[#F0FDF4] text-[#166534] border-[#BBF7D0]';
+
+                                return (
+                                  <div key={idx} className={`${idx > 0 ? 'pt-3.5' : ''} flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3`}>
+                                    <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-extrabold uppercase shrink-0 border ${badgeColor}`}>
+                                      {rawTitle}
+                                    </span>
+                                    <p className="text-xs sm:text-sm text-[#334155] leading-relaxed">
+                                      {content}
+                                    </p>
+                                  </div>
+                                );
+                              })}
                       </div>
                     ) : (
                       <div className="space-y-4">

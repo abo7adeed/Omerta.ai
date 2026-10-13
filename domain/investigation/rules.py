@@ -159,6 +159,29 @@ def evaluate_banking_rules(
             )
         )
 
+    # 6. High-Value Transfer Threshold Exceeded (FATF R.10 / R.20 Large Transaction Rule)
+    if metrics.max_withdrawal_amount >= Decimal("50000.00"):
+        alerts.append(
+            TriggeredRuleAlert(
+                rule_id="RULE-HIGH-VALUE",
+                rule_name="High-Value Transfer Threshold Exceeded",
+                severity=RuleSeverity.CRITICAL,
+                reference_type=RuleReferenceType.REGULATORY_GUIDANCE,
+                regulatory_reference="FATF Recommendation 10 & 20 — Large and unusual transaction threshold governance",
+                applicable_window="Current Transaction Analysis",
+                observed_values={
+                    "max_withdrawal": float(metrics.max_withdrawal_amount),
+                    "currency": currency,
+                },
+                threshold_value={"threshold": 50000.00},
+                explanation=(
+                    f"Transaction volume ({metrics.max_withdrawal_amount:,.2f} {currency}) exceeds "
+                    f"the 50,000 {currency} threshold, requiring mandatory customer identity confirmation."
+                ),
+                evidence_references=["METRIC: max_withdrawal_amount"],
+            )
+        )
+
     # Calculate deterministic rules score (bounded 0.0 - 1.0)
     if not alerts:
         rules_score = 0.05 if metrics.total_transactions > 0 else 0.0

@@ -87,8 +87,8 @@ def calculate_behavioral_metrics(
             or "INBOUND" in ttype
         )
 
-        # Only tally financial volume for completed/authorized transactions
-        if status_upper in ("COMPLETED", "SETTLED"):
+        # Tally financial volume for completed, authorized, and actively held/pending transactions
+        if status_upper in ("COMPLETED", "SETTLED", "PENDING_CUSTOMER_VERIFICATION", "PENDING_REVIEW", "PENDING", "HELD"):
             if is_withdrawal:
                 withdrawals.append(t)
                 withdrawal_amounts.append(t.amount)

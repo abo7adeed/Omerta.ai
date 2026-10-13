@@ -339,8 +339,9 @@ From: {DEFAULT_SENDER_EMAIL}
         masked_ref = f"{transaction_ref[:8]}***{transaction_ref[-4:]}" if len(transaction_ref) > 12 else transaction_ref
         subject = f"ACTION REQUIRED: Confirm Transfer of {amount:,.2f} {currency} ({masked_ref})"
 
-        confirm_url = f"{verification_url}?action=CONFIRM&tx_id={transaction_ref}"
-        deny_url = f"{verification_url}?action=DENY&tx_id={transaction_ref}"
+        sep = "&" if "?" in verification_url else "?"
+        confirm_url = f"{verification_url}{sep}action=CONFIRM&tx_id={transaction_ref}"
+        deny_url = f"{verification_url}{sep}action=DENY&tx_id={transaction_ref}"
 
         text_body = f"""Hello {customer_name},
 

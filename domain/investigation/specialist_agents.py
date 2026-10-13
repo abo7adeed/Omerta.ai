@@ -62,6 +62,58 @@ class BankingRulesAgent:
         vol_15m = history_metrics.get("outgoing_total_15m", 0.0)
         tx_60m = history_metrics.get("previous_transactions_60m", 0)
         is_first_beneficiary = history_metrics.get("is_first_transaction_with_beneficiary", False)
+        account_age_days = history_metrics.get("account_age_days", 365)
+        recipient_distinct_senders = history_metrics.get("recipient_distinct_senders_15m", 0)
+        recipient_incoming_count = history_metrics.get("recipient_incoming_count_15m", 0)
+
+        # Rule: High-Value Transfer Threshold Exceeded (Huge Money Rule)
+        is_new_account = account_age_days <= 14
+        if current_amount >= 50000.0 or (is_new_account and current_amount >= 10000.0):
+            rule = BANKING_RULES_REGISTRY.get("RULE-HIGH-VALUE")
+            if rule:
+                findings.append(AgentFinding(
+                    rule_id=rule.rule_id,
+                    rule_name=rule.name,
+                    points=rule.points,
+                    severity=rule.severity.value,
+                    reason=f"Transfer amount of {current_amount:,.2f} EGP exceeds statutory high-value threshold {'on new account' if is_new_account else ''}.",
+                    evidence_ids=["METRIC:current_amount"],
+                    observed_values={"amount": current_amount, "account_age_days": account_age_days},
+                ))
+                points_breakdown[rule.rule_id] = rule.points
+                total_points += rule.points
+
+        # Rule: Multi-User Rapid Inflow Funnel (Mule Collector Ring)
+        if recipient_distinct_senders >= 2 or recipient_incoming_count >= 3:
+            rule = BANKING_RULES_REGISTRY.get("RULE-MULE-COLLECTOR-001")
+            if rule:
+                findings.append(AgentFinding(
+                    rule_id=rule.rule_id,
+                    rule_name=rule.name,
+                    points=rule.points,
+                    severity=rule.severity.value,
+                    reason=f"Beneficiary account received inflows from {recipient_distinct_senders} distinct accounts ({recipient_incoming_count} transfers) in 15 minutes.",
+                    evidence_ids=["METRIC:recipient_distinct_senders_15m"],
+                    observed_values={"distinct_senders": recipient_distinct_senders, "count": recipient_incoming_count},
+                ))
+                points_breakdown[rule.rule_id] = rule.points
+                total_points += rule.points
+
+        # Rule: Rapid Velocity Burst Security Hold (Multiple transactions in short time)
+        if tx_5m >= 2:
+            rule = BANKING_RULES_REGISTRY.get("RULE-VEL-BURST-HOLD")
+            if rule:
+                findings.append(AgentFinding(
+                    rule_id=rule.rule_id,
+                    rule_name=rule.name,
+                    points=rule.points,
+                    severity=rule.severity.value,
+                    reason=f"Rapid velocity burst: {tx_5m} transactions dispatched within 5 minutes totaling {vol_5m:,.2f} EGP.",
+                    evidence_ids=["METRIC:previous_transactions_5m"],
+                    observed_values={"count": tx_5m, "volume": vol_5m},
+                ))
+                points_breakdown[rule.rule_id] = rule.points
+                total_points += rule.points
 
         # Rule: Amount Deviation
         if amount_to_avg_ratio >= 3.0:

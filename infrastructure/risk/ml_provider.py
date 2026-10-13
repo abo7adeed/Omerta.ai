@@ -27,7 +27,8 @@ logger = logging.getLogger(__name__)
 
 ML_SOURCE = "ML"
 MODEL_VERSION = "lgbm-risk-v1"
-MODEL_DIR = Path("models")
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+MODEL_DIR = REPO_ROOT / "models" if (REPO_ROOT / "models").exists() else Path("models")
 MODEL_FILE = MODEL_DIR / "risk_lgbm_v1.json"
 METRICS_FILE = MODEL_DIR / "risk_lgbm_v1_metrics.json"
 

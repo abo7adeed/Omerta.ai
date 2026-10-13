@@ -47,11 +47,11 @@ export const CustomerSecurityPage: React.FC = () => {
     }
   };
 
-  const handleCustomerConfirm = async (transactionId: string) => {
+  const handleCustomerConfirm = async (transactionId: string, token?: string) => {
     setConfirmLoading(true);
     try {
-      await api.customerConfirmTransaction(transactionId, 'CONFIRM');
-      setMsg(`Transfer ${transactionId} confirmed! You verified this transfer. If risk score is elevated, it will proceed to compliance review.`);
+      await api.customerConfirmTransaction(transactionId, 'CONFIRM', token);
+      setMsg(`Transfer ${transactionId} confirmed! You verified this transfer. Funds have settled and transferred successfully.`);
       await fetchPendingTransfers();
       await fetchSessions(false);
     } catch (err: any) {
@@ -61,10 +61,10 @@ export const CustomerSecurityPage: React.FC = () => {
     }
   };
 
-  const handleCustomerDeny = async (transactionId: string) => {
+  const handleCustomerDeny = async (transactionId: string, token?: string) => {
     setConfirmLoading(true);
     try {
-      await api.customerConfirmTransaction(transactionId, 'DENY');
+      await api.customerConfirmTransaction(transactionId, 'DENY', token);
       setMsg(`Transfer ${transactionId} denied! The transfer was cancelled, outgoing transfers are restricted for your safety, and a high-priority security ticket was created.`);
       await fetchPendingTransfers();
       await fetchSessions(false);
@@ -128,15 +128,17 @@ export const CustomerSecurityPage: React.FC = () => {
     fetchSessions();
     fetchPendingTransfers();
 
-    // Handle incoming verification email links: ?action=CONFIRM&tx_id=TXN-...
+    // Handle incoming verification email links: ?action=CONFIRM&tx_id=TXN-...&token=...
     const searchParams = new URLSearchParams(window.location.search);
     const actionParam = searchParams.get('action');
-    const targetTxId = searchParams.get('tx_id') || searchParams.get('transaction_id');
+    const targetTxId = searchParams.get('tx_id') || searchParams.get('transaction_id') || searchParams.get('txn');
+    const tokenParam = searchParams.get('token');
+
     if (actionParam && targetTxId) {
       if (actionParam.toUpperCase() === 'CONFIRM') {
-        handleCustomerConfirm(targetTxId);
+        handleCustomerConfirm(targetTxId, tokenParam || undefined);
       } else if (actionParam.toUpperCase() === 'DENY') {
-        handleCustomerDeny(targetTxId);
+        handleCustomerDeny(targetTxId, tokenParam || undefined);
       }
     }
   }, []);

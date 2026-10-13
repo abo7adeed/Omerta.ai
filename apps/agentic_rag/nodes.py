@@ -215,14 +215,14 @@ def _clean_name_string(val: str) -> str:
     val = val.strip("?.! ,;:")
     # Strip leading conversational preambles
     val = re.sub(
-        r"^(?:who\s+(?:is|this|was)|who\'s|what\s+is|tell\s+me\s+about|details\s+(?:on|about)|info\s+(?:on|about)|check|find|search|lookup|look\s+up|show\s+me|show)\s+",
+        r"^(?:who\s+(?:is|this|was|\'s)?|what\s+(?:is|the|are|\'s)?|tell\s+me\s+about|details\s+(?:on|about)|info\s+(?:on|about)|check|find|search|lookup|look\s+up|show\s+me|show|give\s+me|get)\s+",
         "",
         val,
         flags=re.I,
     ).strip()
     # Strip leading "i want balance for", "balance for", "balance of", etc.
     val = re.sub(
-        r"^(?:i\s+(?:want|need)\s+)?(?:the\s+)?(?:balance|status|stauts|statue|statu|staus|state|account|details|info|profile)\s+(?:of|for)\s+(?:the\s+)?(?:customer|user|client|person)?\s*",
+        r"^(?:i\s+(?:want|need)\s+)?(?:the\s+)?(?:balance|status|stauts|statue|statu|staus|stsuas|state|account|details|info|profile|transactions?|transtions?|transfers?)\s+(?:of|for|about)\s+(?:the\s+)?(?:customer|user|client|person)?\s*",
         "",
         val,
         flags=re.I,
@@ -232,9 +232,9 @@ def _clean_name_string(val: str) -> str:
     # Strip trailing conversational phrases like "'s balance"
     val = re.sub(r"(?i)(?:'s|’s)\s+balance.*$", "", val).strip()
     val = re.sub(r"(?i)\s+(?:account\s+)?balance.*$", "", val).strip()
-    # Strip trailing phrases like "user and their status", etc.
+    # Strip trailing phrases like "user and their status", "transtion and tbhier stsuas", etc.
     val = re.sub(
-        r"(?i)\s+(?:user|customer|client|person)?\s*(?:and\s+)?(?:their|thier|his|her|its)?\s*(?:status|stauts|statue|statu|staus|statuss|state|tier|level|score|risk|transications?|transactions?|transfers?|history|activity|account|accounts|profile|records?|data|details).*$",
+        r"(?i)\s+(?:transications?|transactions?|transtions?|transfers?|transction|tranaction|payments?|history|activity|records?|data|details)?\s*(?:and\s+)?(?:their|thier|tbhier|his|her|its)?\s*(?:status|stauts|statue|statu|staus|stsuas|statuss|state|tier|level|score|risk|details|records?|data|profile).*$",
         "",
         val,
     ).strip()
@@ -330,18 +330,19 @@ def _extract_customer_name_query(text: str) -> str | None:
         for w in [
             "who is", "who this", "who's", "who was", "user", "customer", "client",
             "person", "named", "thier status", "their status", "his status", "her status",
-            "thier stauts", "their stauts", "his stauts", "her stauts",
-            "tell me about", "details on", "info on",
+            "thier stauts", "their stauts", "his stauts", "her stauts", "tbhier stsuas", "their stsuas",
+            "tell me about", "details on", "info on", "transtion", "transaction", "transfers", "status", "stsuas",
         ]
     )
     if has_person_indicator:
         cleaned = _clean_name_string(text)
         if cleaned and len(cleaned) <= 60 and not any(k in cleaned.lower() for k in NON_NAME_SYSTEM_KEYWORDS):
             words = cleaned.split()
-            if 1 <= len(words) <= 4 and all(len(w) >= 2 for w in words):
+            if 1 <= len(words) <= 5 and all(len(w) >= 2 for w in words):
                 generic = {
                     "what", "when", "where", "why", "how", "which", "explain", "describe",
                     "compare", "list", "show", "give", "help", "plot", "chart", "graph",
+                    "policy", "procedure", "system", "accounts", "transactions", "users", "customers"
                 }
                 if not any(w.lower() in generic for w in words):
                     return cleaned
@@ -359,6 +360,19 @@ def _extract_customer_name_query(text: str) -> str | None:
         cand = m_cap.group(1).strip()
         if cand.lower() not in NON_NAME_SYSTEM_KEYWORDS and not any(k in cand.lower() for k in ["banking", "operations", "policy", "knowledge"]):
             return cand
+
+    # 9. Cleaned candidate fallback (e.g. "what the abdelrahman mostafa sayed ...")
+    cand_cleaned = _clean_name_string(text)
+    if cand_cleaned and len(cand_cleaned) <= 60 and not any(k in cand_cleaned.lower() for k in NON_NAME_SYSTEM_KEYWORDS):
+        words = cand_cleaned.split()
+        if 2 <= len(words) <= 5 and all(len(w) >= 2 for w in words):
+            generic = {
+                "what", "when", "where", "why", "how", "which", "explain", "describe",
+                "compare", "list", "show", "give", "help", "plot", "chart", "graph",
+                "policy", "procedure", "system", "accounts", "transactions", "users", "customers"
+            }
+            if not any(w.lower() in generic for w in words):
+                return cand_cleaned
 
     return None
 
@@ -440,9 +454,20 @@ def understand_query_and_intent(state: AgenticRAGState) -> dict[str, Any]:
         analysis_intents.append(AnalysisIntent.CUSTOMER_BALANCE)
         reasons.append("Customer balance and linked accounts lookup requested.")
 
-    # 4. Account Count, Customer Listing & Mixed Inquiries (Prompt Intents C, D, J & Scenario 5)
-    has_account_count = any(phrase in q for phrase in ["how many accounts", "account count", "count of accounts", "number of accounts"])
-    has_customer_count = any(phrase in q for phrase in ["how many customers", "customer count", "count of customers", "number of customers"])
+    # 4. Account Count, Customer Listing, User Count & Mixed Inquiries (Prompt Intents C, D, J & Scenario 5)
+    has_user_count = any(phrase in q for phrase in [
+        "how many users", "how many user", "user count", "users count",
+        "count of users", "number of users", "total users", "users in our system", "user in our system",
+        "registered users", "how many people"
+    ])
+    has_account_count = any(phrase in q for phrase in [
+        "how many accounts", "how many account", "account count", "accounts count",
+        "count of accounts", "number of accounts", "total accounts"
+    ])
+    has_customer_count = any(phrase in q for phrase in [
+        "how many customers", "how many customer", "customer count", "customers count",
+        "count of customers", "number of customers", "total customers", "customers in our system"
+    ])
     has_customer_names = any(phrase in q for phrase in [
         "customer names", "names of our customers", "what are our customer names",
         "all customer", "all customers", "list customer", "list customers",
@@ -450,6 +475,11 @@ def understand_query_and_intent(state: AgenticRAGState) -> dict[str, Any]:
         "gave me all customer", "give me all customer", "give me all customers",
         "all users", "list users", "show users", "all clients", "list clients",
     ])
+
+    if has_user_count:
+        selected_sources.append(SourceType.POSTGRESQL)
+        analysis_intents.append(AnalysisIntent.USER_COUNT)
+        reasons.append("Registered system users count requested.")
 
     if has_account_count and has_customer_names:
         selected_sources.append(SourceType.POSTGRESQL)
@@ -471,11 +501,15 @@ def understand_query_and_intent(state: AgenticRAGState) -> dict[str, Any]:
         reasons.append("Customer names directory listing requested.")
 
     # 5. Customer Profile & Identity Lookup (Prompt Intent A & Scenario 1)
-    if not is_balance_query and not has_customer_names and not is_policy_query:
+    if not is_balance_query and not has_customer_names and not is_policy_query and not has_user_count:
         if cust_name is not None or any(e.startswith("CUST-") for e in state.entity_ids):
             selected_sources.append(SourceType.POSTGRESQL)
             analysis_intents.append(AnalysisIntent.CUSTOMER_PROFILE)
             analysis_intents.append(AnalysisIntent.CUSTOMER_LOOKUP)
+            if any(w in q for w in ["transaction", "transactions", "transtion", "transtions", "transfer", "transfers", "status", "stsuas", "activity"]):
+                analysis_intents.append(AnalysisIntent.TRANSACTION_LOOKUP)
+                selected_sources.append(SourceType.NEO4J)
+                analysis_intents.append(AnalysisIntent.GRAPH_INVESTIGATION)
             reasons.append("Customer identity and profile inspection requested.")
         elif any(w in q for w in ["find customer", "lookup customer", "look up customer", "search customer", "who is customer", "person named", "customer named"]):
             selected_sources.append(SourceType.POSTGRESQL)
@@ -795,6 +829,23 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
                     )
                 )
 
+        # D2. User Count Intent
+        if AnalysisIntent.USER_COUNT in routing.analysis_intents:
+            user_cnt = await _safe_call_tool("count_users", {}, AnalysisIntent.USER_COUNT)
+            if user_cnt and isinstance(user_cnt, dict):
+                c_str = json.dumps(user_cnt, indent=2)
+                evidence_list.append(
+                    NormalizedEvidence(
+                        evidence_id="ev-db-user-count",
+                        source_type=SourceType.POSTGRESQL,
+                        source_record_id="users:count",
+                        title="Total Registered System Users Count",
+                        content=c_str,
+                        content_hash=compute_sha256(c_str),
+                        citation_metadata={"table": "users", "locator": "USERS: Total Count"},
+                    )
+                )
+
         # E. Customer Profile Lookup (when not already retrieved via balance)
         if (
             (AnalysisIntent.CUSTOMER_PROFILE in routing.analysis_intents or AnalysisIntent.CUSTOMER_LOOKUP in routing.analysis_intents)
@@ -832,6 +883,7 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
                             )
                         )
                     elif len(candidates) == 1:
+                        status = ResponseStatus.ANSWERED
                         cust = candidates[0]
                         ev_id = f"ev-db-{cust['external_id']}"
                         c_str = json.dumps(cust, indent=2)
@@ -867,6 +919,25 @@ async def retrieve_selected_sources(state: AgenticRAGState) -> dict[str, Any]:
                                         citation_metadata={"table": "accounts", "locator": f"ACCOUNT: {acc['external_id']}"},
                                     )
                                 )
+
+                                # Also pull Neo4j graph topology for linked account if graph source is enabled
+                                if SourceType.NEO4J in routing.selected_sources:
+                                    acc_ext = acc["external_id"]
+                                    graph_net = await _safe_call_tool("summarize_account_network", {"account_id": acc_ext}, AnalysisIntent.GRAPH_INVESTIGATION)
+                                    if graph_net and isinstance(graph_net, dict):
+                                        ev_id = f"ev-graph-{acc_ext}"
+                                        content_str = json.dumps(graph_net, indent=2)
+                                        evidence_list.append(
+                                            NormalizedEvidence(
+                                                evidence_id=ev_id,
+                                                source_type=SourceType.NEO4J,
+                                                source_record_id=acc_ext,
+                                                title=f"Graph Topology for Account {acc_ext}",
+                                                content=content_str,
+                                                content_hash=compute_sha256(content_str),
+                                                citation_metadata={"graph": "neo4j", "locator": f"GRAPH-TOPOLOGY: {acc_ext}"},
+                                            )
+                                        )
                             txns = accts_and_txns.get("transactions", [])
                             if txns:
                                 txns_ev_id = f"ev-db-txns-cust-{cust['external_id']}"
@@ -1428,7 +1499,11 @@ async def synthesize_structured_response(state: AgenticRAGState) -> dict[str, An
         "5. Highlight key terms and operational states in bold (e.g., **BLOCKED**, **ACTIVE**, **LOW**).\n"
         "6. Every factual statement or policy reference MUST include an inline citation in brackets using the exact locators provided, e.g. [CUSTOMER: CUST-455C9415] or [ACCOUNT: ACC-90953F44] or [CUSTOMERS: All Registered Customers] or [DOC-OPS-001, v2, §1.1].\n"
         "7. If interpreting Neo4j graph intelligence, structure your findings across the 7 forensic pillars (Structure, Pattern, Risk, Alternative Explanations, Evidence Strength, Missing Evidence, Next Steps).\n"
-        "8. Do not invent numbers, policies, counterparties, or regulations."
+        "8. STRICT GROUNDING & ANTI-HALLUCINATION RULES:\n"
+        "   - Use ONLY the facts, figures, counts, customer names, account numbers, and timestamps present in the Evidence Context below.\n"
+        "   - NEVER fabricate placeholder customer IDs (e.g. 'CUST-12345678', 'OM-0012345', 'ACC-98765432') or imaginary dollar amounts ($5,000 USD). If an entity or attribute is not in the evidence, state clearly that it was not found in the live database.\n"
+        "   - NEVER suggest or instruct the user to execute raw SQL queries (e.g., 'SELECT COUNT(*) FROM users;'). You already possess tool execution capabilities. Always state the real count directly from the Evidence Context (e.g., 'The system contains 14 registered users...').\n"
+        "   - If the Evidence Context contains a customer profile, linked accounts, and transactions, reflect the EXACT identifiers, currency (e.g., EGP), balances, and transaction statuses from that evidence."
     )
 
     user_prompt = f"Question: {state.question}{conv_text}\n\nEvidence Context:\n{evidence_text}\n{analytical_text}\n\nPlease provide your comprehensive, cited answer."
@@ -1553,15 +1628,38 @@ def _build_deterministic_answer(state: AgenticRAGState, citations: list[Citation
                 lines.append("*All findings verified with SHA-256 cryptographic provenance.*")
             return "\n".join(lines)
 
-    # 5. Accounts & Customer Directory Summary (Scenario 5)
+    # 5. Accounts, Users & Customer Directory Summary (Scenario 5)
+    user_count_ev = next((e for e in db_evidence if e.source_record_id == "users:count"), None)
+    cust_count_ev = next((e for e in db_evidence if e.source_record_id == "customers:count"), None)
     acc_count_ev = next((e for e in db_evidence if e.source_record_id == "accounts:count"), None)
     cust_all_ev = next((e for e in db_evidence if e.source_record_id == "customers:all"), None)
-    if (AnalysisIntent.ACCOUNT_COUNT in state.routing.analysis_intents or AnalysisIntent.CUSTOMER_LISTING in state.routing.analysis_intents) and (acc_count_ev or cust_all_ev):
-        lines.append("## Banking Accounts & Customer Directory Summary")
+    if (
+        AnalysisIntent.USER_COUNT in state.routing.analysis_intents
+        or AnalysisIntent.CUSTOMER_COUNT in state.routing.analysis_intents
+        or AnalysisIntent.ACCOUNT_COUNT in state.routing.analysis_intents
+        or AnalysisIntent.CUSTOMER_LISTING in state.routing.analysis_intents
+    ) and (user_count_ev or cust_count_ev or acc_count_ev or cust_all_ev):
+        lines.append("## System Directory & Entity Counts Summary")
+        if user_count_ev:
+            try:
+                ud = json.loads(user_count_ev.content)
+                tot_u = ud.get("total_users", ud.get("count", 0))
+                roles = ud.get("roles_breakdown", {})
+                roles_str = ", ".join([f"{k}: {v}" for k, v in roles.items()]) if roles else ""
+                lines.append(f"- **Total Registered Users in System**: **{tot_u}** [{user_count_ev.citation_metadata.get('locator', 'USERS: Total Count')}]{f' (Roles: {roles_str})' if roles_str else ''}")
+            except Exception:
+                pass
+        if cust_count_ev:
+            try:
+                cd = json.loads(cust_count_ev.content)
+                tot_c = cd.get("count", 0)
+                lines.append(f"- **Total Registered Customers**: **{tot_c}** [{cust_count_ev.citation_metadata.get('locator', 'CUSTOMERS: Total Count')}]")
+            except Exception:
+                pass
         if acc_count_ev:
             try:
                 ac_data = json.loads(acc_count_ev.content)
-                tot_accs = ac_data.get("total_accounts", 0)
+                tot_accs = ac_data.get("total_accounts", ac_data.get("count", 0))
                 lines.append(f"- **Total Registered Bank Accounts**: **{tot_accs}** [{acc_count_ev.citation_metadata.get('locator', 'ACCOUNTS: Total Count')}]")
             except Exception:
                 pass
@@ -1569,7 +1667,7 @@ def _build_deterministic_answer(state: AgenticRAGState, citations: list[Citation
             try:
                 cl_data = json.loads(cust_all_ev.content)
                 cust_list = cl_data if isinstance(cl_data, list) else cl_data.get("customers", [])
-                lines.append(f"- **Total Registered Customers**: **{len(cust_list)}** [{cust_all_ev.citation_metadata.get('locator', 'CUSTOMERS: All Registered Customers')}]\n")
+                lines.append(f"- **Customer Directory**: **{len(cust_list)}** profiles retrieved [{cust_all_ev.citation_metadata.get('locator', 'CUSTOMERS: All Registered Customers')}]\n")
                 lines.append("### Customer Names & Identifiers")
                 for c in cust_list:
                     cid = c.get("external_id") or f"CUST-{c.get('id', '')}"

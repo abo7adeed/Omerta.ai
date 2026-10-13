@@ -280,6 +280,25 @@ def calculate_final_risk_score(
         requires_verification = True
         hold_reasons.append("Commercial VPN/proxy detected on transfer session origin. Mandatory customer confirmation triggered.")
 
+    # Overriding Control D2: High-Value Transfer Threshold Exceeded (Huge Money Rule)
+    if "RULE-HIGH-VALUE" in triggered_rule_ids:
+        requires_hold = True
+        requires_verification = True
+        hold_reasons.append("High-value transfer exceeds statutory limit (50,000+ EGP or new account volume). Mandatory customer authorization hold triggered.")
+
+    # Overriding Control D3: Multi-Source Rapid Inflow Funnel (Mule Collector)
+    if "RULE-MULE-COLLECTOR-001" in triggered_rule_ids:
+        requires_hold = True
+        requires_verification = True
+        requires_review = True
+        hold_reasons.append("Beneficiary account receiving rapid multi-source inflows from multiple distinct accounts (potential mule aggregation). Transfer held.")
+
+    # Overriding Control D4: Rapid Velocity Burst Hold
+    if "RULE-VEL-BURST-HOLD" in triggered_rule_ids:
+        requires_hold = True
+        requires_verification = True
+        hold_reasons.append("Rapid multi-transaction velocity burst in short time window. Mandatory customer verification hold applied.")
+
     # Overriding Control E: Composite score thresholds
     if final_score >= 80.0:
         requires_hold = True

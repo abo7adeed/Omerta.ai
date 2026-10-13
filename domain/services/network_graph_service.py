@@ -704,11 +704,21 @@ class NetworkGraphService:
                 det["net_flow"] = in_sum - out_sum
                 det["risk_factors"] = risk_factors
 
+        # When viewing the default network graph without a specific focus filter,
+        # connect users who actually make transactions/transfers rather than floating disconnected account nodes.
+        final_nodes = list(nodes.values())
+        if not is_filtered and links:
+            connected_node_ids = set()
+            for lk in links:
+                connected_node_ids.add(lk["source"])
+                connected_node_ids.add(lk["target"])
+            final_nodes = [n for n in final_nodes if n["id"] in connected_node_ids]
+
         return {
-            "nodes": list(nodes.values()),
+            "nodes": final_nodes,
             "links": links,
             "focus_entity_id": focus_entity_id,
             "focus_meta": focus_meta,
-            "total_nodes": len(nodes),
+            "total_nodes": len(final_nodes),
             "total_links": len(links),
         }

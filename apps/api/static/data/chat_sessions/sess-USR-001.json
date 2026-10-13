@@ -3,7 +3,7 @@
   "user_id": "USR-001",
   "title": "Suspicious structuring indicators?",
   "created_at": "2026-10-10T12:14:27.098010+00:00",
-  "updated_at": "2026-10-12T09:35:45.389213+00:00",
+  "updated_at": "2026-10-13T12:54:52.364583+00:00",
   "turns": [
     {
       "turn_id": "turn-de10ac32",
@@ -2929,6 +2929,136 @@
         "[03/07] Multi-Source Evidence Retrieval: Retrieved 1 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
         "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
         "[07/07] Cryptographic Provenance Sealing: Verified 1 citations against canonical SHA-256 evidence hashes."
+      ],
+      "charts": [],
+      "warnings": []
+    },
+    {
+      "turn_id": "turn-8e31ed0e",
+      "sender": "user",
+      "text": "What are suspicious structuring indicators?",
+      "timestamp": "2026-10-13T12:54:52.364583+00:00",
+      "rag_response": null,
+      "thought_steps": [],
+      "charts": [],
+      "warnings": []
+    },
+    {
+      "turn_id": "turn-665e6057",
+      "sender": "assistant",
+      "text": "## Executive Summary  \nSuspicious structuring\u2014commonly referred to as **SMURFING**\u2014is a money\u2011laundering technique in which a single large sum is broken into multiple smaller transactions that fall below regulatory reporting thresholds. The Omerta.ai detection engine flags this behavior under the **SMURFING** typology, defined in the Anti\u2011Money Laundering (AML) reference document [DOC-AML-001, v3, \u00a7Section\u202f1].  \n\n## 1. Core Typology Definition  \n- **SMURFING**: Structuring large monetary sums into numerous smaller sub\u2011threshold deposits or transfers across disparate accounts.  \n  - *Citation*: [DOC-AML-001, v3, \u00a7Section\u202f1]  \n\n## 2. Suspicious Structuring Indicators  \nThe following indicators are commonly used to flag potential SMURFING activity:\n\n| Indicator | Description | Why It Matters |\n|-----------|-------------|----------------|\n| **Multiple Small Deposits** | A series of deposits that individually fall below the reporting threshold but collectively exceed it. | Suggests deliberate avoidance of regulatory reporting. |\n| **Temporal Clustering** | Transactions occurring in rapid succession (e.g., within minutes or hours). | Indicates an orchestrated effort to split a single sum. |\n| **Account Diversity** | Use of several different accounts (often owned by the same customer or a network of related customers). | Helps obscure the origin of funds. |\n| **Consistent Amounts** | Repeated deposits of the same or similar amounts. | May signal a systematic structuring pattern. |\n| **Geographic Dispersion** | Transfers to or from accounts located in multiple jurisdictions. | Adds complexity to the money\u2011laundering chain. |\n| **Low\u2011Risk Accounts** | Transactions involving accounts with low risk scores or minimal KYC verification. | Exploits weaker controls to move funds. |\n| **Unusual Source\u2011to\u2011Destination Ratios** | Disproportionate amounts sent to accounts that do not match typical customer behavior. | May indicate layering or funneling of illicit funds. |\n\n> **Note**: The customer search for \u201csuspicious structuring indicators\u201d returned no matching profile, confirming that the term is used only as a typology reference and not as a customer identifier. [CUSTOMER: NOT_FOUND (suspicious structuring indicators)]  \n\n## 3. Operational Context in Omerta.ai  \n- The detection engine monitors for the above patterns across all transaction logs, device usage, and IP activity.  \n- When a pattern is detected, the transaction is flagged under the **SMURFING** typology and routed to the compliance team for review.  \n- The system also cross\u2011checks against other typologies (e.g., **LAYERING**, **MULE_ACCOUNT**) to assess compound risk.  \n\n## 4. Next Steps for Compliance Officers  \n1. **Review flagged transactions**: Examine the transaction timestamps, amounts, and involved accounts.  \n2. **Verify source legitimacy**: Cross\u2011check the originating account\u2019s KYC status and recent activity.  \n3. **Assess device/IP anomalies**: Look for new device bindings or VPN/Tor usage that may accompany structuring.  \n4. **File SAR if warranted**: If the aggregated amount exceeds regulatory thresholds or the pattern persists, file a Suspicious Activity Report.  \n\n---\n\n**Key Takeaway**: Suspicious structuring indicators are a set of observable transaction patterns\u2014multiple small deposits, temporal clustering, account diversity, consistent amounts, geographic dispersion, low\u2011risk accounts, and unusual source\u2011to\u2011destination ratios\u2014that collectively signal potential SMURFING activity. These are codified in the AML typology framework and actively monitored by Omerta.ai\u2019s compliance engine.",
+      "timestamp": "2026-10-13T12:54:52.364583+00:00",
+      "rag_response": {
+        "status": "INSUFFICIENT_EVIDENCE",
+        "answer": "## Executive Summary  \nSuspicious structuring\u2014commonly referred to as **SMURFING**\u2014is a money\u2011laundering technique in which a single large sum is broken into multiple smaller transactions that fall below regulatory reporting thresholds. The Omerta.ai detection engine flags this behavior under the **SMURFING** typology, defined in the Anti\u2011Money Laundering (AML) reference document [DOC-AML-001, v3, \u00a7Section\u202f1].  \n\n## 1. Core Typology Definition  \n- **SMURFING**: Structuring large monetary sums into numerous smaller sub\u2011threshold deposits or transfers across disparate accounts.  \n  - *Citation*: [DOC-AML-001, v3, \u00a7Section\u202f1]  \n\n## 2. Suspicious Structuring Indicators  \nThe following indicators are commonly used to flag potential SMURFING activity:\n\n| Indicator | Description | Why It Matters |\n|-----------|-------------|----------------|\n| **Multiple Small Deposits** | A series of deposits that individually fall below the reporting threshold but collectively exceed it. | Suggests deliberate avoidance of regulatory reporting. |\n| **Temporal Clustering** | Transactions occurring in rapid succession (e.g., within minutes or hours). | Indicates an orchestrated effort to split a single sum. |\n| **Account Diversity** | Use of several different accounts (often owned by the same customer or a network of related customers). | Helps obscure the origin of funds. |\n| **Consistent Amounts** | Repeated deposits of the same or similar amounts. | May signal a systematic structuring pattern. |\n| **Geographic Dispersion** | Transfers to or from accounts located in multiple jurisdictions. | Adds complexity to the money\u2011laundering chain. |\n| **Low\u2011Risk Accounts** | Transactions involving accounts with low risk scores or minimal KYC verification. | Exploits weaker controls to move funds. |\n| **Unusual Source\u2011to\u2011Destination Ratios** | Disproportionate amounts sent to accounts that do not match typical customer behavior. | May indicate layering or funneling of illicit funds. |\n\n> **Note**: The customer search for \u201csuspicious structuring indicators\u201d returned no matching profile, confirming that the term is used only as a typology reference and not as a customer identifier. [CUSTOMER: NOT_FOUND (suspicious structuring indicators)]  \n\n## 3. Operational Context in Omerta.ai  \n- The detection engine monitors for the above patterns across all transaction logs, device usage, and IP activity.  \n- When a pattern is detected, the transaction is flagged under the **SMURFING** typology and routed to the compliance team for review.  \n- The system also cross\u2011checks against other typologies (e.g., **LAYERING**, **MULE_ACCOUNT**) to assess compound risk.  \n\n## 4. Next Steps for Compliance Officers  \n1. **Review flagged transactions**: Examine the transaction timestamps, amounts, and involved accounts.  \n2. **Verify source legitimacy**: Cross\u2011check the originating account\u2019s KYC status and recent activity.  \n3. **Assess device/IP anomalies**: Look for new device bindings or VPN/Tor usage that may accompany structuring.  \n4. **File SAR if warranted**: If the aggregated amount exceeds regulatory thresholds or the pattern persists, file a Suspicious Activity Report.  \n\n---\n\n**Key Takeaway**: Suspicious structuring indicators are a set of observable transaction patterns\u2014multiple small deposits, temporal clustering, account diversity, consistent amounts, geographic dispersion, low\u2011risk accounts, and unusual source\u2011to\u2011destination ratios\u2014that collectively signal potential SMURFING activity. These are codified in the AML typology framework and actively monitored by Omerta.ai\u2019s compliance engine.",
+        "citations": [
+          {
+            "citation_id": "cit-b96c698c",
+            "evidence_id": "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0",
+            "source_type": "documents",
+            "title": "Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags",
+            "locator": "DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags",
+            "excerpt": "1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination."
+          },
+          {
+            "citation_id": "cit-200c00a4",
+            "evidence_id": "ev-db-cust-none-b4b4aa",
+            "source_type": "postgresql",
+            "title": "Customer Search Result: suspicious structuring indicators (Not Found)",
+            "locator": "CUSTOMER: NOT_FOUND (suspicious structuring indicators)",
+            "excerpt": "{   \"search_query\": \"suspicious structuring indicators\",   \"found\": 0,   \"status\": \"NOT_FOUND\" }"
+          }
+        ],
+        "evidence_ids": [
+          "ev-db-cust-none-b4b4aa",
+          "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0"
+        ],
+        "sources_used": [
+          "postgresql",
+          "documents"
+        ],
+        "response_blocks": [
+          {
+            "type": "warning",
+            "title": "Forensic Compliance Advisory (FATF / ISO-20022)",
+            "message": "Identified indicators reflect algorithmic risk anomalies and do not constitute legal determinations of culpability. In accordance with internal AML/CFT governance and banking regulations, any account freezing or formal Suspicious Activity Report (SAR) filing requires multi-eye human compliance officer sign-off."
+          },
+          {
+            "type": "text",
+            "content": "## Executive Summary  \nSuspicious structuring\u2014commonly referred to as **SMURFING**\u2014is a money\u2011laundering technique in which a single large sum is broken into multiple smaller transactions that fall below regulatory reporting thresholds. The Omerta.ai detection engine flags this behavior under the **SMURFING** typology, defined in the Anti\u2011Money Laundering (AML) reference document [DOC-AML-001, v3, \u00a7Section\u202f1].  \n\n## 1. Core Typology Definition  \n- **SMURFING**: Structuring large monetary sums into numerous smaller sub\u2011threshold deposits or transfers across disparate accounts.  \n  - *Citation*: [DOC-AML-001, v3, \u00a7Section\u202f1]  \n\n## 2. Suspicious Structuring Indicators  \nThe following indicators are commonly used to flag potential SMURFING activity:\n\n| Indicator | Description | Why It Matters |\n|-----------|-------------|----------------|\n| **Multiple Small Deposits** | A series of deposits that individually fall below the reporting threshold but collectively exceed it. | Suggests deliberate avoidance of regulatory reporting. |\n| **Temporal Clustering** | Transactions occurring in rapid succession (e.g., within minutes or hours). | Indicates an orchestrated effort to split a single sum. |\n| **Account Diversity** | Use of several different accounts (often owned by the same customer or a network of related customers). | Helps obscure the origin of funds. |\n| **Consistent Amounts** | Repeated deposits of the same or similar amounts. | May signal a systematic structuring pattern. |\n| **Geographic Dispersion** | Transfers to or from accounts located in multiple jurisdictions. | Adds complexity to the money\u2011laundering chain. |\n| **Low\u2011Risk Accounts** | Transactions involving accounts with low risk scores or minimal KYC verification. | Exploits weaker controls to move funds. |\n| **Unusual Source\u2011to\u2011Destination Ratios** | Disproportionate amounts sent to accounts that do not match typical customer behavior. | May indicate layering or funneling of illicit funds. |\n\n> **Note**: The customer search for \u201csuspicious structuring indicators\u201d returned no matching profile, confirming that the term is used only as a typology reference and not as a customer identifier. [CUSTOMER: NOT_FOUND (suspicious structuring indicators)]  \n\n## 3. Operational Context in Omerta.ai  \n- The detection engine monitors for the above patterns across all transaction logs, device usage, and IP activity.  \n- When a pattern is detected, the transaction is flagged under the **SMURFING** typology and routed to the compliance team for review.  \n- The system also cross\u2011checks against other typologies (e.g., **LAYERING**, **MULE_ACCOUNT**) to assess compound risk.  \n\n## 4. Next Steps for Compliance Officers  \n1. **Review flagged transactions**: Examine the transaction timestamps, amounts, and involved accounts.  \n2. **Verify source legitimacy**: Cross\u2011check the originating account\u2019s KYC status and recent activity.  \n3. **Assess device/IP anomalies**: Look for new device bindings or VPN/Tor usage that may accompany structuring.  \n4. **File SAR if warranted**: If the aggregated amount exceeds regulatory thresholds or the pattern persists, file a Suspicious Activity Report.  \n\n---\n\n**Key Takeaway**: Suspicious structuring indicators are a set of observable transaction patterns\u2014multiple small deposits, temporal clustering, account diversity, consistent amounts, geographic dispersion, low\u2011risk accounts, and unusual source\u2011to\u2011destination ratios\u2014that collectively signal potential SMURFING activity. These are codified in the AML typology framework and actively monitored by Omerta.ai\u2019s compliance engine."
+          },
+          {
+            "type": "citation",
+            "citations": [
+              {
+                "citation_id": "cit-b96c698c",
+                "evidence_id": "ev-doc-DOC-AML-001-section-1-suspicious-transaction-indicators-and-red-flags-0",
+                "source_type": "documents",
+                "title": "Anti-Money Laundering, Counter-Terrorist Financing, and Typology Standards \u2014 Section 1: Suspicious Transaction Indicators and Red Flags",
+                "locator": "DOC-AML-001, v3, \u00a7Section 1: Suspicious Transaction Indicators and Red Flags",
+                "excerpt": "1.1. Core Typology Categories The Omerta.ai detection engine tracks six primary financial crime typologies: - MULE_ACCOUNT: Accounts utilized primarily as conduits for receiving and instantly forwarding funds, breaking the financial trail between predatory origin and destination."
+              },
+              {
+                "citation_id": "cit-200c00a4",
+                "evidence_id": "ev-db-cust-none-b4b4aa",
+                "source_type": "postgresql",
+                "title": "Customer Search Result: suspicious structuring indicators (Not Found)",
+                "locator": "CUSTOMER: NOT_FOUND (suspicious structuring indicators)",
+                "excerpt": "{   \"search_query\": \"suspicious structuring indicators\",   \"found\": 0,   \"status\": \"NOT_FOUND\" }"
+              }
+            ]
+          }
+        ],
+        "limitations": [],
+        "clarification_question": null,
+        "investigation_id": "rag-inv-29b1f68a57",
+        "execution_time_ms": 1942.19,
+        "charts": [],
+        "thought_steps": [
+          "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+          "[02/07] Intent Decomposition & Source Selection: Extracted intents [CUSTOMER_PROFILE, CUSTOMER_LOOKUP, DOCUMENT_SEARCH, MULTI_TOOL_MIXED, MULTI_SOURCE_INVESTIGATION]. Routing to authoritative tiers: [postgresql, documents].",
+          "[03/07] Multi-Source Evidence Retrieval: Retrieved 2 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+          "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+          "[07/07] Cryptographic Provenance Sealing: Verified 2 citations against canonical SHA-256 evidence hashes."
+        ],
+        "warnings": [],
+        "conversation_id": "sess-USR-001",
+        "forensic_trace": [
+          {
+            "intent": "DOCUMENT_SEARCH",
+            "tool_name": "search_documents",
+            "arguments": {
+              "query": "What are suspicious structuring indicators?",
+              "user_role": "FRAUD_ANALYST",
+              "top_k": 4
+            },
+            "status": "SUCCESS",
+            "duration_ms": 87.26,
+            "result_count": 1,
+            "source_identifiers": [],
+            "error": null
+          },
+          {
+            "intent": "CUSTOMER_PROFILE",
+            "tool_name": "find_customers_by_name",
+            "arguments": {
+              "name_query": "suspicious structuring indicators",
+              "limit": 5
+            },
+            "status": "SUCCESS",
+            "duration_ms": 77.96,
+            "result_count": 0,
+            "source_identifiers": [],
+            "error": null
+          }
+        ]
+      },
+      "thought_steps": [
+        "[01/07] Request Validation & Boundary Audit: Tokens verified. Broad investigation scope. Security guardrails: Clear.",
+        "[02/07] Intent Decomposition & Source Selection: Extracted intents [CUSTOMER_PROFILE, CUSTOMER_LOOKUP, DOCUMENT_SEARCH, MULTI_TOOL_MIXED, MULTI_SOURCE_INVESTIGATION]. Routing to authoritative tiers: [postgresql, documents].",
+        "[03/07] Multi-Source Evidence Retrieval: Retrieved 2 authoritative items across Document Knowledge Base, PostgreSQL Ledger, and Neo4j Graph.",
+        "[06/07] Narrative Synthesis & Output Safety: Formatted executive narrative with capitalized headers, verified citations, and non-accusatory terminology.",
+        "[07/07] Cryptographic Provenance Sealing: Verified 2 citations against canonical SHA-256 evidence hashes."
       ],
       "charts": [],
       "warnings": []

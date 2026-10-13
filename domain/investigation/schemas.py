@@ -129,6 +129,7 @@ class TransactionFact(BaseModel):
     is_new_ip: bool = False
     risk_score: float | None = None
     risk_level: str | None = None
+    is_vpn: bool = False
 
 
 class AccountFacts(BaseModel):

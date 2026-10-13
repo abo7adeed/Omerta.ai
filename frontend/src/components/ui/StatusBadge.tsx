@@ -65,6 +65,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       case 'NEW':
       case 'PENDING':
       case 'PENDING_REVIEW':
+      case 'PENDING_CUSTOMER_VERIFICATION':
+      case 'HELD':
       case 'PENDING_IDV':
       case 'SECURITY_HOLD':
       case 'RESTORATION_REQUIRED':

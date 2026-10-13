@@ -119,6 +119,8 @@ class TransactionHistoryMetrics(BaseModel):
     time_since_last_transaction_seconds: float | None = None
     account_age_days: int = 0
     available_balance: float = 0.0
+    recipient_distinct_senders_15m: int = 0
+    recipient_incoming_count_15m: int = 0
 
 
 class VPNDetectionDetails(BaseModel):

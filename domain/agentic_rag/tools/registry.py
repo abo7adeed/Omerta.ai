@@ -177,6 +177,10 @@ class CountCustomersArgs(StrictToolArgs):
     status: str | None = Field(default=None, max_length=32)
 
 
+class CountUsersArgs(StrictToolArgs):
+    role: str | None = Field(default=None, max_length=32)
+
+
 class GetAccountsAndCustomersSummaryArgs(StrictToolArgs):
     limit: int = Field(default=50, ge=1, le=100)
 
@@ -268,6 +272,7 @@ READ_ONLY_TOOL_REGISTRY: dict[str, tuple[type[StrictToolArgs], Any]] = {
     "get_bounded_transaction_dataset": (GetBoundedTransactionDatasetArgs, DatabaseTools.get_bounded_transaction_dataset),
     "count_accounts": (CountAccountsArgs, DatabaseTools.count_accounts),
     "count_customers": (CountCustomersArgs, DatabaseTools.count_customers),
+    "count_users": (CountUsersArgs, DatabaseTools.count_users),
     "get_accounts_and_customers_summary": (GetAccountsAndCustomersSummaryArgs, DatabaseTools.get_accounts_and_customers_summary),
     "get_customer_balance_and_accounts": (GetCustomerBalanceAndAccountsArgs, DatabaseTools.get_customer_balance_and_accounts),
     "get_daily_transaction_volume": (GetDailyTransactionVolumeArgs, DatabaseTools.get_daily_transaction_volume),

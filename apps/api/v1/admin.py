@@ -5,6 +5,7 @@ auditable ledger demo balance adjustments, review queue decisions, and configura
 Protected by role-based authorization (ADMINISTRATOR, FRAUD_ANALYST, SENIOR_INVESTIGATOR).
 """
 
+import secrets
 from decimal import Decimal
 from typing import Any
 
@@ -27,6 +28,7 @@ from infrastructure.database.models import (
     RiskAssessment,
     SupportTicket,
     Transaction,
+    Transfer,
     User,
 )
 from infrastructure.database.session import get_engine
@@ -232,6 +234,209 @@ async def apply_account_adjustment(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
 
 
+class AdminTransactionActionRequest(BaseModel):
+    rationale: str = Field(default="Analyst verified identity and transaction legitimacy. Hold released.", min_length=1)
+
+
+@router.post("/transactions/{transaction_id}/approve")
+async def approve_held_transaction(
+    transaction_id: str,
+    body: AdminTransactionActionRequest | None = None,
+    current_user: dict[str, Any] = Depends(require_role(["ADMINISTRATOR", "SENIOR_INVESTIGATOR", "FRAUD_ANALYST"])),
+) -> dict[str, Any]:
+    """Approve a held transaction, release funds and atomically settle in the double-entry ledger."""
+    rationale = body.rationale if body and body.rationale else "Analyst approved and released funds."
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        # Match transaction by external ID or integer ID
+        is_num = str(transaction_id).isdigit()
+        txn_stmt = (
+            select(Transaction)
+            .options(
+                selectinload(Transaction.account),
+                selectinload(Transaction.recipient_account),
+            )
+            .where(
+                or_(
+                    Transaction.external_id == transaction_id,
+                    Transaction.id.in_(
+                        select(Transfer.transaction_id).where(Transfer.external_id == transaction_id)
+                    ) if not is_num else False,
+                    Transaction.id == int(transaction_id) if is_num else False,
+                )
+            )
+            .limit(1)
+        )
+        txn = await session.scalar(txn_stmt)
+        if not txn:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found.")
+
+        transfer = await session.scalar(
+            select(Transfer).where(Transfer.transaction_id == txn.id).limit(1)
+        )
+
+        if txn.status == "COMPLETED":
+            return {
+                "success": True,
+                "transaction_id": txn.external_id,
+                "status": "COMPLETED",
+                "message": "Transaction is already completed and settled.",
+            }
+
+        # Settle funds if this is a transfer and accounts are available
+        from domain.services.transfer_service import TransferService, TransferError
+        transfer_svc = TransferService(session)
+
+        if transfer and txn.account_id and txn.recipient_account_id:
+            try:
+                await transfer_svc._execute_atomic_settlement(
+                    transaction_id=txn.id,
+                    transfer_id=transfer.id,
+                    source_account_id=txn.account_id,
+                    recipient_account_id=txn.recipient_account_id,
+                    amount=txn.amount,
+                    currency=txn.currency,
+                    idempotency_prefix=f"{transfer.idempotency_key or 'ADMIN'}-APPV",
+                    description_prefix=f"Compliance Approved: Transfer to {txn.recipient_account.customer_name if txn.recipient_account else 'Recipient'}",
+                )
+            except TransferError as err:
+                if err.code != "ALREADY_SETTLED":
+                    raise HTTPException(status_code=err.status_code, detail={"error": err.code, "message": err.message})
+        elif txn.transaction_type == "WITHDRAWAL" and txn.account_id:
+            src_acc = await session.scalar(select(Account).where(Account.id == txn.account_id).with_for_update())
+            if src_acc:
+                if src_acc.balance < txn.amount:
+                    raise HTTPException(status_code=400, detail={"error": "INSUFFICIENT_FUNDS", "message": "Source account balance insufficient."})
+                src_acc.balance -= txn.amount
+                debit_entry = AccountLedgerEntry(
+                    external_id=f"LED-WDL-{secrets.token_hex(4).upper()}",
+                    account_id=src_acc.id,
+                    transaction_id=txn.id,
+                    entry_type="DEBIT",
+                    amount=txn.amount,
+                    currency=txn.currency,
+                    balance_after=src_acc.balance,
+                    description=f"Compliance Approved Withdrawal ({txn.external_id})",
+                    idempotency_key=f"IDEMP-WDL-ADM-{txn.external_id}",
+                )
+                session.add(debit_entry)
+
+        txn.status = "COMPLETED"
+        if transfer:
+            transfer.status = "COMPLETED"
+        txn.review_status = "COMPLETED"
+
+        # Resolve any associated InvestigationCase
+        case = await session.scalar(
+            select(InvestigationCase).where(InvestigationCase.transaction_id == txn.id).limit(1)
+        )
+        if case:
+            case.status = "RESOLVED"
+
+        # Resolve alerts
+        alerts = (await session.scalars(select(Alert).where(Alert.transaction_id == txn.id))).all()
+        for al in alerts:
+            al.status = "RESOLVED"
+
+        # Audit event
+        session.add(
+            AuditEvent(
+                event_id=f"EVT-ADM-APPV-{secrets.token_hex(4).upper()}",
+                event_type="TRANSACTION_APPROVED_BY_ADMIN",
+                actor_type="ADMIN",
+                actor_id=str(current_user.get("sub", "ADMIN")),
+                source="AdminService",
+                transaction_id=txn.external_id,
+                metadata_={
+                    "transaction_id": txn.external_id,
+                    "action": "APPROVE",
+                    "rationale": rationale,
+                    "previous_status": txn.status,
+                },
+            )
+        )
+        await session.commit()
+
+        return {
+            "success": True,
+            "transaction_id": txn.external_id,
+            "status": "COMPLETED",
+            "review_status": "COMPLETED",
+            "message": "Transaction approved and double-entry ledger settlement executed successfully.",
+        }
+
+
+@router.post("/transactions/{transaction_id}/reject")
+async def reject_held_transaction(
+    transaction_id: str,
+    body: AdminTransactionActionRequest | None = None,
+    current_user: dict[str, Any] = Depends(require_role(["ADMINISTRATOR", "SENIOR_INVESTIGATOR", "FRAUD_ANALYST"])),
+) -> dict[str, Any]:
+    """Reject a held transaction and cancel fund movement."""
+    rationale = body.rationale if body and body.rationale else "Transfer rejected due to confirmed fraud or unauthorized activity."
+    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
+        is_num = str(transaction_id).isdigit()
+        txn_stmt = (
+            select(Transaction)
+            .where(
+                or_(
+                    Transaction.external_id == transaction_id,
+                    Transaction.id.in_(
+                        select(Transfer.transaction_id).where(Transfer.external_id == transaction_id)
+                    ) if not is_num else False,
+                    Transaction.id == int(transaction_id) if is_num else False,
+                )
+            )
+            .limit(1)
+        )
+        txn = await session.scalar(txn_stmt)
+        if not txn:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found.")
+
+        transfer = await session.scalar(
+            select(Transfer).where(Transfer.transaction_id == txn.id).limit(1)
+        )
+
+        txn.status = "REJECTED"
+        if transfer:
+            transfer.status = "REJECTED"
+        txn.review_status = "REJECTED"
+
+        case = await session.scalar(
+            select(InvestigationCase).where(InvestigationCase.transaction_id == txn.id).limit(1)
+        )
+        if case:
+            case.status = "RESOLVED"
+
+        alerts = (await session.scalars(select(Alert).where(Alert.transaction_id == txn.id))).all()
+        for al in alerts:
+            al.status = "DISMISSED"
+
+        session.add(
+            AuditEvent(
+                event_id=f"EVT-ADM-REJ-{secrets.token_hex(4).upper()}",
+                event_type="TRANSACTION_REJECTED_BY_ADMIN",
+                actor_type="ADMIN",
+                actor_id=str(current_user.get("sub", "ADMIN")),
+                source="AdminService",
+                transaction_id=txn.external_id,
+                metadata_={
+                    "transaction_id": txn.external_id,
+                    "action": "REJECT",
+                    "rationale": rationale,
+                },
+            )
+        )
+        await session.commit()
+
+        return {
+            "success": True,
+            "transaction_id": txn.external_id,
+            "status": "REJECTED",
+            "review_status": "REJECTED",
+            "message": "Transaction rejected and cancelled successfully.",
+        }
+
+
 @router.post("/transactions/{transaction_id}/review")
 async def record_transaction_review(
     transaction_id: str,
@@ -240,20 +445,70 @@ async def record_transaction_review(
 ) -> dict[str, Any]:
     """Record an analyst review decision for a flagged transaction."""
     async with AsyncSession(get_engine(), expire_on_commit=False) as session:
-        txn = await session.scalar(
-            select(Transaction).where(Transaction.external_id == transaction_id)
+        is_num = str(transaction_id).isdigit()
+        txn_stmt = (
+            select(Transaction)
+            .options(
+                selectinload(Transaction.account),
+                selectinload(Transaction.recipient_account),
+            )
+            .where(
+                or_(
+                    Transaction.external_id == transaction_id,
+                    Transaction.id.in_(
+                        select(Transfer.transaction_id).where(Transfer.external_id == transaction_id)
+                    ) if not is_num else False,
+                    Transaction.id == int(transaction_id) if is_num else False,
+                )
+            )
+            .limit(1)
         )
+        txn = await session.scalar(txn_stmt)
         if not txn:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found.")
 
+        transfer = await session.scalar(
+            select(Transfer).where(Transfer.transaction_id == txn.id).limit(1)
+        )
+
         old_status = txn.review_status
-        txn.review_status = "COMPLETED" if body.disposition == "APPROVE" else "IN_REVIEW"
+        if body.disposition == "APPROVE":
+            # Settle if held
+            if transfer and txn.status != "COMPLETED" and txn.account_id and txn.recipient_account_id:
+                from domain.services.transfer_service import TransferService, TransferError
+                transfer_svc = TransferService(session)
+                try:
+                    await transfer_svc._execute_atomic_settlement(
+                        transaction_id=txn.id,
+                        transfer_id=transfer.id,
+                        source_account_id=txn.account_id,
+                        recipient_account_id=txn.recipient_account_id,
+                        amount=txn.amount,
+                        currency=txn.currency,
+                        idempotency_prefix=f"{transfer.idempotency_key or 'ADMIN'}-REV",
+                        description_prefix=f"Analyst Approved: Transfer to {txn.recipient_account.customer_name if txn.recipient_account else 'Recipient'}",
+                    )
+                except TransferError as err:
+                    if err.code != "ALREADY_SETTLED":
+                        raise HTTPException(status_code=err.status_code, detail={"error": err.code, "message": err.message})
+
+            txn.status = "COMPLETED"
+            if transfer:
+                transfer.status = "COMPLETED"
+            txn.review_status = "COMPLETED"
+        elif body.disposition in ("DISMISS", "REJECT"):
+            txn.status = "REJECTED"
+            if transfer:
+                transfer.status = "REJECTED"
+            txn.review_status = "DISMISSED"
+        else:
+            txn.review_status = "IN_REVIEW"
 
         audit_event = AuditEvent(
-            event_id=f"EVT-REV-{txn.id}",
+            event_id=f"EVT-REV-{secrets.token_hex(4).upper()}",
             event_type="TRANSACTION_REVIEW_DECISION",
             actor_type="ANALYST",
-            actor_id=current_user.get("sub"),
+            actor_id=str(current_user.get("sub", "ADMIN")),
             source="AdminService",
             transaction_id=txn.external_id,
             metadata_={
@@ -262,6 +517,7 @@ async def record_transaction_review(
                 "rationale": body.rationale,
                 "old_review_status": old_status,
                 "new_review_status": txn.review_status,
+                "transaction_status": txn.status,
             },
         )
         session.add(audit_event)
@@ -272,6 +528,7 @@ async def record_transaction_review(
             "disposition": body.disposition,
             "rationale": body.rationale,
             "review_status": txn.review_status,
+            "status": txn.status,
         }
 
 
@@ -881,50 +1138,6 @@ class AdminPrivilegeRestorationRequest(BaseModel):
     ticket_id: int | None = None
 
 
-@router.post("/transactions/{transaction_id}/approve")
-async def admin_approve_transaction(
-    transaction_id: str,
-    body: AdminApproveRejectRequest = AdminApproveRejectRequest(),
-    current_user: dict[str, Any] = Depends(require_role(ADMIN_ROLES)),
-) -> dict[str, Any]:
-    """Approve a held transaction and atomically execute double-entry ledger settlement."""
-    from domain.services.transfer_service import TransferService, TransferError
-
-    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
-        transfer_svc = TransferService(session)
-        admin_sub = str(current_user.get("sub", ""))
-        admin_user_id = int(admin_sub) if admin_sub.isdigit() else 1
-        try:
-            return await transfer_svc.admin_approve_transfer(
-                transaction_external_id=transaction_id,
-                admin_user_id=admin_user_id,
-                reason=body.final_reason,
-            )
-        except TransferError as terr:
-            raise HTTPException(status_code=terr.status_code, detail={"error": terr.code, "message": terr.message})
-
-
-@router.post("/transactions/{transaction_id}/reject")
-async def admin_reject_transaction(
-    transaction_id: str,
-    body: AdminApproveRejectRequest = AdminApproveRejectRequest(),
-    current_user: dict[str, Any] = Depends(require_role(ADMIN_ROLES)),
-) -> dict[str, Any]:
-    """Reject a held transaction and mark as suspicious / cancelled."""
-    from domain.services.transfer_service import TransferService, TransferError
-
-    async with AsyncSession(get_engine(), expire_on_commit=False) as session:
-        transfer_svc = TransferService(session)
-        admin_sub = str(current_user.get("sub", ""))
-        admin_user_id = int(admin_sub) if admin_sub.isdigit() else 1
-        try:
-            return await transfer_svc.admin_reject_transfer(
-                transaction_external_id=transaction_id,
-                admin_user_id=admin_user_id,
-                reason=body.final_reason,
-            )
-        except TransferError as terr:
-            raise HTTPException(status_code=terr.status_code, detail={"error": terr.code, "message": terr.message})
 
 
 @router.post("/customers/{customer_id}/restore-transaction-privileges")
