@@ -93,6 +93,8 @@ def resolve_coordinates(city: str | None = None, country: str | None = None) -> 
                 return coords
 
     clean_country = (country or "EG").strip().upper()
+    if clean_country == "EG":
+        return LOCATION_COORDINATES["cairo"]
     if clean_country in COUNTRY_CENTROIDS:
         return COUNTRY_CENTROIDS[clean_country]
 
@@ -128,7 +130,7 @@ def evaluate_geographic_velocity(
     3. Calculated velocity exceeds 850 km/h (maximum commercial flight speed including boarding).
     """
     now = current_timestamp or datetime.now(UTC)
-    if not prev_timestamp:
+    if not prev_timestamp or ((prev_country or "EG") == (current_country or "EG") and not current_city):
         return VelocityAnalysisResult(
             is_impossible_travel=False,
             distance_km=0.0,

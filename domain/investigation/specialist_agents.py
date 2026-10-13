@@ -45,6 +45,7 @@ class BankingRulesAgent:
         shared_device_count: int = 0,
         failed_attempts: int = 0,
         has_active_restriction: bool = False,
+        impossible_travel: bool = False,
     ) -> SpecialistAgentResult:
         t_start = time.perf_counter()
         started_at = datetime.now(UTC)
@@ -178,6 +179,21 @@ class BankingRulesAgent:
                 reason="Account has active security restrictions prohibiting outgoing transfers.",
                 evidence_ids=["POLICY:restriction_scope"],
                 observed_values={"restricted": True},
+            ))
+            points_breakdown[rule.rule_id] = rule.points
+            total_points += rule.points
+
+        # Rule: Impossible Geographic Velocity
+        if impossible_travel:
+            rule = BANKING_RULES_REGISTRY["RULE-GEO-TRAVEL-001"]
+            findings.append(AgentFinding(
+                rule_id=rule.rule_id,
+                rule_name=rule.name,
+                points=rule.points,
+                severity=rule.severity.value,
+                reason="Sequential transactions from distinct locations requiring physically impossible travel velocity.",
+                evidence_ids=["METRIC:impossible_travel"],
+                observed_values={"impossible_travel": True},
             ))
             points_breakdown[rule.rule_id] = rule.points
             total_points += rule.points
@@ -365,6 +381,11 @@ class DeviceNetworkAgent:
         ip_risk_score: float = 0.0,
         provider_available: bool = True,
         country: str = "EG",
+        city: str | None = None,
+        prev_country: str | None = None,
+        prev_city: str | None = None,
+        prev_timestamp: datetime | None = None,
+        current_timestamp: datetime | None = None,
     ) -> SpecialistAgentResult:
         t_start = time.perf_counter()
         started_at = datetime.now(UTC)
@@ -409,9 +430,41 @@ class DeviceNetworkAgent:
                 observed_values={"is_new": True},
             ))
 
+        # Geographic travel velocity & impossible location jump
+        from domain.services.location_velocity import evaluate_geographic_velocity
+        velocity_res = evaluate_geographic_velocity(
+            prev_country=prev_country,
+            prev_city=prev_city,
+            prev_timestamp=prev_timestamp,
+            current_country=country,
+            current_city=city,
+            current_timestamp=current_timestamp or started_at,
+        )
+        if velocity_res.is_impossible_travel:
+            points += velocity_res.risk_score_penalty
+            findings.append(AgentFinding(
+                rule_id="IMPOSSIBLE_TRAVEL_VELOCITY",
+                rule_name="Impossible Travel Geographic Velocity Anomaly",
+                points=velocity_res.risk_score_penalty,
+                severity="CRITICAL" if velocity_res.risk_score_penalty >= 70.0 else "HIGH",
+                reason=velocity_res.reason or f"Impossible physical travel velocity detected between {velocity_res.origin} and {velocity_res.destination}.",
+                evidence_ids=["GEO:velocity", f"ORIGIN:{velocity_res.origin}", f"DEST:{velocity_res.destination}"],
+                observed_values={
+                    "origin": velocity_res.origin,
+                    "destination": velocity_res.destination,
+                    "distance_km": velocity_res.distance_km,
+                    "elapsed_minutes": velocity_res.elapsed_minutes,
+                    "speed_kmh": velocity_res.calculated_speed_kmh,
+                },
+            ))
+
         final_score = round(min(100.0, points), 2)
         duration_ms = round((time.perf_counter() - t_start) * 1000.0, 2)
         completed_at = datetime.now(UTC)
+
+        raw_metrics = vpn_details.model_dump()
+        raw_metrics["impossible_travel"] = velocity_res.is_impossible_travel
+        raw_metrics["calculated_speed_kmh"] = velocity_res.calculated_speed_kmh
 
         return SpecialistAgentResult(
             agent_name="Device & Network Agent",
@@ -419,9 +472,13 @@ class DeviceNetworkAgent:
             status=AgentExecutionStatus.COMPLETED if provider_available else AgentExecutionStatus.DEGRADED,
             score=final_score,
             score_scale="0-100",
-            raw_metrics=vpn_details.model_dump(),
+            raw_metrics=raw_metrics,
             findings=findings,
-            points_breakdown={"vpn": 35.0 if is_vpn else 0.0, "new_device": 20.0 if is_new_device else 0.0},
+            points_breakdown={
+                "vpn": 35.0 if is_vpn else 0.0,
+                "new_device": 20.0 if is_new_device else 0.0,
+                "impossible_travel": velocity_res.risk_score_penalty if velocity_res.is_impossible_travel else 0.0,
+            },
             evidence_ids=[f.evidence_ids[0] for f in findings if f.evidence_ids],
             data_quality=data_quality,
             started_at=started_at,

@@ -14,6 +14,7 @@ from decimal import Decimal
 import secrets
 from typing import Any
 import uuid
+import hashlib
 import os
 
 from sqlalchemy import and_, func, or_, select
@@ -39,6 +40,7 @@ from infrastructure.database.models import (
     TransactionRestriction,
     SupportTicket,
     TransferRestoration,
+    TransactionConfirmationToken,
 )
 from domain.investigation.history_agent import TransactionHistoryAgent
 from domain.investigation.specialist_agents import (
@@ -204,6 +206,180 @@ class TransferService:
             "supported_currencies": list(set(supported_currencies)),
             "preferred_currency": customer.preferred_currency or "EGP",
         }
+
+    async def create_confirmation_token(
+        self,
+        transaction_id: int,
+        customer_id: int,
+        action: str = "CONFIRM",
+        expires_minutes: int = 30,
+    ) -> str:
+        """Generate a cryptographically random, single-use, short-lived confirmation token.
+        
+        The plaintext token is returned once for transmission to the customer; only its
+        secure SHA-256 hash is persisted in the database.
+        """
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+        expires_at = datetime.now(UTC) + timedelta(minutes=expires_minutes)
+
+        confirmation_token = TransactionConfirmationToken(
+            transaction_id=transaction_id,
+            customer_id=customer_id,
+            token_hash=token_hash,
+            allowed_action=action.upper(),
+            expires_at=expires_at,
+        )
+        self.session.add(confirmation_token)
+        await self.session.flush()
+        return raw_token
+
+    async def validate_and_consume_confirmation_token(
+        self,
+        raw_token: str,
+        transaction_id: int,
+        expected_action: str | None = None,
+    ) -> TransactionConfirmationToken:
+        """Atomically validate and consume a confirmation token within the database transaction.
+        
+        Rejects expired, already-consumed, action-mismatched, or invalid tokens.
+        """
+        if not raw_token or not raw_token.strip():
+            raise TransferError("Confirmation token is required.", code="TOKEN_REQUIRED", status_code=400)
+
+        token_hash = hashlib.sha256(raw_token.strip().encode("utf-8")).hexdigest()
+        now = datetime.now(UTC)
+
+        stmt = (
+            select(TransactionConfirmationToken)
+            .where(
+                and_(
+                    TransactionConfirmationToken.token_hash == token_hash,
+                    TransactionConfirmationToken.transaction_id == transaction_id,
+                )
+            )
+            .with_for_update()
+            .limit(1)
+        )
+        token_rec = await self.session.scalar(stmt)
+        if not token_rec:
+            raise TransferError("Invalid confirmation token.", code="TOKEN_INVALID", status_code=400)
+
+        if token_rec.used_at is not None or token_rec.revoked_at is not None:
+            raise TransferError("Confirmation token has already been used.", code="TOKEN_ALREADY_USED", status_code=400)
+
+        # Check expiration
+        exp = token_rec.expires_at
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=UTC)
+        if exp < now:
+            raise TransferError("Confirmation token has expired.", code="TOKEN_EXPIRED", status_code=400)
+
+        if expected_action and token_rec.allowed_action not in ("ANY", expected_action.upper()):
+            raise TransferError(
+                f"Confirmation token was issued for action '{token_rec.allowed_action}', not '{expected_action.upper()}'.",
+                code="TOKEN_ACTION_MISMATCH",
+                status_code=400,
+            )
+
+        # Mark consumed atomically
+        token_rec.used_at = now
+        await self.session.flush()
+        return token_rec
+
+    async def _execute_atomic_settlement(
+        self,
+        *,
+        transaction_id: int,
+        transfer_id: int,
+        source_account_id: int,
+        recipient_account_id: int,
+        amount: Decimal,
+        currency: str,
+        idempotency_prefix: str,
+        description_prefix: str,
+    ) -> tuple[AccountLedgerEntry, AccountLedgerEntry]:
+        """Atomically perform double-entry ledger balance updates and posting with ordered row-level locks.
+        
+        Guarantees:
+        - Consistent alphanumeric ordering of account row locks to prevent AB-BA deadlocks.
+        - Decimal balance accuracy without floating point drift.
+        - Verification that settlement has not already taken place.
+        - Uniqueness constraint check on idempotency keys.
+        """
+        now = datetime.now(UTC)
+
+        # Check existing ledger postings for this transfer
+        existing_ledger = await self.session.scalar(
+            select(AccountLedgerEntry)
+            .where(AccountLedgerEntry.transfer_id == transfer_id)
+            .limit(1)
+        )
+        if existing_ledger:
+            raise TransferError("Transfer has already been settled in the double-entry ledger.", code="ALREADY_SETTLED", status_code=409)
+
+        # Acquire database row-level locks in deterministic ascending ID order
+        acc_ids = sorted([source_account_id, recipient_account_id])
+        locked_accs_stmt = select(Account).where(Account.id.in_(acc_ids)).order_by(Account.id.asc()).with_for_update()
+        locked_accs = (await self.session.scalars(locked_accs_stmt)).all()
+        acc_map = {a.id: a for a in locked_accs}
+
+        src_acc = acc_map.get(source_account_id)
+        dst_acc = acc_map.get(recipient_account_id)
+        if not src_acc or not dst_acc:
+            raise TransferError("Accounts participating in settlement could not be locked.", code="ACCOUNT_LOCK_FAILED", status_code=404)
+
+        if src_acc.status != "ACTIVE" or dst_acc.status != "ACTIVE":
+            raise TransferError("Both source and destination accounts must be ACTIVE to settle.", code="ACCOUNT_INACTIVE", status_code=400)
+
+        if src_acc.currency.upper() != currency.upper() or dst_acc.currency.upper() != currency.upper():
+            raise TransferError("Currency mismatch between participating accounts and transfer settlement currency.", code="CURRENCY_MISMATCH", status_code=400)
+
+        src_balance = Decimal(str(src_acc.balance))
+        dst_balance = Decimal(str(dst_acc.balance))
+        settlement_amt = Decimal(str(amount))
+
+        if src_balance < settlement_amt:
+            raise TransferError(
+                f"Source account has insufficient balance for settlement. Available: {src_balance:,.2f} {currency}, Required: {settlement_amt:,.2f} {currency}",
+                code="INSUFFICIENT_FUNDS",
+                status_code=400,
+            )
+
+        src_acc.balance = src_balance - settlement_amt
+        dst_acc.balance = dst_balance + settlement_amt
+
+        debit_ref = f"LED-DB-{secrets.token_hex(4).upper()}"
+        credit_ref = f"LED-CR-{secrets.token_hex(4).upper()}"
+
+        debit_entry = AccountLedgerEntry(
+            external_id=debit_ref,
+            account_id=src_acc.id,
+            transfer_id=transfer_id,
+            transaction_id=transaction_id,
+            entry_type="DEBIT",
+            amount=settlement_amt,
+            currency=currency.upper(),
+            balance_after=src_acc.balance,
+            description=f"{description_prefix}: Debit from {src_acc.external_id}",
+            idempotency_key=f"{idempotency_prefix}-DEBIT",
+        )
+        credit_entry = AccountLedgerEntry(
+            external_id=credit_ref,
+            account_id=dst_acc.id,
+            transfer_id=transfer_id,
+            transaction_id=transaction_id,
+            entry_type="CREDIT",
+            amount=settlement_amt,
+            currency=currency.upper(),
+            balance_after=dst_acc.balance,
+            description=f"{description_prefix}: Credit to {dst_acc.external_id}",
+            idempotency_key=f"{idempotency_prefix}-CREDIT",
+        )
+
+        self.session.add_all([debit_entry, credit_entry])
+        await self.session.flush()
+        return debit_entry, credit_entry
 
     async def execute_transfer(
         self,
@@ -419,6 +595,34 @@ class TransferService:
             current_transaction_id=txn.id,
         )
 
+        # Query previous customer session for geographic velocity evaluation
+        last_sess = await self.session.scalar(
+            select(Session)
+            .options(selectinload(Session.ip_address))
+            .where(Session.user_id == sender_user_id)
+            .order_by(Session.started_at.desc())
+            .limit(1)
+        )
+        prev_country = last_sess.ip_address.country if (last_sess and last_sess.ip_address) else (sender_customer.declared_country or "EG")
+        prev_city = "Cairo"  # Default established home city for domestic Egyptian baseline
+        prev_ts = last_sess.started_at if last_sess else (now - timedelta(minutes=5))
+
+        # E. Device and Network Agent
+        device_result = DeviceNetworkAgent.evaluate(
+            is_new_device=False,
+            is_vpn=is_vpn,
+            ip_risk_score=65.0 if is_vpn else 5.0,
+            provider_available=True,
+            country=country or (sender_customer.declared_country or "EG"),
+            city=city,
+            prev_country=prev_country,
+            prev_city=prev_city,
+            prev_timestamp=prev_ts,
+            current_timestamp=now,
+        )
+
+        has_impossible_travel = bool(device_result.raw_metrics.get("impossible_travel"))
+
         # B. Banking Rules Agent
         rules_result = BankingRulesAgent.evaluate(
             history_metrics=history_result.raw_metrics,
@@ -427,6 +631,7 @@ class TransferService:
             shared_device_count=0,
             failed_attempts=sender_customer.transfer_failed_attempts,
             has_active_restriction=False,
+            impossible_travel=has_impossible_travel,
         )
 
         # C. Behavioral Analysis Agent
@@ -441,15 +646,6 @@ class TransferService:
             recent_failed_logins=sender_customer.transfer_failed_attempts,
             recent_device_added=False,
             new_beneficiary_added=history_result.raw_metrics.get("is_first_transaction_with_beneficiary", False),
-        )
-
-        # E. Device and Network Agent
-        device_result = DeviceNetworkAgent.evaluate(
-            is_new_device=False,
-            is_vpn=is_vpn,
-            ip_risk_score=65.0 if is_vpn else 5.0,
-            provider_available=True,
-            country=country or (sender_customer.declared_country or "EG"),
         )
 
         # F. Graph Intelligence Agent
@@ -530,37 +726,16 @@ class TransferService:
         # 10. Execute State Machine Decisions
         if assessment.decision == TransactionDecision.ALLOW:
             # Low Risk: Atomically execute double-entry ledger debit & credit now!
-            sender_account.balance = Decimal(str(sender_account.balance)) - amount
-            recipient_account.balance = Decimal(str(recipient_account.balance)) + amount
-
-            debit_ledger_ref = f"LED-DB-{secrets.token_hex(4).upper()}"
-            credit_ledger_ref = f"LED-CR-{secrets.token_hex(4).upper()}"
-
-            debit_entry = AccountLedgerEntry(
-                external_id=debit_ledger_ref,
-                account_id=sender_account.id,
-                transfer_id=transfer.id,
+            await self._execute_atomic_settlement(
                 transaction_id=txn.id,
-                entry_type="DEBIT",
-                amount=amount,
-                currency=currency.upper(),
-                balance_after=sender_account.balance,
-                description=f"Simulated Transfer to {recipient_customer.name} ({recipient_customer.omerta_user_number})",
-                idempotency_key=f"{idempotency_key}-DEBIT",
-            )
-            credit_entry = AccountLedgerEntry(
-                external_id=credit_ledger_ref,
-                account_id=recipient_account.id,
                 transfer_id=transfer.id,
-                transaction_id=txn.id,
-                entry_type="CREDIT",
+                source_account_id=sender_account.id,
+                recipient_account_id=recipient_account.id,
                 amount=amount,
-                currency=currency.upper(),
-                balance_after=recipient_account.balance,
-                description=f"Simulated Transfer from {sender_customer.name} ({sender_customer.omerta_user_number})",
-                idempotency_key=f"{idempotency_key}-CREDIT",
+                currency=currency,
+                idempotency_prefix=idempotency_key,
+                description_prefix=f"Transfer to {recipient_customer.name} ({recipient_customer.omerta_user_number})",
             )
-            self.session.add_all([debit_entry, credit_entry])
 
             txn.status = "COMPLETED"
             transfer.status = "COMPLETED"
@@ -621,13 +796,22 @@ class TransferService:
             )
             self.session.add(case)
 
+            # Generate Single-Use Cryptographic Confirmation Token
+            confirm_token = await self.create_confirmation_token(
+                transaction_id=txn.id,
+                customer_id=sender_customer.id,
+                action="CONFIRM",
+                expires_minutes=30,
+            )
+
             # Send Email Notification
             target_email = sender_customer.email
             if not target_email or target_email.endswith("@omerta.ai"):
                 target_email = os.getenv("REAL_CUSTOMER_EMAIL", "abdomostafa13571234@gmail.com")
 
             if target_email:
-                verif_url = "http://localhost:5173/customer/security"
+                base_app_url = os.getenv("APP_URL", "http://localhost:5173").rstrip("/")
+                verif_url = f"{base_app_url}/customer/security?token={confirm_token}&txn={txn.external_id}"
                 try:
                     asyncio.create_task(
                         EmailService.send_transfer_verification_email(
@@ -694,9 +878,15 @@ class TransferService:
         self,
         transaction_external_id: str,
         action: str,
-        customer_user_id: int,
+        customer_user_id: int | None = None,
+        token: str | None = None,
     ) -> dict[str, Any]:
-        """Process customer confirmation response (CONFIRM or DENY)."""
+        """Process customer confirmation response (CONFIRM or DENY).
+        
+        Requires either:
+        1. An authenticated customer session matching transaction ownership, OR
+        2. A cryptographically valid, single-use, unexpired confirmation token bound to this transaction.
+        """
         txn_stmt = (
             select(Transaction)
             .options(
@@ -711,8 +901,19 @@ class TransferService:
             raise TransferError("Transaction not found.", code="TXN_NOT_FOUND", status_code=404)
 
         sender_customer = txn.account.customer
-        if sender_customer.user_id != customer_user_id:
-            raise TransferError("Unauthorized: transaction does not belong to you.", code="UNAUTHORIZED", status_code=403)
+
+        # Validate authorization: either authenticated session OR signed single-use token
+        if token:
+            await self.validate_and_consume_confirmation_token(
+                raw_token=token,
+                transaction_id=txn.id,
+                expected_action=action.upper(),
+            )
+        elif customer_user_id is not None:
+            if sender_customer.user_id != customer_user_id:
+                raise TransferError("Unauthorized: transaction does not belong to you.", code="UNAUTHORIZED", status_code=403)
+        else:
+            raise TransferError("Authentication required or valid confirmation token must be provided.", code="UNAUTHORIZED", status_code=401)
 
         transfer_stmt = select(Transfer).where(Transfer.transaction_id == txn.id).limit(1)
         transfer = await self.session.scalar(transfer_stmt)
@@ -735,7 +936,7 @@ class TransferService:
                     event_id=f"EVT-CONFIRMED-{secrets.token_hex(4).upper()}",
                     event_type="CUSTOMER_TRANSACTION_CONFIRMED",
                     actor_type="CUSTOMER",
-                    actor_id=str(customer_user_id),
+                    actor_id=str(customer_user_id or sender_customer.user_id or "TOKEN_USER"),
                     source="CustomerSecurityPortal",
                     transaction_id=txn.external_id,
                     metadata_={"response": "CONFIRM", "timestamp": now.isoformat()},
@@ -750,45 +951,17 @@ class TransferService:
             risk_score = float(txn.risk_score) if txn.risk_score is not None else 0.0
 
             if not has_vpn_alert and not is_vpn_txn and risk_score < 40.0:
-                # Low risk without VPN: execute ledger debit & credit now!
-                sender_acc = txn.account
-                recip_acc = txn.recipient_account
-
-                if sender_acc.balance < txn.amount:
-                    raise TransferError("Insufficient balance to execute transfer upon release.", code="INSUFFICIENT_FUNDS")
-
-                sender_acc.balance = Decimal(str(sender_acc.balance)) - txn.amount
-                recip_acc.balance = Decimal(str(recip_acc.balance)) + txn.amount
-
-                debit_ledger_ref = f"LED-DB-{secrets.token_hex(4).upper()}"
-                credit_ledger_ref = f"LED-CR-{secrets.token_hex(4).upper()}"
-
-                self.session.add_all([
-                    AccountLedgerEntry(
-                        external_id=debit_ledger_ref,
-                        account_id=sender_acc.id,
-                        transfer_id=transfer.id,
-                        transaction_id=txn.id,
-                        entry_type="DEBIT",
-                        amount=txn.amount,
-                        currency=txn.currency,
-                        balance_after=sender_acc.balance,
-                        description=f"Transfer verified by customer to {recip_acc.customer.name}",
-                        idempotency_key=f"{transfer.idempotency_key}-CONFIRMED-DEBIT",
-                    ),
-                    AccountLedgerEntry(
-                        external_id=credit_ledger_ref,
-                        account_id=recip_acc.id,
-                        transfer_id=transfer.id,
-                        transaction_id=txn.id,
-                        entry_type="CREDIT",
-                        amount=txn.amount,
-                        currency=txn.currency,
-                        balance_after=recip_acc.balance,
-                        description=f"Transfer verified by customer from {sender_acc.customer.name}",
-                        idempotency_key=f"{transfer.idempotency_key}-CONFIRMED-CREDIT",
-                    ),
-                ])
+                # Low risk without VPN: execute ledger debit & credit atomically!
+                await self._execute_atomic_settlement(
+                    transaction_id=txn.id,
+                    transfer_id=transfer.id,
+                    source_account_id=txn.account_id,
+                    recipient_account_id=txn.recipient_account_id,
+                    amount=txn.amount,
+                    currency=txn.currency,
+                    idempotency_prefix=f"{transfer.idempotency_key}-CONFIRMED",
+                    description_prefix=f"Customer confirmed transfer to {txn.recipient_account.customer_name}",
+                )
 
                 txn.status = "COMPLETED"
                 transfer.status = "COMPLETED"
@@ -827,39 +1000,63 @@ class TransferService:
             transfer.status = "REJECTED"
             txn.review_status = "DISMISSED"
 
-            # 2. Apply server-enforced restriction on outgoing transfers
-            restr_id = f"REST-{secrets.token_hex(4).upper()}"
-            restriction = TransactionRestriction(
-                restriction_id=restr_id,
-                customer_id=sender_customer.id,
-                account_id=txn.account_id,
-                trigger_transaction_id=txn.external_id,
-                restriction_reason=f"Customer reported unauthorized transaction attempt: {txn.external_id}",
-                restriction_scope="OUTGOING_TRANSFERS_ONLY",
-                status="ACTIVE",
-                created_by="CUSTOMER_DENIAL_AUTOMATION",
+            # 2. Apply server-enforced restriction on outgoing transfers (prevent duplicate restrictions)
+            existing_restr = await self.session.scalar(
+                select(TransactionRestriction).where(
+                    and_(
+                        TransactionRestriction.customer_id == sender_customer.id,
+                        TransactionRestriction.status == "ACTIVE",
+                        TransactionRestriction.trigger_transaction_id == txn.external_id,
+                    )
+                ).limit(1)
             )
-            self.session.add(restriction)
-            sender_customer.transfer_status = "BLOCKED"
-            sender_customer.transfer_blocked_at = now
+            if not existing_restr:
+                restr_id = f"REST-{secrets.token_hex(4).upper()}"
+                restriction = TransactionRestriction(
+                    restriction_id=restr_id,
+                    customer_id=sender_customer.id,
+                    account_id=txn.account_id,
+                    trigger_transaction_id=txn.external_id,
+                    restriction_reason=f"Customer reported unauthorized transaction attempt: {txn.external_id}",
+                    restriction_scope="OUTGOING_TRANSFERS_ONLY",
+                    status="ACTIVE",
+                    created_by="CUSTOMER_DENIAL_AUTOMATION",
+                )
+                self.session.add(restriction)
+                sender_customer.transfer_status = "BLOCKED"
+                sender_customer.transfer_blocked_at = now
+            else:
+                restr_id = existing_restr.restriction_id
 
-            # 3. Create Security Support Ticket
-            tkt_ref = f"TICK-{secrets.token_hex(4).upper()}"
-            ticket = SupportTicket(
-                external_id=tkt_ref,
-                customer_id=sender_customer.id,
-                account_id=txn.account_id,
-                ticket_type="FRAUD_CUSTOMER_DENIAL",
-                category="SECURITY",
-                priority="CRITICAL",
-                status="OPEN",
-                subject=f"Unauthorized Transaction Reported: {txn.external_id}",
-                description=f"Customer denied initiating transfer {txn.external_id} of {txn.amount} {txn.currency}. Outgoing transfer restriction applied automatically.",
-                opened_by="SYSTEM_SECURITY",
-                related_transaction_id=txn.id,
-                related_account_id=txn.account_id,
+            # 3. Create Security Support Ticket (idempotent for this transaction)
+            existing_tkt = await self.session.scalar(
+                select(SupportTicket).where(
+                    and_(
+                        SupportTicket.customer_id == sender_customer.id,
+                        SupportTicket.related_transaction_id == txn.id,
+                        SupportTicket.ticket_type == "FRAUD_CUSTOMER_DENIAL",
+                    )
+                ).limit(1)
             )
-            self.session.add(ticket)
+            if not existing_tkt:
+                tkt_ref = f"TICK-{secrets.token_hex(4).upper()}"
+                ticket = SupportTicket(
+                    external_id=tkt_ref,
+                    customer_id=sender_customer.id,
+                    account_id=txn.account_id,
+                    ticket_type="FRAUD_CUSTOMER_DENIAL",
+                    category="SECURITY",
+                    priority="CRITICAL",
+                    status="OPEN",
+                    subject=f"Unauthorized Transaction Reported: {txn.external_id}",
+                    description=f"Customer denied initiating transfer {txn.external_id} of {txn.amount} {txn.currency}. Outgoing transfer restriction applied automatically.",
+                    opened_by="SYSTEM_SECURITY",
+                    related_transaction_id=txn.id,
+                    related_account_id=txn.account_id,
+                )
+                self.session.add(ticket)
+            else:
+                tkt_ref = existing_tkt.external_id
 
             # 4. Record Audit Event
             self.session.add(
@@ -867,7 +1064,7 @@ class TransferService:
                     event_id=f"EVT-DENIED-{secrets.token_hex(4).upper()}",
                     event_type="CUSTOMER_TRANSACTION_DENIED",
                     actor_type="CUSTOMER",
-                    actor_id=str(customer_user_id),
+                    actor_id=str(customer_user_id or sender_customer.user_id or "TOKEN_USER"),
                     source="CustomerSecurityPortal",
                     transaction_id=txn.external_id,
                     metadata_={
@@ -900,7 +1097,7 @@ class TransferService:
         admin_user_id: int,
         reason: str,
     ) -> dict[str, Any]:
-        """Admin compliance override: approve and execute a held transfer."""
+        """Admin compliance override: approve and execute a held transfer with atomic settlement."""
         txn_stmt = (
             select(Transaction)
             .options(
@@ -943,52 +1140,17 @@ class TransferService:
         if not transfer:
             raise TransferError("Transfer record not found.", code="TRANSFER_NOT_FOUND", status_code=404)
 
-        sender_acc = await self.session.scalar(
-            select(Account).where(Account.id == txn.account_id).with_for_update()
+        # Atomic double-entry ledger settlement
+        await self._execute_atomic_settlement(
+            transaction_id=txn.id,
+            transfer_id=transfer.id,
+            source_account_id=txn.account_id,
+            recipient_account_id=txn.recipient_account_id,
+            amount=txn.amount,
+            currency=txn.currency,
+            idempotency_prefix=f"{transfer.idempotency_key}-ADMIN",
+            description_prefix="Admin compliance approved transfer",
         )
-        recip_acc = await self.session.scalar(
-            select(Account).where(Account.id == txn.recipient_account_id).with_for_update()
-        )
-        if not sender_acc or not recip_acc:
-            raise TransferError("Accounts not found.", code="ACCOUNT_NOT_FOUND", status_code=404)
-
-        if sender_acc.balance < txn.amount:
-            raise TransferError("Source account balance is insufficient for settlement.", code="INSUFFICIENT_FUNDS")
-
-        # Execute ledger balance posting
-        sender_acc.balance = Decimal(str(sender_acc.balance)) - txn.amount
-        recip_acc.balance = Decimal(str(recip_acc.balance)) + txn.amount
-        self.session.add_all([sender_acc, recip_acc])
-
-        debit_ledger_ref = f"LED-DB-{secrets.token_hex(4).upper()}"
-        credit_ledger_ref = f"LED-CR-{secrets.token_hex(4).upper()}"
-
-        self.session.add_all([
-            AccountLedgerEntry(
-                external_id=debit_ledger_ref,
-                account_id=sender_acc.id,
-                transfer_id=transfer.id,
-                transaction_id=txn.id,
-                entry_type="DEBIT",
-                amount=txn.amount,
-                currency=txn.currency,
-                balance_after=sender_acc.balance,
-                description=f"Admin approved transfer to {recip_acc.customer.name}",
-                idempotency_key=f"{transfer.idempotency_key}-ADMIN-DEBIT",
-            ),
-            AccountLedgerEntry(
-                external_id=credit_ledger_ref,
-                account_id=recip_acc.id,
-                transfer_id=transfer.id,
-                transaction_id=txn.id,
-                entry_type="CREDIT",
-                amount=txn.amount,
-                currency=txn.currency,
-                balance_after=recip_acc.balance,
-                description=f"Admin approved transfer from {sender_acc.customer.name}",
-                idempotency_key=f"{transfer.idempotency_key}-ADMIN-CREDIT",
-            ),
-        ])
 
         txn.status = "COMPLETED"
         transfer.status = "COMPLETED"

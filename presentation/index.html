@@ -1,0 +1,3684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Omerta.ai — Next-Gen Autonomous AI AML & Banking Platform | NTI Graduation Project</title>
+  <meta name="description" content="Official Interactive Defense Presentation for Omerta.ai: Autonomous Financial Crime Forensics, Real-Time AML Defense, Double-Entry Banking, and Multi-Agent Consensus.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23F9A825'><path d='M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       OMERTA.AI OFFICIAL DESIGN SYSTEM: SAPPHIRE & GOLD ENTERPRISE PALETTE
+       Matches frontend/src/index.css tokens with ultra-modern dynamic motion
+       ========================================================================== */
+
+    :root {
+      /* Signature Project Tokens: Sapphire + Gold */
+      --sapphire-dark: #001333;
+      --sapphire-primary: #002D72;
+      --sapphire-light: #0A3D8F;
+      --sapphire-surface: #0E1E3D;
+      --sapphire-glow: rgba(0, 45, 114, 0.45);
+
+      --gold-primary: #F9A825;
+      --gold-hover: #E6951A;
+      --gold-surface: #FFF9E6;
+      --gold-border: #FFE082;
+      --gold-glow: rgba(249, 168, 37, 0.35);
+
+      --royal-blue: #1E88E5;
+      --royal-blue-hover: #1976D2;
+      --royal-glow: rgba(30, 136, 229, 0.4);
+
+      --emerald: #10B981;
+      --emerald-dark: #059669;
+      --emerald-glow: rgba(16, 185, 129, 0.35);
+
+      --danger: #DC2626;
+      --danger-glow: rgba(220, 38, 38, 0.4);
+
+      --warning: #D97706;
+      --warning-glow: rgba(217, 119, 6, 0.35);
+
+      /* Theme Variables (Default: Midnight Sapphire & Gold) */
+      --bg-base: #010714;
+      --bg-surface: rgba(10, 25, 54, 0.78);
+      --bg-surface-hover: rgba(16, 37, 77, 0.9);
+      --bg-card: rgba(8, 20, 44, 0.82);
+      --border-card: rgba(249, 168, 37, 0.22);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+      --header-gradient: linear-gradient(135deg, #FFFFFF 20%, #FFE082 70%, #F9A825 100%);
+      --card-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(249, 168, 37, 0.2);
+
+      /* Fonts */
+      --font-display: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    /* Light Theme (Executive Ivory & Sapphire — Matches index.css Light Mode) */
+    body.theme-light {
+      --bg-base: #FFF8E1;
+      --bg-surface: #FFFFFF;
+      --bg-surface-hover: #F4F1EC;
+      --bg-card: #FFFFFF;
+      --border-card: #E0DDD6;
+      --border-subtle: #E8E5DF;
+      --text-main: #0F172A;
+      --text-muted: #334155;
+      --text-dim: #64748B;
+      --header-gradient: linear-gradient(135deg, #002D72 0%, #0A3D8F 60%, #F9A825 100%);
+      --card-shadow: 0 6px 20px rgba(0, 45, 114, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color 0.4s ease, color 0.4s ease;
+    }
+
+    /* Ambient Dynamic Mesh & Canvas */
+    #ambient-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.85;
+    }
+
+    .ambient-glow {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(140px);
+      pointer-events: none;
+      z-index: 0;
+      animation: floatGlow 18s infinite alternate ease-in-out;
+    }
+
+    .glow-sapphire {
+      width: 600px;
+      height: 600px;
+      top: -150px;
+      left: -150px;
+      background: radial-gradient(circle, rgba(0, 45, 114, 0.35) 0%, transparent 70%);
+    }
+
+    .glow-gold {
+      width: 500px;
+      height: 500px;
+      bottom: -100px;
+      right: -100px;
+      background: radial-gradient(circle, rgba(249, 168, 37, 0.22) 0%, transparent 70%);
+      animation-delay: -5s;
+    }
+
+    .glow-royal {
+      width: 450px;
+      height: 450px;
+      top: 35%;
+      left: 60%;
+      background: radial-gradient(circle, rgba(30, 136, 229, 0.18) 0%, transparent 70%);
+      animation-delay: -10s;
+    }
+
+    @keyframes floatGlow {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(50px, -40px) scale(1.1); }
+      100% { transform: translate(-40px, 50px) scale(0.92); }
+    }
+
+    /* Top Live Financial Ticker Bar */
+    .top-live-ticker {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 32px;
+      background: rgba(0, 19, 51, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(249, 168, 37, 0.2);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      z-index: 100;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      overflow: hidden;
+    }
+
+    body.theme-light .top-live-ticker {
+      background: #FFFFFF;
+      border-bottom: 1px solid #E0DDD6;
+      color: #0F172A;
+    }
+
+    .ticker-label {
+      color: var(--gold-primary);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding-right: 14px;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      white-space: nowrap;
+    }
+
+    .ticker-stream {
+      display: flex;
+      gap: 32px;
+      margin-left: 20px;
+      animation: tickerSlide 40s linear infinite;
+      white-space: nowrap;
+    }
+
+    @keyframes tickerSlide {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    .ticker-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ticker-tag-green { color: var(--emerald); font-weight: bold; }
+    .ticker-tag-red { color: var(--danger); font-weight: bold; }
+    .ticker-tag-gold { color: var(--gold-primary); font-weight: bold; }
+
+    /* Presentation Viewport */
+    #presentation-viewport {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-top: 32px;
+      padding-bottom: 56px;
+      z-index: 10;
+      perspective: 1600px;
+    }
+
+    .slides-deck {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* Slide Base Styling */
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      padding: 30px 60px 40px 60px;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      visibility: hidden;
+      transform: translate3d(0, 40px, -80px) scale(0.95);
+      transition: all 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translate3d(0, 0, 0) scale(1);
+      pointer-events: auto;
+      z-index: 2;
+    }
+
+    .slide.prev {
+      opacity: 0;
+      visibility: hidden;
+      transform: translate3d(0, -40px, -80px) scale(0.95);
+      z-index: 1;
+    }
+
+    /* Slide Header */
+    .slide-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 5;
+    }
+
+    .slide-tag-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .category-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      background: rgba(249, 168, 37, 0.12);
+      border: 1px solid var(--gold-border);
+      color: var(--gold-primary);
+      box-shadow: 0 0 14px var(--gold-glow);
+    }
+
+    .category-badge.sapphire {
+      background: rgba(0, 45, 114, 0.25);
+      border-color: rgba(30, 136, 229, 0.4);
+      color: #60A5FA;
+      box-shadow: 0 0 14px var(--royal-glow);
+    }
+
+    .category-badge.emerald {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.35);
+      color: var(--emerald);
+      box-shadow: 0 0 14px var(--emerald-glow);
+    }
+
+    .category-badge.danger {
+      background: rgba(220, 38, 38, 0.12);
+      border-color: rgba(220, 38, 38, 0.35);
+      color: var(--danger);
+      box-shadow: 0 0 14px var(--danger-glow);
+    }
+
+    .slide-number-indicator {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+
+    .slide-title {
+      font-family: var(--font-display);
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: var(--header-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      line-height: 1.2;
+    }
+
+    .slide-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-weight: 400;
+      max-width: 950px;
+      margin-top: 4px;
+      line-height: 1.45;
+    }
+
+    /* Slide Body Layouts */
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      position: relative;
+      z-index: 5;
+    }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 100%; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; height: 100%; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; height: 100%; }
+    .grid-1-2 { display: grid; grid-template-columns: 1fr 1.6fr; gap: 20px; height: 100%; }
+    .grid-2-1 { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; height: 100%; }
+
+    /* Corporate Glassmorphism Cards */
+    .glass-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-card);
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .glass-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold-primary), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .glass-card:hover {
+      border-color: var(--gold-primary);
+      transform: translateY(-3px);
+      box-shadow: 0 16px 40px -8px rgba(0, 45, 114, 0.5), 0 0 20px var(--gold-glow);
+    }
+
+    .glass-card:hover::before {
+      opacity: 1;
+    }
+
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    body.theme-light .card-title {
+      color: #002D72;
+    }
+
+    /* Staggered Animations */
+    .slide.active .animate-enter {
+      animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .slide.active .stagger-1 { animation-delay: 0.08s; }
+    .slide.active .stagger-2 { animation-delay: 0.16s; }
+    .slide.active .stagger-3 { animation-delay: 0.24s; }
+    .slide.active .stagger-4 { animation-delay: 0.32s; }
+    .slide.active .stagger-5 { animation-delay: 0.40s; }
+
+    .animate-enter {
+      opacity: 0;
+      transform: translateY(22px);
+    }
+
+    @keyframes slideUpFade {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Metric Box */
+    .metric-box {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 14px;
+      border-radius: 12px;
+      background: rgba(0, 45, 114, 0.15);
+      border: 1px solid rgba(249, 168, 37, 0.2);
+    }
+
+    body.theme-light .metric-box {
+      background: #FFF9E6;
+      border-color: #FFE082;
+    }
+
+    .metric-value {
+      font-family: var(--font-display);
+      font-size: 30px;
+      font-weight: 800;
+      color: var(--gold-primary);
+      line-height: 1.1;
+      text-shadow: 0 0 16px var(--gold-glow);
+    }
+
+    .metric-value.sapphire {
+      color: #38BDF8;
+      text-shadow: 0 0 16px var(--royal-glow);
+    }
+
+    .metric-value.emerald {
+      color: var(--emerald);
+      text-shadow: 0 0 16px var(--emerald-glow);
+    }
+
+    .metric-value.danger {
+      color: var(--danger);
+      text-shadow: 0 0 16px var(--danger-glow);
+    }
+
+    .metric-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+    }
+
+    .metric-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Pills */
+    .pill {
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 9999px;
+      background: rgba(0, 45, 114, 0.25);
+      border: 1px solid rgba(249, 168, 37, 0.3);
+      color: #E2E8F0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pill.active {
+      background: rgba(249, 168, 37, 0.15);
+      border-color: var(--gold-primary);
+      color: var(--gold-primary);
+    }
+
+    body.theme-light .pill {
+      background: #FFFFFF;
+      border-color: #E0DDD6;
+      color: #002D72;
+    }
+
+    /* Code Blocks */
+    .code-block {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      line-height: 1.55;
+      background: #02091A;
+      border: 1px solid rgba(249, 168, 37, 0.25);
+      border-radius: 12px;
+      padding: 14px;
+      color: #E2E8F0;
+      overflow-x: auto;
+    }
+
+    body.theme-light .code-block {
+      background: #001F52;
+      color: #F8FAFC;
+    }
+
+    .code-keyword { color: #F87171; font-weight: 600; }
+    .code-fn { color: #60A5FA; font-weight: 600; }
+    .code-gold { color: #FBBF24; font-weight: 600; }
+    .code-emerald { color: #34D399; }
+    .code-comment { color: #94A3B8; font-style: italic; }
+
+    /* Interactive Buttons */
+    .btn-action {
+      background: linear-gradient(135deg, #F9A825 0%, #E6951A 100%);
+      color: #002D72;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 13px;
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 16px rgba(249, 168, 37, 0.4);
+      transition: all 0.25s ease;
+    }
+
+    .btn-action:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(249, 168, 37, 0.55);
+      background: linear-gradient(135deg, #FFB300 0%, #F9A825 100%);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text-main);
+      border: 1px solid var(--border-card);
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 13px;
+      padding: 9px 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-outline:hover {
+      background: rgba(249, 168, 37, 0.1);
+      border-color: var(--gold-primary);
+      color: var(--gold-primary);
+    }
+
+    /* Presentation Navigation Bar */
+    .presentation-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 56px;
+      background: rgba(0, 19, 51, 0.92);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(249, 168, 37, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      z-index: 100;
+    }
+
+    body.theme-light .presentation-bar {
+      background: #FFFFFF;
+      border-top: 1px solid #E0DDD6;
+      color: #0F172A;
+    }
+
+    .progress-track {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 5%;
+      background: linear-gradient(90deg, #1E88E5, #F9A825);
+      box-shadow: 0 0 14px var(--gold-glow);
+      transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .nav-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-card);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 16px;
+    }
+
+    .nav-btn:hover {
+      background: rgba(249, 168, 37, 0.15);
+      border-color: var(--gold-primary);
+      color: var(--gold-primary);
+      transform: translateY(-1px);
+    }
+
+    .nav-slide-counter {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      padding: 0 10px;
+    }
+
+    .nav-slide-counter span {
+      color: var(--gold-primary);
+    }
+
+    .brand-badge-mini {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-shield-icon {
+      width: 24px;
+      height: 24px;
+      background: linear-gradient(135deg, #002D72, #F9A825);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      box-shadow: 0 0 10px var(--gold-glow);
+    }
+
+    .shortcuts-help-btn {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      background: rgba(255, 255, 255, 0.04);
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-card);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .shortcuts-help-btn:hover {
+      color: var(--gold-primary);
+      border-color: var(--gold-primary);
+      background: rgba(249, 168, 37, 0.08);
+    }
+
+    /* Hero Slide Animation */
+    .hero-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+    }
+
+    .hero-shield-pulse {
+      position: relative;
+      width: 130px;
+      height: 130px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .shield-ring {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 2px solid var(--gold-primary);
+      opacity: 0.8;
+      animation: pulseGoldRing 3s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+
+    .shield-ring:nth-child(2) { animation-delay: 1s; border-color: #1E88E5; }
+    .shield-ring:nth-child(3) { animation-delay: 2s; border-color: #F9A825; }
+
+    @keyframes pulseGoldRing {
+      0% { transform: scale(0.6); opacity: 0.9; }
+      100% { transform: scale(2.3); opacity: 0; }
+    }
+
+    .shield-core {
+      width: 92px;
+      height: 92px;
+      border-radius: 26px;
+      background: linear-gradient(135deg, #002D72 0%, #0A3D8F 50%, #F9A825 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 46px;
+      box-shadow: 0 0 45px var(--gold-glow);
+      z-index: 2;
+      animation: floatShield 4s ease-in-out infinite;
+    }
+
+    @keyframes floatShield {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 68px;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      background: var(--header-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 14px;
+      line-height: 1.1;
+    }
+
+    .hero-tagline {
+      font-size: 20px;
+      color: var(--text-muted);
+      max-width: 900px;
+      line-height: 1.5;
+      margin-bottom: 28px;
+    }
+
+    /* Modal Styling */
+    #overview-modal, #help-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(1, 7, 20, 0.95);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+      padding: 40px 60px;
+      overflow-y: auto;
+    }
+
+    body.theme-light #overview-modal, body.theme-light #help-modal {
+      background: rgba(255, 248, 225, 0.96);
+    }
+
+    #overview-modal.active, #help-modal.active { display: flex; }
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .overview-thumbnail {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 12px;
+      padding: 16px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .overview-thumbnail:hover {
+      border-color: var(--gold-primary);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px var(--gold-glow);
+    }
+
+    .overview-thumbnail.current {
+      border-color: var(--gold-primary);
+      box-shadow: 0 0 20px var(--gold-glow);
+    }
+
+    /* Notes Drawer */
+    #notes-drawer {
+      position: fixed;
+      bottom: 56px;
+      right: 20px;
+      width: 440px;
+      max-height: 380px;
+      background: var(--bg-card);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--gold-primary);
+      border-radius: 14px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.85);
+      z-index: 150;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      animation: slideUpNotes 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #notes-drawer.active { display: flex; }
+
+    @keyframes slideUpNotes {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .notes-header {
+      padding: 12px 16px;
+      background: rgba(0, 45, 114, 0.4);
+      border-bottom: 1px solid var(--border-card);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .notes-content {
+      padding: 16px;
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-main);
+    }
+
+    /* Interactive Graph Simulation */
+    .network-canvas-container {
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, #0B1C40 0%, #010714 100%);
+      border-radius: 16px;
+      border: 1px solid var(--border-card);
+      position: relative;
+      overflow: hidden;
+    }
+
+    body.theme-light .network-canvas-container {
+      background: radial-gradient(circle at center, #EBF3FC 0%, #FFFFFF 100%);
+    }
+
+    .pulse-hazard-circle {
+      animation: hazardPulse 2s infinite ease-in-out;
+    }
+
+    @keyframes hazardPulse {
+      0% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.15); opacity: 0.35; }
+      100% { transform: scale(1); opacity: 0.9; }
+    }
+
+    /* Radial ML Gauges */
+    .radial-svg { width: 110px; height: 110px; transform: rotate(-90deg); }
+    .radial-bg { fill: none; stroke: rgba(255, 255, 255, 0.08); stroke-width: 8; }
+    body.theme-light .radial-bg { stroke: #E0DDD6; }
+    .radial-progress {
+      fill: none;
+      stroke: var(--gold-primary);
+      stroke-width: 8;
+      stroke-linecap: round;
+      stroke-dasharray: 314;
+      stroke-dashoffset: 314;
+      transition: stroke-dashoffset 1.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .radial-progress.sapphire { stroke: #38BDF8; }
+    .radial-progress.emerald { stroke: var(--emerald); }
+
+    .radial-label-inside {
+      position: absolute;
+      top: 42px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: var(--font-display);
+      font-size: 19px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    body.theme-light .radial-label-inside { color: #002D72; }
+
+    /* Swarm Grid */
+    .agent-swarm-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .agent-status-card {
+      background: rgba(0, 45, 114, 0.12);
+      border: 1px solid var(--border-card);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.3s ease;
+    }
+
+    body.theme-light .agent-status-card {
+      background: #FFFFFF;
+      border-color: #E0DDD6;
+    }
+
+    .agent-status-card.evaluating {
+      border-color: var(--gold-primary);
+      background: rgba(249, 168, 37, 0.12);
+    }
+
+    .agent-status-card.done {
+      border-color: var(--emerald);
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    .agent-status-card.flagged {
+      border-color: var(--danger);
+      background: rgba(220, 38, 38, 0.12);
+    }
+
+    /* Custom Form & Table */
+    .hash-input-field {
+      width: 100%;
+      padding: 10px 14px;
+      background: rgba(0, 20, 50, 0.6);
+      border: 1px solid var(--border-card);
+      border-radius: 8px;
+      color: var(--gold-primary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    body.theme-light .hash-input-field {
+      background: #FFFFFF;
+      border-color: #E0DDD6;
+      color: #002D72;
+    }
+
+    .hash-output-display {
+      padding: 12px 16px;
+      background: rgba(249, 168, 37, 0.08);
+      border: 1px solid var(--gold-border);
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--gold-primary);
+      word-break: break-all;
+    }
+
+    .ledger-entries-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .ledger-entries-table th, .ledger-entries-table td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .ledger-entries-table th {
+      color: var(--text-dim);
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+  
+    /* ==========================================================================
+       TOP TICKER FIX: COMPLETE ISOLATION & ZERO OVERLAP
+       ========================================================================== */
+    .top-live-ticker {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 36px;
+      background: #FFFFFF !important;
+      border-bottom: 1px solid #E0DDD6 !important;
+      display: flex;
+      align-items: center;
+      padding: 0 !important;
+      z-index: 100;
+      box-shadow: 0 1px 4px rgba(0, 45, 114, 0.08);
+      overflow: hidden;
+    }
+
+    .ticker-badge {
+      flex-shrink: 0;
+      height: 100%;
+      padding: 0 18px;
+      background: #002D72 !important;
+      color: #F9A825 !important;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 11.5px;
+      letter-spacing: 0.06em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 30;
+      border-right: 3px solid #F9A825;
+      box-shadow: 4px 0 15px rgba(0, 45, 114, 0.25);
+      position: relative;
+    }
+
+    .ticker-pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10B981;
+      box-shadow: 0 0 8px #10B981;
+      animation: blinkDot 1.4s infinite;
+    }
+
+    .ticker-marquee-container {
+      flex: 1;
+      height: 100%;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      align-items: center;
+      mask-image: linear-gradient(90deg, transparent 0%, black 20px, black calc(100% - 20px), transparent 100%);
+      -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 20px, black calc(100% - 20px), transparent 100%);
+    }
+
+    .ticker-stream {
+      display: inline-flex;
+      align-items: center;
+      gap: 36px;
+      white-space: nowrap;
+      animation: tickerSlide 40s linear infinite;
+      padding-left: 10px;
+    }
+
+    /* Light Theme Polishing */
+    body.theme-light {
+      background-color: #FFF8E1 !important;
+      color: #0F172A !important;
+    }
+
+    body.theme-light .glass-card {
+      background: #FFFFFF !important;
+      border: 1px solid #E0DDD6 !important;
+      box-shadow: 0 4px 16px rgba(0, 45, 114, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    body.theme-light .glass-card:hover {
+      border-color: #F9A825 !important;
+      box-shadow: 0 8px 24px rgba(249, 168, 37, 0.2), 0 2px 6px rgba(0, 45, 114, 0.08) !important;
+    }
+
+    body.theme-light .card-title {
+      color: #002D72 !important;
+    }
+
+    body.theme-light .slide-title {
+      background: linear-gradient(135deg, #002D72 0%, #0A3D8F 65%, #E6951A 100%) !important;
+      -webkit-background-clip: text !important;
+      -webkit-text-fill-color: transparent !important;
+    }
+
+    body.theme-light .slide-subtitle {
+      color: #475569 !important;
+    }
+
+    body.theme-light .metric-box {
+      background: #FFF9E6 !important;
+      border: 1px solid #FFE082 !important;
+    }
+
+    body.theme-light .presentation-bar {
+      background: #FFFFFF !important;
+      border-top: 1px solid #E0DDD6 !important;
+      box-shadow: 0 -2px 10px rgba(0, 45, 114, 0.05);
+    }
+
+    body.theme-light .nav-btn,
+    body.theme-light .shortcuts-help-btn {
+      background: #F4F1EC !important;
+      border: 1px solid #E0DDD6 !important;
+      color: #002D72 !important;
+    }
+
+    body.theme-light .nav-btn:hover,
+    body.theme-light .shortcuts-help-btn:hover {
+      background: #FFF9E6 !important;
+      border-color: #F9A825 !important;
+      color: #B45309 !important;
+    }
+
+    body.theme-light .network-canvas-container {
+      background: radial-gradient(circle at center, #F8FAFC 0%, #FFFFFF 100%) !important;
+      border: 1px solid #E0DDD6 !important;
+    }
+
+    body.theme-light #topology-node-info {
+      background: #FFF9E6 !important;
+      border: 1px solid #FFE082 !important;
+      color: #0F172A !important;
+    }
+
+    body.theme-light #overview-modal,
+    body.theme-light #help-modal {
+      background: rgba(255, 248, 225, 0.98) !important;
+    }
+
+    body.theme-light .overview-thumbnail {
+      background: #FFFFFF !important;
+      border: 1px solid #E0DDD6 !important;
+    }
+
+    body.theme-light #notes-drawer {
+      background: #FFFFFF !important;
+      border: 2px solid #002D72 !important;
+      box-shadow: 0 15px 35px rgba(0, 45, 114, 0.18) !important;
+    }
+
+    body.theme-light .notes-header {
+      background: #002D72 !important;
+      color: #FFFFFF !important;
+    }
+
+    body.theme-light .code-block {
+      background: #001F52 !important;
+      border: 1px solid #0A3D8F !important;
+      color: #F8FAFC !important;
+    }
+
+    body.theme-light .btn-outline {
+      border: 1.5px solid #002D72 !important;
+      color: #002D72 !important;
+    }
+
+    body.theme-light .btn-outline:hover {
+      background: #EBF3FC !important;
+      border-color: #002D72 !important;
+    }
+
+  
+    /* ==========================================================================
+       OMERTA.AI UNIVERSAL RESPONSIVE ENGINE (ALL SCREENS & MOBILE / 4K)
+       Fluid typography, dynamic grid wrapping, auto-scrolling slide body
+       ========================================================================== */
+
+    /* Fluid Viewport & Deck */
+    #presentation-viewport {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-top: 36px;
+      padding-bottom: 56px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .slides-deck {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Fluid Slide Container with Internal Scrolling for Small Screens */
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      padding: clamp(14px, 2.5vw, 32px) clamp(16px, 4vw, 56px) 68px clamp(16px, 4vw, 56px);
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      visibility: hidden;
+      transform: translate3d(0, 30px, -60px) scale(0.96);
+      transition: all 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+      z-index: 1;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: min-content;
+      position: relative;
+      z-index: 5;
+    }
+
+    /* Fluid Typography */
+    .hero-title {
+      font-size: clamp(34px, 6vw, 68px) !important;
+      line-height: 1.1;
+    }
+
+    .hero-tagline {
+      font-size: clamp(13px, 1.8vw, 19px) !important;
+      max-width: 880px;
+    }
+
+    .slide-title {
+      font-size: clamp(20px, 2.6vw, 32px) !important;
+      line-height: 1.25;
+    }
+
+    .slide-subtitle {
+      font-size: clamp(11.5px, 1.3vw, 14px) !important;
+      line-height: 1.45;
+    }
+
+    .card-title {
+      font-size: clamp(13.5px, 1.4vw, 17px) !important;
+    }
+
+    .metric-value {
+      font-size: clamp(22px, 2.6vw, 32px) !important;
+    }
+
+    /* Base Grids (Desktop >= 1200px) */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(12px, 1.8vw, 20px); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(10px, 1.6vw, 18px); }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(10px, 1.4vw, 16px); }
+    .grid-1-2 { display: grid; grid-template-columns: 1fr 1.6fr; gap: clamp(12px, 1.8vw, 20px); }
+    .grid-2-1 { display: grid; grid-template-columns: 1.6fr 1fr; gap: clamp(12px, 1.8vw, 20px); }
+
+    /* Custom Glass Card Minimum Resiliency */
+    .glass-card {
+      min-height: min-content;
+    }
+
+    /* ==========================================================================
+       TABLET & MEDIUM SCREENS (768px - 1199px)
+       ========================================================================== */
+    @media (max-width: 1199px) {
+      .grid-4 {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 14px !important;
+      }
+
+      .grid-3 {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 14px !important;
+      }
+
+      .grid-1-2, .grid-2-1 {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+      }
+
+      .network-canvas-container {
+        min-height: 360px !important;
+        height: 380px !important;
+      }
+
+      .agent-swarm-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+    }
+
+    /* ==========================================================================
+       MOBILE & SMALL LAPTOPS (< 768px)
+       ========================================================================== */
+    @media (max-width: 767px) {
+      #presentation-viewport {
+        padding-top: 36px;
+        padding-bottom: 52px;
+      }
+
+      .slide {
+        padding: 14px 16px 64px 16px !important;
+      }
+
+      .slide-header {
+        margin-bottom: 14px !important;
+      }
+
+      /* Stack all multi-column grids vertically */
+      .grid-2, .grid-3, .grid-4, .grid-1-2, .grid-2-1 {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+        height: auto !important;
+      }
+
+      .hero-shield-pulse {
+        width: 90px !important;
+        height: 90px !important;
+        margin-bottom: 14px !important;
+      }
+
+      .shield-core {
+        width: 64px !important;
+        height: 64px !important;
+        font-size: 30px !important;
+        border-radius: 18px !important;
+      }
+
+      .hero-meta-badges {
+        gap: 6px !important;
+      }
+
+      .hero-meta-badges .pill {
+        font-size: 10px !important;
+        padding: 3px 8px !important;
+      }
+
+      .network-canvas-container {
+        min-height: 260px !important;
+        height: 280px !important;
+      }
+
+      .agent-swarm-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      .strike-meters-row {
+        flex-direction: column !important;
+        gap: 8px !important;
+      }
+
+      .ml-metrics-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* Mobile Compact Navigation Bar */
+      .presentation-bar {
+        padding: 0 10px !important;
+        height: 52px !important;
+      }
+
+      .brand-badge-mini {
+        display: none !important;
+      }
+
+      .shortcuts-help-btn {
+        padding: 4px 6px !important;
+        font-size: 10px !important;
+      }
+
+      .shortcuts-help-btn span.btn-label {
+        display: none !important;
+      }
+
+      .ticker-badge {
+        padding: 0 10px !important;
+        font-size: 9.5px !important;
+      }
+
+      .nav-slide-counter {
+        font-size: 11px !important;
+        padding: 0 4px !important;
+      }
+
+      .nav-btn {
+        width: 32px !important;
+        height: 32px !important;
+      }
+
+      #notes-drawer {
+        width: calc(100vw - 20px) !important;
+        right: 10px !important;
+        bottom: 54px !important;
+      }
+    }
+
+    /* Ultra-wide 4K Support (>= 2560px) */
+    @media (min-width: 2560px) {
+      .slide {
+        padding: 50px 100px 90px 100px !important;
+      }
+      .slide-title { font-size: 44px !important; }
+      .hero-title { font-size: 88px !important; }
+      .hero-tagline { font-size: 24px !important; }
+      .card-title { font-size: 22px !important; }
+    }
+
+  
+    
+    /* ==========================================================================
+       OMERTA.AI ULTRA-RESPONSIVE MOBILE PHONE ENGINE
+       Flawless presentation on all smartphone screens (360px - 768px)
+       ========================================================================== */
+    @media screen and (max-width: 768px) {
+      html, body {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        position: fixed !important;
+        -webkit-text-size-adjust: 100% !important;
+      }
+
+      .ambient-glow, #ambient-canvas {
+        opacity: 0.25 !important;
+        pointer-events: none !important;
+      }
+
+      /* 1. Fixed Top Live Ticker (Pinned, No Overlap) */
+      .top-live-ticker {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 34px !important;
+        padding: 0 8px !important;
+        z-index: 9999 !important;
+        display: flex !important;
+        align-items: center !important;
+        background: #001333 !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+      }
+
+      body.theme-light .top-live-ticker {
+        background: #FFFFFF !important;
+        border-bottom: 1.5px solid #E0DDD6 !important;
+        box-shadow: 0 2px 8px rgba(0, 45, 114, 0.08) !important;
+      }
+
+      .ticker-badge {
+        padding: 0 8px !important;
+        font-size: 9px !important;
+        letter-spacing: 0.02em !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        border-right: 2px solid var(--gold-primary) !important;
+        background: #002D72 !important;
+        color: #FFFFFF !important;
+        border-radius: 4px 0 0 4px !important;
+      }
+
+      .ticker-marquee-container {
+        flex: 1 !important;
+        overflow: hidden !important;
+        height: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+      }
+
+      .ticker-item {
+        font-size: 10px !important;
+      }
+
+      /* 2. Fixed Bottom Control Bar (Thumb-Friendly Touch Targets) */
+      .presentation-bar {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 54px !important;
+        padding: 0 10px !important;
+        background: #001333 !important;
+        border-top: 1.5px solid rgba(249, 168, 37, 0.3) !important;
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4) !important;
+        z-index: 9999 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+      }
+
+      body.theme-light .presentation-bar {
+        background: #FFFFFF !important;
+        border-top: 1.5px solid #E0DDD6 !important;
+        box-shadow: 0 -4px 16px rgba(0, 45, 114, 0.08) !important;
+      }
+
+      .brand-badge-mini {
+        display: none !important;
+      }
+
+      .nav-controls-group {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+      }
+
+      .nav-btn {
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 22px !important;
+        border-radius: 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        touch-action: manipulation !important;
+      }
+
+      .nav-slide-counter {
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        padding: 0 4px !important;
+      }
+
+      .shortcuts-help-btn {
+        padding: 6px 10px !important;
+        font-size: 13px !important;
+        border-radius: 6px !important;
+        touch-action: manipulation !important;
+      }
+
+      .shortcuts-help-btn .btn-label {
+        display: none !important;
+      }
+
+      #btn-fullscreen {
+        display: none !important;
+      }
+
+      /* 3. Central Independent Scrolling Viewport */
+      #presentation-viewport {
+        position: fixed !important;
+        top: 34px !important;
+        bottom: 54px !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        height: calc(100dvh - 88px) !important;
+        max-height: calc(100dvh - 88px) !important;
+        display: block !important;
+        overflow-y: scroll !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        perspective: none !important;
+        transform: none !important;
+        box-sizing: border-box !important;
+      }
+
+      .slides-deck {
+        position: relative !important;
+        width: 100% !important;
+        min-height: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+
+      .slide {
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        width: 100% !important;
+        min-height: 100% !important;
+        height: auto !important;
+        padding: 14px 12px 36px 12px !important;
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        transform: none !important;
+        overflow: visible !important;
+        box-sizing: border-box !important;
+      }
+
+      .slide.active {
+        display: flex !important;
+        flex-direction: column !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: none !important;
+        pointer-events: auto !important;
+      }
+
+      .slide-header {
+        margin-bottom: 12px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+      }
+
+      .slide-tag-row {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+        margin-bottom: 4px !important;
+      }
+
+      .slide-title {
+        font-size: 19px !important;
+        line-height: 1.3 !important;
+        letter-spacing: -0.01em !important;
+      }
+
+      .slide-subtitle {
+        font-size: 11.5px !important;
+        line-height: 1.45 !important;
+        color: var(--text-muted) !important;
+      }
+
+      .category-badge {
+        font-size: 9.5px !important;
+        padding: 3px 8px !important;
+      }
+
+      .slide-number-indicator {
+        font-size: 11px !important;
+        font-family: var(--font-mono) !important;
+      }
+
+      .slide-body {
+        flex: none !important;
+        height: auto !important;
+        min-height: auto !important;
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        overflow: visible !important;
+      }
+
+      /* Stack All Desktop Column Grids */
+      .grid-2, .grid-3, .grid-4, .grid-1-2, .grid-2-1,
+      .grid-hero-metrics,
+      .ml-metrics-grid,
+      .strike-meters-row {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        height: auto !important;
+        width: 100% !important;
+        margin-bottom: 6px !important;
+      }
+
+      .glass-card {
+        height: auto !important;
+        min-height: auto !important;
+        width: 100% !important;
+        padding: 13px !important;
+        border-radius: 12px !important;
+        box-sizing: border-box !important;
+      }
+
+      .card-title {
+        font-size: 14.5px !important;
+        margin-bottom: 8px !important;
+      }
+
+      /* Hero Title & Pulse on Mobile */
+      .hero-wrapper {
+        padding: 14px 6px 28px 6px !important;
+        min-height: auto !important;
+      }
+
+      .hero-shield-pulse {
+        width: 76px !important;
+        height: 76px !important;
+        margin-bottom: 12px !important;
+      }
+
+      .shield-core {
+        width: 52px !important;
+        height: 52px !important;
+        font-size: 26px !important;
+        border-radius: 16px !important;
+      }
+
+      .hero-title {
+        font-size: 32px !important;
+        letter-spacing: -0.02em !important;
+        margin-bottom: 8px !important;
+      }
+
+      .hero-tagline {
+        font-size: 13px !important;
+        line-height: 1.45 !important;
+        margin-bottom: 16px !important;
+      }
+
+      .hero-meta-badges {
+        gap: 5px !important;
+        margin-bottom: 20px !important;
+      }
+
+      .hero-meta-badges .pill {
+        font-size: 10px !important;
+        padding: 3px 8px !important;
+      }
+
+      /* Buttons & Actions on Mobile */
+      .btn-action, .btn-outline {
+        font-size: 12.5px !important;
+        padding: 8px 14px !important;
+      }
+
+      /* Horizontal Scrolling for Data Tables & Code */
+      .code-block {
+        font-size: 10.5px !important;
+        padding: 10px !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
+
+      table {
+        display: block !important;
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        font-size: 11px !important;
+      }
+
+      th, td {
+        padding: 8px 6px !important;
+        white-space: nowrap !important;
+      }
+
+      /* Interactive Diagrams on Mobile */
+      .network-canvas-container {
+        height: 230px !important;
+        min-height: 230px !important;
+        max-height: 250px !important;
+        width: 100% !important;
+      }
+
+      .agent-swarm-grid {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+      }
+
+      .radial-svg {
+        width: 86px !important;
+        height: 86px !important;
+      }
+
+      .radial-label-inside {
+        top: 30px !important;
+        font-size: 15px !important;
+      }
+
+      /* Tab Switchers on Mobile */
+      .persona-tab-btn, .case-study-tab {
+        font-size: 11.5px !important;
+        padding: 7px 10px !important;
+      }
+
+      /* Modals on Mobile */
+      #overview-modal, #help-modal {
+        padding: 16px 12px !important;
+      }
+
+      .overview-grid {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+      }
+
+      #notes-drawer {
+        width: calc(100vw - 16px) !important;
+        right: 8px !important;
+        bottom: 58px !important;
+        max-height: 250px !important;
+      }
+    }
+
+  </style>
+</head>
+<body class="theme-light">
+
+  <!-- Ambient Dynamic Lighting & Particles Canvas -->
+  <div class="ambient-glow glow-sapphire"></div>
+  <div class="ambient-glow glow-gold"></div>
+  <div class="ambient-glow glow-royal"></div>
+  <canvas id="ambient-canvas"></canvas>
+
+  <!-- Top Real-Time AML Financial Ticker (Fixed Overlay) -->
+  <header class="top-live-ticker">
+    <div class="ticker-badge">
+      <span class="ticker-pulse-dot"></span>
+      <span>🛡️ OMERTA.AI LIVE FEED</span>
+    </div>
+    <div class="ticker-marquee-container">
+      <div class="ticker-stream">
+        <div class="ticker-item"><span class="ticker-tag-green">LEDGER OK:</span> ACC-1092-4821 [Ziad Karim] ➔ 50,000.00 EGP</div>
+        <div class="ticker-item"><span class="ticker-tag-red">CRITICAL RISK:</span> ACC-0033EC2B Conduit Ratio 0.77 &gt; 0.65 (Mule Alert)</div>
+        <div class="ticker-item"><span class="ticker-tag-gold">LIGHTGBM INFERENCE:</span> ROC-AUC 0.9979 • PR-AUC 0.9886 • 15ms Latency</div>
+        <div class="ticker-item"><span class="ticker-tag-red">SECURITY HOLD:</span> 3-Strike Transfer Freeze Triggered on Session #S-9102</div>
+        <div class="ticker-item"><span class="ticker-tag-green">KYC VERIFIED:</span> Egyptian National ID Verified via WhatsApp Support Desk</div>
+        <div class="ticker-item"><span class="ticker-tag-gold">MULTI-AGENT SWARM:</span> 9 LangGraph Agents Reached Regulatory Consensus</div>
+        <!-- Seamless duplicate loop -->
+        <div class="ticker-item"><span class="ticker-tag-green">LEDGER OK:</span> ACC-1092-4821 [Ziad Karim] ➔ 50,000.00 EGP</div>
+        <div class="ticker-item"><span class="ticker-tag-red">CRITICAL RISK:</span> ACC-0033EC2B Conduit Ratio 0.77 &gt; 0.65 (Mule Alert)</div>
+        <div class="ticker-item"><span class="ticker-tag-gold">LIGHTGBM INFERENCE:</span> ROC-AUC 0.9979 • PR-AUC 0.9886 • 15ms Latency</div>
+        <div class="ticker-item"><span class="ticker-tag-red">SECURITY HOLD:</span> 3-Strike Transfer Freeze Triggered on Session #S-9102</div>
+        <div class="ticker-item"><span class="ticker-tag-green">KYC VERIFIED:</span> Egyptian National ID Verified via WhatsApp Support Desk</div>
+        <div class="ticker-item"><span class="ticker-tag-gold">MULTI-AGENT SWARM:</span> 9 LangGraph Agents Reached Regulatory Consensus</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Presentation Stage Viewport -->
+  <div id="presentation-viewport">
+    <div class="slides-deck">
+
+      <!-- ====================================================================
+           SLIDE 1: HERO / TITLE DECK (SAPPHIRE & GOLD THEME)
+           ==================================================================== -->
+      <section class="slide active" id="slide-1">
+        <div class="slide-body">
+          <div class="hero-wrapper">
+            <div class="hero-shield-pulse">
+              <div class="shield-ring"></div>
+              <div class="shield-ring"></div>
+              <div class="shield-ring"></div>
+              <div class="shield-core">🛡️</div>
+            </div>
+
+            <div class="category-badge animate-enter stagger-1" style="margin-bottom: 12px;">
+              🎓 NTI GRADUATION DEFENSE 2026 • AI & CYBERSECURITY IN FINTECH
+            </div>
+
+            <h1 class="hero-title animate-enter stagger-2">
+              Omerta.ai
+            </h1>
+
+            <p class="hero-tagline animate-enter stagger-3">
+              Next-Gen Autonomous Financial Crime Investigation, Real-Time AML Defense, Multi-Agent Forensics, and High-Precision Banking Core.
+            </p>
+
+            <div class="hero-meta-badges animate-enter stagger-4" style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 28px;">
+              <span class="pill active">🐍 Python 3.12</span>
+              <span class="pill active">⚡ FastAPI</span>
+              <span class="pill active">⚛️ React 19 + TypeScript</span>
+              <span class="pill active">🐘 PostgreSQL 17</span>
+              <span class="pill active">🌐 Neo4j 5.26 Graph</span>
+              <span class="pill active">🤖 LangGraph Multi-Agent</span>
+              <span class="pill active">🎯 LightGBM (0.9979 AUC)</span>
+              <span class="pill active">🔌 Model Context Protocol (MCP)</span>
+              <span class="pill active">🐳 Docker</span>
+            </div>
+
+            <div class="animate-enter stagger-5 hero-action-buttons" style="display: flex; gap: 14px; flex-wrap: wrap; justify-content: center;">
+              <button class="btn-action" onclick="deck.nextSlide()">
+                <span>Begin Defense Presentation</span> ➔
+              </button>
+              <button class="btn-outline" onclick="deck.toggleOverview(true)">
+                <span>Explore 20 Slides</span> 📑
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 2: THE $2T CRISIS & DYNAMIC COMPARISON
+           ==================================================================== -->
+      <section class="slide" id="slide-2">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge danger">The Global Crisis</span>
+              <span class="slide-number-indicator">02 / 20</span>
+            </div>
+            <h2 class="slide-title">The $2 Trillion Crisis: The Failure of Traditional AML</h2>
+            <p class="slide-subtitle">Why legacy Transaction Monitoring Systems (TMS) fail in modern high-velocity digital economies.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-3 animate-enter stagger-1" class="grid-hero-metrics">
+            <div class="glass-card" style="border-left: 4px solid var(--danger);">
+              <span class="metric-label">Global Illicit Flows</span>
+              <div class="metric-value danger">$2.0+ Trillion</div>
+              <span class="metric-sub">Laundered annually (2-5% of global GDP) with < 1% intercepted.</span>
+            </div>
+            <div class="glass-card" style="border-left: 4px solid var(--gold-primary);">
+              <span class="metric-label">Legacy False Positives</span>
+              <div class="metric-value">95% — 98%</div>
+              <span class="metric-sub">Static threshold rules overwhelm compliance teams with alert noise.</span>
+            </div>
+            <div class="glass-card" style="border-left: 4px solid var(--royal-blue);">
+              <span class="metric-label">Investigation Latency</span>
+              <div class="metric-value sapphire">48 – 72 Hours</div>
+              <span class="metric-sub">Manual copy-pasting across disparate relational silos and spreadsheets.</span>
+            </div>
+          </div>
+
+          <div class="grid-2 animate-enter stagger-2" >
+            <div class="glass-card" style="border-left: 3px solid var(--danger);">
+              <h3 class="card-title" style="color: var(--danger);"><span class="card-title-icon">❌</span> Legacy TMS Architectures</h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--text-muted);">
+                <li>• <strong>Static Thresholds:</strong> Fixed rules (e.g., amount > 50,000 EGP) easily bypassed by micro-smurfing.</li>
+                <li>• <strong>Relational Ledger Blindness:</strong> Relational tables cannot detect cyclic layering rings or graph conduits.</li>
+                <li>• <strong>Destructive Session Lockouts:</strong> Locking an account upon suspicious transfer locks the victim out of support.</li>
+              </ul>
+            </div>
+            <div class="glass-card" style="border-left: 3px solid var(--gold-primary);">
+              <h3 class="card-title" style="color: var(--gold-primary);"><span class="card-title-icon">🛡️</span> The Omerta.ai Paradigm</h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--text-muted);">
+                <li>• <strong>Deterministic ML & Real-Time Scoring:</strong> LightGBM classifier with 13 features evaluating transfers in < 15ms.</li>
+                <li>• <strong>Dual-Persistence Architecture:</strong> Relational ACID ledger (PostgreSQL) linked to topological entity graphs (Neo4j).</li>
+                <li>• <strong>Zero-Trust Non-Logout Hold:</strong> 3-strike transfer freeze that preserves user web sessions for live support & ID recovery.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 3: 5-TIER CANONICAL ARCHITECTURE
+           ==================================================================== -->
+      <section class="slide" id="slide-3">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge sapphire">Canonical Blueprint</span>
+              <span class="slide-number-indicator">03 / 20</span>
+            </div>
+            <h2 class="slide-title">End-to-End System Architecture (5-Tier Canonical Design)</h2>
+            <p class="slide-subtitle">A decoupled, asynchronous architecture separating core transactional execution from forensic investigation.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-4 animate-enter stagger-1" >
+            <!-- Tier 1 -->
+            <div class="glass-card">
+              <span class="category-badge" style="font-size: 10px; margin-bottom: 8px;">1. Client Tier</span>
+              <h3 class="card-title" style="font-size: 15px;">💻 React 19 SPA</h3>
+              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+                Vite + TypeScript + Tailwind CSS design system with dual portals: Customer Banking & Compliance Console.
+              </p>
+              <div class="code-block" style="font-size: 10px;">
+Browser Telemetry:
+- User-Agent Signature
+- Localhost Loopback Bind
+- Screen Resolution
+              </div>
+            </div>
+
+            <!-- Tier 2 -->
+            <div class="glass-card">
+              <span class="category-badge sapphire" style="font-size: 10px; margin-bottom: 8px;">2. API Gateway</span>
+              <h3 class="card-title" style="font-size: 15px;">⚡ FastAPI (:8000)</h3>
+              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+                Asynchronous REST endpoints with JWT Single-Session Guard, Pydantic validation, and role-based access control.
+              </p>
+              <div class="code-block" style="font-size: 10px;">
+Routers:
+- /api/v1/transfers
+- /api/v1/tickets
+- /api/v1/network
+              </div>
+            </div>
+
+            <!-- Tier 3 -->
+            <div class="glass-card">
+              <span class="category-badge emerald" style="font-size: 10px; margin-bottom: 8px;">3. Multi-Agent & MCP</span>
+              <h3 class="card-title" style="font-size: 15px;">🤖 LangGraph + MCP</h3>
+              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+                9 specialized forensic sub-agents querying 4 read-only Model Context Protocol (MCP) servers.
+              </p>
+              <div class="code-block" style="font-size: 10px;">
+4 MCP Servers:
+- Transaction MCP
+- Neo4j Graph MCP
+- Risk Engine MCP
+- AML Typology RAG MCP
+              </div>
+            </div>
+
+            <!-- Tier 4 -->
+            <div class="glass-card">
+              <span class="category-badge" style="font-size: 10px; margin-bottom: 8px;">4. Dual Persistence</span>
+              <h3 class="card-title" style="font-size: 15px;">🗄️ Dual Databases</h3>
+              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+                PostgreSQL 17 as immutable ledger of truth. Neo4j 5.26 as topological projection for mule rings.
+              </p>
+              <div class="code-block" style="font-size: 10px;">
+🐘 PostgreSQL 17 (:15432)
+- SELECT FOR UPDATE
+🌐 Neo4j Graph (:17687)
+- Cypher Topology
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 4: CORE BANKING & INTERACTIVE TRANSFER SIMULATOR
+           ==================================================================== -->
+      <section class="slide" id="slide-4">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge emerald">Financial Invariant</span>
+              <span class="slide-number-indicator">04 / 20</span>
+            </div>
+            <h2 class="slide-title">Core Banking Engine & Strict Double-Entry Ledger</h2>
+            <p class="slide-subtitle">Financial double-entry invariant: Money is neither created nor destroyed during transfers.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-1-2">
+            <!-- Left: Accounting Rules -->
+            <div class="glass-card animate-enter stagger-1">
+              <h3 class="card-title"><span class="card-title-icon">⚖️</span> Core Accounting Invariants</h3>
+              <div style="padding: 12px; background: rgba(0, 45, 114, 0.2); border-radius: 8px; margin-bottom: 14px; font-family: var(--font-mono); font-size: 12px; color: var(--gold-primary); border: 1px solid var(--gold-border);">
+                Δ Debit(Sender) + Δ Credit(Recipient) = 0<br>
+                ∑ All Debits = ∑ All Credits
+              </div>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--text-muted);">
+                <li>• <strong>Atomic Row Locking:</strong> <code>SELECT * FROM accounts WHERE id = :sender FOR UPDATE</code> prevents race conditions and concurrent overdrafts.</li>
+                <li>• <strong>Immutable Ledger:</strong> Every transaction creates two balanced rows in <code>account_ledger_entries</code>.</li>
+                <li>• <strong>Multi-Currency:</strong> Native support for <strong>EGP, USD, EUR, GBP</strong> with strict ISO cross-currency matching.</li>
+              </ul>
+            </div>
+
+            <!-- Right: Interactive Transfer Simulator -->
+            <div class="glass-card animate-enter stagger-2">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 class="card-title" style="margin-bottom:0;"><span class="card-title-icon">⚡</span> Interactive Double-Entry Transfer Simulator</h3>
+                <span class="category-badge emerald" id="sim-transfer-status">ACID READY</span>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; margin-bottom: 14px;">
+                <div class="metric-box">
+                  <span class="metric-label">Sender (Ziad Karim)</span>
+                  <span class="metric-value sapphire" id="sim-sender-balance" style="font-size: 22px;">50,000 EGP</span>
+                  <span class="metric-sub">ACC-1092-4821</span>
+                </div>
+                <div style="text-align: center;">
+                  <div style="font-size: 11px; font-weight: bold; color: var(--gold-primary);">5,000 EGP</div>
+                  <div style="font-size: 16px;">➔</div>
+                  <div style="font-size: 9px; color: var(--text-dim);">FOR UPDATE</div>
+                </div>
+                <div class="metric-box">
+                  <span class="metric-label">Recipient (Layla Hassan)</span>
+                  <span class="metric-value emerald" id="sim-recip-balance" style="font-size: 22px;">25,000 EGP</span>
+                  <span class="metric-sub">ACC-3847-1920</span>
+                </div>
+              </div>
+
+              <button class="btn-action" id="btn-sim-transfer" style="margin-bottom: 12px;">
+                Execute 5,000 EGP Balanced Transfer
+              </button>
+
+              <div style="flex: 1; overflow-y: auto; background: #02091A; border-radius: 8px; border: 1px solid var(--border-card); padding: 6px;">
+                <table class="ledger-entries-table">
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Account</th>
+                      <th>Amount</th>
+                      <th>Balance After</th>
+                      <th>Ref</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sim-ledger-tbody">
+                    <tr>
+                      <td class="code-emerald">SEED</td>
+                      <td>ACC-1092-4821</td>
+                      <td style="color:var(--emerald);">+50,000 EGP</td>
+                      <td>50,000 EGP</td>
+                      <td>GENESIS-01</td>
+                    </tr>
+                    <tr>
+                      <td class="code-emerald">SEED</td>
+                      <td>ACC-3847-1920</td>
+                      <td style="color:var(--emerald);">+25,000 EGP</td>
+                      <td>25,000 EGP</td>
+                      <td>GENESIS-02</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 5: 3-STRIKES NON-LOGOUT SIMULATOR
+           ==================================================================== -->
+      <section class="slide" id="slide-5">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge danger">Transfer Security</span>
+              <span class="slide-number-indicator">05 / 20</span>
+            </div>
+            <h2 class="slide-title">Transfer Security: Dual Passwords & 3-Strikes Non-Logout Hold</h2>
+            <p class="slide-subtitle">Segregating web authentication from funds movement with a non-destructive security hold.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-1-2">
+            <!-- Left: Philosophy -->
+            <div class="glass-card animate-enter stagger-1">
+              <h3 class="card-title"><span class="card-title-icon">🔐</span> The Non-Logout Philosophy</h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: var(--text-muted);">
+                <li>• <strong>Two Distinct Passwords:</strong>
+                  <br><span style="color: var(--royal-blue); font-weight: bold;">1. Account Login Password</span> (Web portal access)
+                  <br><span style="color: var(--gold-primary); font-weight: bold;">2. Transfer Password</span> (Double-entry fund movement)
+                </li>
+                <li>• <strong>Strike 1 & Strike 2:</strong> HTTP 401 Unauthorized warning; session preserved.</li>
+                <li>• <strong>Strike 3 — The Hold:</strong> Sets <code>transfer_status = 'BLOCKED'</code> and generates automated support ticket #TICK-8042.</li>
+                <li>• <strong>Critical Security Invariant:</strong> The user is <strong>NEVER logged out</strong>. The victim can still access accounts and upload Egyptian National ID proofs to support.</li>
+              </ul>
+            </div>
+
+            <!-- Right: Interactive Strike Tester -->
+            <div class="glass-card animate-enter stagger-2">
+              <h3 class="card-title"><span class="card-title-icon">🧪</span> Interactive 3-Strikes Security Tester</h3>
+
+              <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                <div class="metric-box" id="strike-meter-1" style="flex: 1; text-align: center;">
+                  <strong style="font-size: 13px;">Strike 1</strong>
+                  <div style="font-size: 11px; color: var(--text-dim);">HTTP 401</div>
+                </div>
+                <div class="metric-box" id="strike-meter-2" style="flex: 1; text-align: center;">
+                  <strong style="font-size: 13px;">Strike 2</strong>
+                  <div style="font-size: 11px; color: var(--text-dim);">Final Warning</div>
+                </div>
+                <div class="metric-box" id="strike-meter-3" style="flex: 1; text-align: center;">
+                  <strong style="font-size: 13px;">Strike 3</strong>
+                  <div style="font-size: 11px; color: var(--danger);">HOLD FROZEN</div>
+                </div>
+              </div>
+
+              <div id="strike-status-banner" class="category-badge emerald" style="padding: 10px; margin-bottom: 14px; width: 100%; border-radius: 8px;">
+                Status: Normal. 0 Failed Attempts. Transfers Fully Enabled.
+              </div>
+
+              <div id="strike-ticket-log" style="display: none; padding: 10px; background: rgba(220, 38, 38, 0.1); border: 1px solid var(--danger); border-radius: 8px; margin-bottom: 14px; font-size: 12px; color: var(--text-main);">
+                🎟️ <strong>Auto-Generated Ticket Created:</strong> Category: <code>TRANSFER_SECURITY</code> | Status: <code>OPEN</code>. <br>
+                <span style="color:var(--emerald);">✓ Non-Logout Enforced: User Session is still 100% Active to upload ID card!</span>
+              </div>
+
+              <div style="display: flex; gap: 10px;">
+                <button class="btn-action" id="btn-sim-wrong-pwd" style="flex: 1; background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%); color: white;">
+                  Enter Wrong Transfer Password
+                </button>
+                <button class="btn-outline" id="btn-sim-reset-strikes">
+                  Reset Attempts
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 6: SUPPORT DESK & IDENTITY RESTORATION LIFECYCLE
+           ==================================================================== -->
+      <section class="slide" id="slide-6">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge sapphire">Support Lifecycle</span>
+              <span class="slide-number-indicator">06 / 20</span>
+            </div>
+            <h2 class="slide-title">Customer Support Desk & Identity Restoration Lifecycle</h2>
+            <p class="slide-subtitle">A two-way WhatsApp-style support desk with strict separation of ticket resolution vs. transfer restoration.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-4 animate-enter stagger-1" >
+            <!-- Step 1 -->
+            <div class="glass-card" style="border-top: 3px solid var(--danger);">
+              <span class="category-badge danger" style="font-size: 9px; margin-bottom: 8px;">Phase 1</span>
+              <h3 class="card-title" style="font-size: 14px;">🚨 Transfer Frozen</h3>
+              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.45; margin-bottom: 10px;">
+                Customer transfer locked at Strike 3. User navigates to <code>/portal/support</code> with active web session intact.
+              </p>
+              <div class="code-block" style="font-size: 10px;">
+transfer_status = 'BLOCKED'
+is_active = True
+              </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="glass-card" style="border-top: 3px solid var(--gold-primary);">
+              <span class="category-badge" style="font-size: 9px; margin-bottom: 8px;">Phase 2</span>
+              <h3 class="card-title" style="font-size: 14px;">🪪 National ID Upload</h3>
+              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.45; margin-bottom: 10px;">
+                Customer uploads official Egyptian National ID card photo (front & back) via real-time timeline chat.
+              </p>
+              <div class="code-block" style="font-size: 10px;">
+Attachment: id_front.jpg
+KYC Match: VALID
+              </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="glass-card" style="border-top: 3px solid var(--royal-blue);">
+              <span class="category-badge sapphire" style="font-size: 9px; margin-bottom: 8px;">Phase 3</span>
+              <h3 class="card-title" style="font-size: 14px;">🛡️ Compliance Triage</h3>
+              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.45; margin-bottom: 10px;">
+                Compliance officer reviews ticket at <code>/support-cases</code>, inspects document authenticity, and signs off.
+              </p>
+              <div class="code-block" style="font-size: 10px;">
+Reviewer: Tariq Mansour
+Decision: APPROVED
+              </div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="glass-card" style="border-top: 3px solid var(--emerald);">
+              <span class="category-badge emerald" style="font-size: 9px; margin-bottom: 8px;">Phase 4</span>
+              <h3 class="card-title" style="font-size: 14px;">🔑 Transfer Restoration</h3>
+              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.45; margin-bottom: 10px;">
+                Dedicated API <code>/restore-transfer</code> restores access. Creates permanent audit row and forces password reset.
+              </p>
+              <div class="code-block" style="font-size: 10px;">
+Audit: TransferRestoration
+require_reset = True
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 7: INTERACTIVE MULTI-HOP GRAPH TOPOLOGY (/network)
+           ==================================================================== -->
+      <section class="slide" id="slide-7">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge sapphire">Graph Forensics</span>
+              <span class="slide-number-indicator">07 / 20</span>
+            </div>
+            <h2 class="slide-title">Interactive Multi-Hop Network Topology & Fund Tracing (/network)</h2>
+            <p class="slide-subtitle">Neo4j graph engine tracking inbound feeder accounts, pass-through conduits, and destination routing.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2-1">
+            <!-- Left: SVG Graph Canvas -->
+            <div class="network-canvas-container animate-enter stagger-1">
+              <svg width="100%" height="100%" viewBox="0 0 700 440" style="position: absolute; top:0; left:0;">
+                <!-- Link Lines -->
+                <line x1="120" y1="120" x2="350" y2="200" stroke="#38BDF8" stroke-width="2" stroke-dasharray="4,4" />
+                <text x="210" y="145" fill="#38BDF8" font-size="11" font-family="var(--font-mono)">4,500 EGP</text>
+
+                <line x1="120" y1="280" x2="350" y2="200" stroke="#38BDF8" stroke-width="2" stroke-dasharray="4,4" />
+                <text x="210" y="255" fill="#38BDF8" font-size="11" font-family="var(--font-mono)">2,000 EGP</text>
+
+                <line x1="350" y1="200" x2="580" y2="200" stroke="#DC2626" stroke-width="3" />
+                <text x="440" y="190" fill="#DC2626" font-size="12" font-family="var(--font-mono)" font-weight="bold">5,000 EGP (Rapid)</text>
+
+                <!-- Co-location dashed lines -->
+                <line x1="120" y1="120" x2="350" y2="360" stroke="#F9A825" stroke-width="1.5" stroke-dasharray="6,6" opacity="0.6" />
+                <line x1="350" y1="200" x2="350" y2="360" stroke="#F9A825" stroke-width="1.5" stroke-dasharray="6,6" opacity="0.8" />
+                <line x1="580" y1="200" x2="350" y2="360" stroke="#F9A825" stroke-width="1.5" stroke-dasharray="6,6" opacity="0.6" />
+
+                <!-- Nodes -->
+                <g class="topology-node" data-node-id="ACC-8391F376" style="cursor: pointer;">
+                  <circle cx="120" cy="120" r="32" fill="#002D72" stroke="#38BDF8" stroke-width="2" />
+                  <text x="120" y="116" fill="#FFFFFF" font-size="10" text-anchor="middle" font-family="var(--font-mono)">ACC-8391</text>
+                  <text x="120" y="130" fill="#38BDF8" font-size="9" text-anchor="middle">Feeder 1</text>
+                </g>
+
+                <g class="topology-node" data-node-id="ACC-1001" style="cursor: pointer;">
+                  <circle cx="120" cy="280" r="32" fill="#002D72" stroke="#38BDF8" stroke-width="2" />
+                  <text x="120" y="276" fill="#FFFFFF" font-size="10" text-anchor="middle" font-family="var(--font-mono)">ACC-1001</text>
+                  <text x="120" y="290" fill="#38BDF8" font-size="9" text-anchor="middle">Feeder 2</text>
+                </g>
+
+                <g class="topology-node" data-node-id="ACC-0033EC2B" style="cursor: pointer;">
+                  <circle cx="350" cy="200" r="48" fill="none" stroke="#DC2626" stroke-width="2" class="pulse-hazard-circle" />
+                  <circle cx="350" cy="200" r="38" fill="#450A0A" stroke="#DC2626" stroke-width="3" />
+                  <text x="350" y="196" fill="#FFFFFF" font-size="11" font-weight="bold" text-anchor="middle" font-family="var(--font-mono)">🚨 ACC-0033</text>
+                  <text x="350" y="212" fill="#F87171" font-size="9" text-anchor="middle">CRITICAL CONDUIT</text>
+                </g>
+
+                <g class="topology-node" data-node-id="ACC-5E929093" style="cursor: pointer;">
+                  <circle cx="580" cy="200" r="32" fill="#002D72" stroke="#F9A825" stroke-width="2" />
+                  <text x="580" y="196" fill="#FFFFFF" font-size="10" text-anchor="middle" font-family="var(--font-mono)">ACC-5E92</text>
+                  <text x="580" y="210" fill="#FBBF24" font-size="9" text-anchor="middle">Cashout Mule</text>
+                </g>
+
+                <g class="topology-node" data-node-id="DEV-DESKTOP-LINUX" style="cursor: pointer;">
+                  <rect x="270" y="335" width="160" height="48" rx="10" fill="#1A1508" stroke="#F9A825" stroke-width="2" />
+                  <text x="350" y="355" fill="#F9A825" font-size="10" font-weight="bold" text-anchor="middle" font-family="var(--font-mono)">📱 DEV-DESKTOP-LINUX</text>
+                  <text x="350" y="370" fill="#FFE082" font-size="9" text-anchor="middle">Shared by 3 Accounts</text>
+                </g>
+              </svg>
+            </div>
+
+            <!-- Right: Node Inspector -->
+            <div class="glass-card animate-enter stagger-2">
+              <h3 class="card-title"><span class="card-title-icon">🔍</span> Forensic Entity Inspector</h3>
+              <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">Click any graph node to inspect live ledger indicators.</p>
+              
+              <div id="topology-node-info" style="padding: 14px; background: rgba(0, 45, 114, 0.2); border-radius: 8px; border: 1px solid var(--border-card); margin-bottom: 12px;">
+                <div style="font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--gold-primary); margin-bottom: 4px;">
+                  Focus Account: ACC-0033EC2B
+                </div>
+                <div style="font-size: 12px; margin-bottom: 2px;"><strong>Owner:</strong> Abdelrahman Haaland</div>
+                <div style="font-size: 12px; color: var(--danger); margin-bottom: 4px;"><strong>Risk Level:</strong> CRITICAL (Score: 92/100)</div>
+                <div style="font-size: 11.5px; color: var(--text-muted);">Pass-Through Conduit: Inflow 6,500 EGP ≈ Outflow 5,000 EGP (Ratio 0.77 > 0.65 threshold).</div>
+              </div>
+
+              <div style="font-size: 12px; color: var(--text-muted); line-height: 1.45;">
+                <strong style="color: var(--gold-primary);">Heuristic:</strong> Rapid flow-through velocity with high ratio (> 0.65) triggers automatic red hazard state and feeds into Multi-Agent SAR generation.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 8: DEVICE INTELLIGENCE (/devices)
+           ==================================================================== -->
+      <section class="slide" id="slide-8">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge">Hardware Forensics</span>
+              <span class="slide-number-indicator">08 / 20</span>
+            </div>
+            <h2 class="slide-title">Device & IP Intelligence: Localhost Co-Location Detection (/devices)</h2>
+            <p class="slide-subtitle">Detecting multi-account syndicates operating from identical client browser fingerprints and loopback IP addresses.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2">
+            <div class="glass-card animate-enter stagger-1">
+              <h3 class="card-title"><span class="card-title-icon">📱</span> Dynamic Risk Escalation Matrix</h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: var(--text-muted);">
+                <li>• <strong>Localhost Binding:</strong> Correlates browser user-agent, screen dimensions, CPU cores, and loopback IP (<code>127.0.0.1</code>, <code>::1</code>).</li>
+                <li>• <strong>1 Account:</strong> <span style="color:var(--emerald); font-weight:bold;">LOW RISK</span> — Standard retail consumer usage.</li>
+                <li>• <strong>2 Accounts:</strong> <span style="color:var(--gold-primary); font-weight:bold;">HIGH RISK</span> — Multi-account hopping warning.</li>
+                <li>• <strong>≥ 3 Accounts:</strong> <span style="color:var(--danger); font-weight:bold;">CRITICAL RISK</span> — Hardware syndicate / money mule ring tagged with <code>⚠️ MULTI-ACCOUNT (X ACCOUNTS)</code> badge.</li>
+              </ul>
+            </div>
+
+            <div class="glass-card animate-enter stagger-2">
+              <h3 class="card-title"><span class="card-title-icon">🎛️</span> Interactive Co-Location Risk Tester</h3>
+              <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 14px;">Simulate accounts sharing a single hardware terminal:</p>
+
+              <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+                <button class="btn-outline btn-device-level active" data-level="1">1 Account</button>
+                <button class="btn-outline btn-device-level" data-level="2">2 Accounts</button>
+                <button class="btn-outline btn-device-level" data-level="3">3+ Accounts (Syndicate)</button>
+              </div>
+
+              <div class="metric-box" style="margin-bottom: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span class="metric-label">Account Association</span>
+                  <span class="metric-label" id="device-account-count">1 Account</span>
+                </div>
+                <div id="device-risk-badge" class="category-badge emerald" style="align-self: flex-start; margin-top: 6px;">LOW RISK</div>
+              </div>
+
+              <div id="device-risk-desc" style="padding: 12px; background: rgba(0, 45, 114, 0.2); border-radius: 8px; font-size: 12px; color: var(--text-muted); line-height: 1.45;">
+                Single primary retail user on dedicated personal device. Normal operational profile.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 9: LIGHTGBM ML RISK ENGINE
+           ==================================================================== -->
+      <section class="slide" id="slide-9">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge emerald">Supervised ML</span>
+              <span class="slide-number-indicator">09 / 20</span>
+            </div>
+            <h2 class="slide-title">Deterministic ML Risk Engine: LightGBM Classifier (Phase 14)</h2>
+            <p class="slide-subtitle">Trained on 15,000 stratified financial samples with 13 engineered features under strict reproducibility contracts.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-1-2">
+            <!-- Left: Gauges -->
+            <div class="glass-card animate-enter stagger-1">
+              <h3 class="card-title"><span class="card-title-icon">🎯</span> Empirical Model Performance</h3>
+
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+                <div style="display: flex; flex-direction: column; align-items: center; position: relative;">
+                  <svg class="radial-svg" viewBox="0 0 120 120">
+                    <circle class="radial-bg" cx="60" cy="60" r="50"></circle>
+                    <circle class="radial-progress" cx="60" cy="60" r="50" data-pct="99.79"></circle>
+                  </svg>
+                  <div class="radial-label-inside">
+                    <span>.998</span>
+                    <span style="font-size: 9px; color: var(--text-dim);">ROC-AUC</span>
+                  </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; align-items: center; position: relative;">
+                  <svg class="radial-svg" viewBox="0 0 120 120">
+                    <circle class="radial-bg" cx="60" cy="60" r="50"></circle>
+                    <circle class="radial-progress emerald" cx="60" cy="60" r="50" data-pct="98.86"></circle>
+                  </svg>
+                  <div class="radial-label-inside">
+                    <span>.989</span>
+                    <span style="font-size: 9px; color: var(--text-dim);">PR-AUC</span>
+                  </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; align-items: center; position: relative;">
+                  <svg class="radial-svg" viewBox="0 0 120 120">
+                    <circle class="radial-bg" cx="60" cy="60" r="50"></circle>
+                    <circle class="radial-progress sapphire" cx="60" cy="60" r="50" data-pct="96.25"></circle>
+                  </svg>
+                  <div class="radial-label-inside">
+                    <span>.963</span>
+                    <span style="font-size: 9px; color: var(--text-dim);">F1-SCORE</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: var(--text-muted);">
+                <div>• Precision: <strong style="color: var(--gold-primary);">94.30%</strong></div>
+                <div>• Recall: <strong style="color: var(--emerald);">98.29%</strong></div>
+                <div>• False Negatives: <strong style="color: #60A5FA;">1.71%</strong></div>
+                <div>• Best Iteration: <strong style="color: var(--gold-primary);">112 Trees</strong></div>
+              </div>
+            </div>
+
+            <!-- Right: 13 Features -->
+            <div class="glass-card animate-enter stagger-2">
+              <h3 class="card-title"><span class="card-title-icon">🧬</span> The 13 Feature Space (features-v1)</h3>
+              <div class="code-block" style="font-size: 10.5px; max-height: 250px; overflow-y: auto;">
+1. <span class="code-gold">transaction_amount_log1p</span>: Log-normalized monetary value
+2. <span class="code-fn">is_usd</span>: Foreign currency indicator flag
+3. <span class="code-emerald">transaction_velocity_7d</span>: 7-day outbound volume velocity
+4. <span class="code-fn">account_age_days</span>: Days since originator onboarding
+5. <span class="code-fn">recipient_age_days</span>: Counterparty maturity index
+6. <span class="code-gold">originator_risk_high / medium</span>: One-hot risk tier
+7. <span class="code-gold">recipient_risk_high / medium</span>: Counterparty risk tier
+8. <span class="code-fn">previous_alert_count</span>: Prior TMS alerts generated
+9. <span class="code-fn">previous_suspicious_activity</span>: Prior confirmed SAR tag
+10. <span class="code-keyword">is_new_device</span>: Hardware unseen in prior 30 days
+11. <span class="code-keyword">is_new_ip</span>: Unknown IP subnet / commercial VPN flag
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 10: MULTI-AGENT LANGGRAPH SWARM
+           ==================================================================== -->
+      <section class="slide" id="slide-10">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge emerald">Multi-Agent Swarm</span>
+              <span class="slide-number-indicator">10 / 20</span>
+            </div>
+            <h2 class="slide-title">Multi-Agent Forensic Consensus Engine (LangGraph)</h2>
+            <p class="slide-subtitle">9 specialized sub-agents independently evaluating evidence and synthesizing an authoritative disposition.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2-1">
+            <div class="glass-card animate-enter stagger-1">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 class="card-title" style="margin-bottom:0;"><span class="card-title-icon">🤖</span> 9 Specialist Sub-Agents</h3>
+                <button class="btn-action" id="btn-run-consensus" style="padding: 6px 14px; font-size: 12px;">
+                  Run Forensic Consensus
+                </button>
+              </div>
+
+              <div class="agent-swarm-grid">
+                <div class="agent-status-card" id="agent-banking">
+                  <div>🏛️</div>
+                  <div><strong style="font-size: 11px;">Banking Rules</strong><div class="agent-note" style="font-size: 9px; color: var(--text-dim);">Velocity caps</div></div>
+                </div>
+                <div class="agent-status-card" id="agent-behavioral">
+                  <div>📊</div>
+                  <div><strong style="font-size: 11px;">Behavioral</strong><div class="agent-note" style="font-size: 9px; color: var(--text-dim);">Baseline drift</div></div>
+                </div>
+                <div class="agent-status-card" id="agent-ato">
+                  <div>🔑</div>
+                  <div><strong style="font-size: 11px;">ATO Agent</strong><div class="agent-note" style="font-size: 9px; color: var(--text-dim);">Credential change</div></div>
+                </div>
+                <div class="agent-status-card" id="agent-network">
+                  <div>🌐</div>
+                  <div><strong style="font-size: 11px;">Device/IP</strong><div class="agent-note" style="font-size: 9px; color: var(--text-dim);">VPN & Proxy</div></div>
+                </div>
+                <div class="agent-status-card" id="agent-graph">
+                  <div>🕸️</div>
+                  <div><strong style="font-size: 11px;">Graph Intel</strong><div class="agent-note" style="font-size: 9px; color: var(--text-dim);">Mule conduits</div></div>
+                </div>
+                <div class="agent-status-card" id="agent-ml">
+                  <div>🎯</div>
+                  <div><strong style="font-size: 11px;">ML Risk</strong><div class="agent-note" style="font-size: 9px; color: var(--text-dim);">LightGBM Score</div></div>
+                </div>
+                <div class="agent-status-card" id="agent-merchant">
+                  <div>🛍️</div>
+                  <div><strong style="font-size: 11px;">Merchant</strong><div class="agent-note" style="font-size: 9px; color: var(--text-dim);">P2P taxonomy</div></div>
+                </div>
+                <div class="agent-status-card" id="agent-identity">
+                  <div>🪪</div>
+                  <div><strong style="font-size: 11px;">Identity/KYC</strong><div class="agent-note" style="font-size: 9px; color: var(--text-dim);">National ID</div></div>
+                </div>
+                <div class="agent-status-card" id="agent-decision">
+                  <div>⚖️</div>
+                  <div><strong style="font-size: 11px;">Final Decision</strong><div class="agent-note" style="font-size: 9px; color: var(--text-dim);">Synthesis</div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-card animate-enter stagger-2">
+              <h3 class="card-title"><span class="card-title-icon">📜</span> Consensus Disposition</h3>
+              <div id="consensus-final-status" style="padding: 14px; background: rgba(0, 45, 114, 0.2); border-radius: 8px; border: 1px solid var(--border-card); margin-bottom: 12px; font-size: 12px; line-height: 1.5;">
+                Click "Run Forensic Consensus" to launch parallel multi-agent evaluation across relational and graph engines.
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted); line-height: 1.45;">
+                <strong>Disposition Gates:</strong>
+                <ul style="margin-left: 16px; margin-top: 4px;">
+                  <li>• Score < 40: <strong>CLEAR</strong></li>
+                  <li>• Score 40-75: <strong>INVESTIGATE</strong></li>
+                  <li>• Score > 75: <strong>RESTRICT & SAR</strong></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 11: MODEL CONTEXT PROTOCOL (MCP) TOOL ARCHITECTURE
+           ==================================================================== -->
+      <section class="slide" id="slide-11">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge sapphire">Protocol Standards</span>
+              <span class="slide-number-indicator">11 / 20</span>
+            </div>
+            <h2 class="slide-title">Model Context Protocol (MCP) Tool Architecture</h2>
+            <p class="slide-subtitle">Standardized, decoupled, read-only JSON-RPC tool servers shielding core databases from AI models.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-4 animate-enter stagger-1" >
+            <div class="glass-card">
+              <span class="category-badge emerald" style="font-size: 9px; margin-bottom: 8px;">mcp-server-1</span>
+              <h3 class="card-title" style="font-size: 14px;">📊 Transaction MCP</h3>
+              <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Queries relational ledger facts, balances, and history from PostgreSQL.</p>
+              <div class="code-block" style="font-size: 10px;">
+get_transaction(txn_id)
+get_account_history(acc_id)
+              </div>
+            </div>
+            <div class="glass-card">
+              <span class="category-badge sapphire" style="font-size: 9px; margin-bottom: 8px;">mcp-server-2</span>
+              <h3 class="card-title" style="font-size: 14px;">🕸️ Graph MCP</h3>
+              <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Executes bounded Cypher projections against Neo4j to find shared devices.</p>
+              <div class="code-block" style="font-size: 10px;">
+get_subgraph(acc_id, hops)
+detect_cycles(start_acc)
+              </div>
+            </div>
+            <div class="glass-card">
+              <span class="category-badge" style="font-size: 9px; margin-bottom: 8px;">mcp-server-3</span>
+              <h3 class="card-title" style="font-size: 14px;">🎯 Risk Engine MCP</h3>
+              <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Computes deterministic rule scores and loads LightGBM model predictions.</p>
+              <div class="code-block" style="font-size: 10px;">
+evaluate_risk(txn_id)
+predict_lgbm(feature_vector)
+              </div>
+            </div>
+            <div class="glass-card">
+              <span class="category-badge sapphire" style="font-size: 9px; margin-bottom: 8px;">mcp-server-4</span>
+              <h3 class="card-title" style="font-size: 14px;">📚 Knowledge MCP</h3>
+              <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Searches curated FATF typologies and Egyptian AML/CFT regulatory policies.</p>
+              <div class="code-block" style="font-size: 10px;">
+search_typologies(query)
+get_policy(policy_id)
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 12: AGENTIC RAG COPILOT & 13 INTENTS
+           ==================================================================== -->
+      <section class="slide" id="slide-12">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge">Cognitive Copilot</span>
+              <span class="slide-number-indicator">12 / 20</span>
+            </div>
+            <h2 class="slide-title">Agentic RAG & AI Financial Analyst Copilot</h2>
+            <p class="slide-subtitle">Natural language forensic interface translating investigator queries into verified multi-source intelligence.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-1-2">
+            <div class="glass-card animate-enter stagger-1">
+              <h3 class="card-title"><span class="card-title-icon">🧠</span> 13 Supported Natural Intents</h3>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;">
+                <span class="pill active">DOCUMENT_SEARCH</span>
+                <span class="pill active">TRANSACTION_LOOKUP</span>
+                <span class="pill active">ACCOUNT_LOOKUP</span>
+                <span class="pill active">GRAPH_EXPLORATION</span>
+                <span class="pill active">FINANCIAL_AGGREGATION</span>
+                <span class="pill active">TREND_ANALYSIS</span>
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted); line-height: 1.5;">
+                <strong style="color: var(--gold-primary);">Zero-Mock Visual Analytics:</strong> Renders dynamic Matplotlib area, bar, and donut charts strictly grounded in verified database rows.
+              </div>
+            </div>
+
+            <div class="glass-card animate-enter stagger-2">
+              <h3 class="card-title"><span class="card-title-icon">⚡</span> Interactive Copilot Simulator</h3>
+              <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                <select id="rag-intent-select" class="hash-input-field" >
+                  <option value="ACCOUNT_LOOKUP">Query: "Inspect account ACC-1092-4821 balance & ledger"</option>
+                  <option value="GRAPH_EXPLORATION">Query: "Trace fund flow & shared devices for ACC-0033EC2B"</option>
+                  <option value="DOCUMENT_SEARCH">Query: "What is policy DOC-AML-001 rule on rapid disbursals?"</option>
+                </select>
+                <button class="btn-action" id="btn-run-rag">Execute</button>
+              </div>
+              <div id="rag-output-trace" style="padding: 14px; background: rgba(0, 45, 114, 0.2); border-radius: 8px; border: 1px solid var(--border-card); min-height: 180px; font-size: 12px; line-height: 1.55;">
+                Select a query and click "Execute" to inspect the collapsible forensic trace.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 13: CRYPTOGRAPHIC EVIDENCE GROUNDING (SHA-256)
+           ==================================================================== -->
+      <section class="slide" id="slide-13">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge emerald">Zero Hallucination</span>
+              <span class="slide-number-indicator">13 / 20</span>
+            </div>
+            <h2 class="slide-title">Cryptographic Evidence Grounding & Regulatory SAR Dossier</h2>
+            <p class="slide-subtitle">Preventing LLM hallucinations through deterministic SHA-256 evidence hashing and strict subset constraints.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2">
+            <div class="glass-card animate-enter stagger-1">
+              <h3 class="card-title"><span class="card-title-icon">🔒</span> The Grounding Invariant</h3>
+              <div style="padding: 12px; background: rgba(0, 45, 114, 0.2); border-radius: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--gold-primary); margin-bottom: 12px; border: 1px solid var(--gold-border);">
+                Finding.evidence_ids ⊆ CollectedFacts.evidence_ids<br>
+                content_hash = SHA-256(evidence_id ∥ source ∥ data)
+              </div>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--text-muted);">
+                <li>• <strong>No Hallucinated Fact IDs:</strong> If an LLM cites an evidence ID not present in facts collected from PostgreSQL or Neo4j, the investigation fails validation.</li>
+                <li>• <strong>Three Provenance Tiers:</strong>
+                  <br><span style="color: #60A5FA;">TIER_1:</span> Direct DB fact &nbsp;|&nbsp; <span style="color: var(--gold-primary);">TIER_2:</span> Computed metric &nbsp;|&nbsp; <span style="color: var(--emerald);">TIER_3:</span> Policy chunk
+                </li>
+                <li>• <strong>Auditable SAR Filing:</strong> Prepares tamper-proof regulatory dossiers for FinCEN & Central Bank compliance.</li>
+              </ul>
+            </div>
+
+            <div class="glass-card animate-enter stagger-2">
+              <h3 class="card-title"><span class="card-title-icon">🧪</span> Live Browser SHA-256 Hasher</h3>
+              <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px;">Type any payload to see real-time SHA-256 cryptographic hashing:</p>
+
+              <input type="text" id="sha-input-text" class="hash-input-field" value="EVID-FACT-TXN-101|POSTGRES|50000.00_EGP" style="margin-bottom: 10px;">
+              <button class="btn-action" id="btn-calc-sha" style="align-self: flex-start; padding: 6px 14px; font-size: 11.5px; margin-bottom: 10px;">Hash Payload</button>
+              <div style="font-size: 10.5px; color: var(--text-dim); margin-bottom: 4px;">Deterministic SHA-256 Content Hash:</div>
+              <div class="hash-output-display" id="sha-output-hash">
+                3e28414b5dcbeaa8dd7e801c80b67e0e7a2c75a4ff59d643881477aa2d59048a
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 14: ENTERPRISE RBAC & PERSONA MATRIX
+           ==================================================================== -->
+      <section class="slide" id="slide-14">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge sapphire">Enterprise RBAC</span>
+              <span class="slide-number-indicator">14 / 20</span>
+            </div>
+            <h2 class="slide-title">Enterprise Role-Based Access Control (RBAC) & Persona Matrix</h2>
+            <p class="slide-subtitle">Granular separation of duties with pre-seeded personas for administrators, analysts, investigators, and customers.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-1-2">
+            <div class="glass-card animate-enter stagger-1">
+              <h3 class="card-title"><span class="card-title-icon">👥</span> System Personas</h3>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button class="btn-outline persona-tab-btn active" data-persona="admin">🛡️ Dr. Sarah Al-Rashid (Admin)</button>
+                <button class="btn-outline persona-tab-btn" data-persona="analyst">🔍 Tariq Mansour (Analyst)</button>
+                <button class="btn-outline persona-tab-btn" data-persona="investigator">⚖️ Laila El-Kady (Investigator)</button>
+                <button class="btn-outline persona-tab-btn" data-persona="customer">👤 Ziad Karim (Customer)</button>
+              </div>
+            </div>
+
+            <div class="glass-card animate-enter stagger-2" id="persona-detail-display">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div>
+                  <h4 style="font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--text-main);">Dr. Sarah Al-Rashid</h4>
+                  <div style="font-size: 12px; color: var(--gold-primary); font-family: var(--font-mono);">admin@omerta.ai</div>
+                </div>
+                <span class="category-badge emerald">ADMINISTRATOR</span>
+              </div>
+              <div style="font-size: 12.5px; margin-bottom: 4px;"><strong>Identifier:</strong> USR-ADM-001 (Super Admin)</div>
+              <div style="font-size: 12.5px; margin-bottom: 6px;"><strong>Ledger Balance:</strong> N/A (System Level)</div>
+              <div style="font-size: 12px; color: var(--text-muted); line-height: 1.45;">Full platform oversight, staff provisioning, risk tuning, and audit export.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 15: SHOWCASE REAL-WORLD CASE STUDIES
+           ==================================================================== -->
+      <section class="slide" id="slide-15">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge danger">Showcase Scenarios</span>
+              <span class="slide-number-indicator">15 / 20</span>
+            </div>
+            <h2 class="slide-title">Showcase Real-World Case Studies & Scenarios</h2>
+            <p class="slide-subtitle">Deterministic seed scenarios contrasting legitimate commercial activity with sophisticated money laundering vectors.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-1-2">
+            <div class="glass-card animate-enter stagger-1">
+              <h3 class="card-title"><span class="card-title-icon">📂</span> Seeded Cases</h3>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button class="btn-outline case-study-tab active" data-case="case-legit">🟢 TXN-LEGIT-101: Supermarket POS</button>
+                <button class="btn-outline case-study-tab" data-case="case-smurf">🔴 TXN-RISK-501: Cash Structuring Smurf</button>
+                <button class="btn-outline case-study-tab" data-case="case-syndicate">🚨 TXN-RISK-502: Hardware Mule Syndicate</button>
+                <button class="btn-outline case-study-tab" data-case="case-ato">⚡ TXN-RISK-503: ATO Rapid Liquidation</button>
+              </div>
+            </div>
+
+            <div class="glass-card animate-enter stagger-2" id="case-study-detail">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h4 style="font-family: var(--font-display); font-size:16px; font-weight:700; color:var(--text-main);">TXN-LEGIT-101: Supermarket Point-of-Sale (Routine Retail)</h4>
+                <span class="category-badge emerald">LOW (Score: 6/100)</span>
+              </div>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+                <div class="metric-box">
+                  <span class="metric-label">Transfer Amount</span>
+                  <span class="metric-value emerald">1,250.00 EGP</span>
+                </div>
+                <div class="metric-box">
+                  <span class="metric-label">ML Signal</span>
+                  <span class="metric-value sapphire">0.04 (Low)</span>
+                </div>
+              </div>
+              <div style="font-size:12px; color:var(--gold-primary); margin-bottom:4px;"><strong>Triggered Rules:</strong> 0 Rules Triggered</div>
+              <div style="font-size:12px; color:var(--text-muted); line-height:1.45;">Clean customer device, domestic retail merchant, verified baseline.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 16: FRONTEND ARCHITECTURE & DESIGN SYSTEM
+           ==================================================================== -->
+      <section class="slide" id="slide-16">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge sapphire">Frontend Engineering</span>
+              <span class="slide-number-indicator">16 / 20</span>
+            </div>
+            <h2 class="slide-title">Frontend Engineering & UI/UX Design System</h2>
+            <p class="slide-subtitle">Built with React 19, TypeScript 5.5, Tailwind CSS, and Lucide icons featuring 26+ bespoke application views.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-3 animate-enter stagger-1" >
+            <div class="glass-card">
+              <h3 class="card-title"><span class="card-title-icon">👤</span> Customer Banking Portal</h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--text-muted);">
+                <li>• <code>/portal/dashboard</code>: Balances & recent transactions</li>
+                <li>• <code>/portal/transfers</code>: Dual-password P2P transfers</li>
+                <li>• <code>/portal/accounts</code>: Multi-currency checking</li>
+                <li>• <code>/portal/support</code>: WhatsApp-style 2-way support chat</li>
+                <li>• <code>/portal/security</code>: Device locks & password reset</li>
+              </ul>
+            </div>
+
+            <div class="glass-card">
+              <h3 class="card-title"><span class="card-title-icon">🛡️</span> Forensic Operations Console</h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--text-muted);">
+                <li>• <code>/dashboard</code>: Alert queues & operational KPIs</li>
+                <li>• <code>/network</code>: Universal multi-hop graph topology</li>
+                <li>• <code>/devices</code>: Co-location hardware syndicate analyzer</li>
+                <li>• <code>/investigations</code>: LangGraph multi-agent runner</li>
+                <li>• <code>/support-cases</code>: Transfer restoration dialog</li>
+              </ul>
+            </div>
+
+            <div class="glass-card">
+              <h3 class="card-title"><span class="card-title-icon">🎨</span> Aesthetic Standards</h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--text-muted);">
+                <li>• <strong>Sapphire & Gold System:</strong> Deep navy (#002D72) with imperial gold (#F9A825) tokens.</li>
+                <li>• <strong>Micro-Animations:</strong> SVG hazard pulses, particle mesh, and dynamic count-up tickers.</li>
+                <li>• <strong>Zero Mock Rule:</strong> All UI views display real PostgreSQL & Neo4j facts.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 17: QUALITY ASSURANCE & VERIFICATION SUITE
+           ==================================================================== -->
+      <section class="slide" id="slide-17">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge emerald">Verification & QA</span>
+              <span class="slide-number-indicator">17 / 20</span>
+            </div>
+            <h2 class="slide-title">Quality Assurance, Concurrency & Verification Suite</h2>
+            <p class="slide-subtitle">Comprehensive Pytest & Pytest-Asyncio test suites ensuring ACID properties, security invariants, and ML reproducibility.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2 animate-enter stagger-1" >
+            <div class="glass-card">
+              <h3 class="card-title"><span class="card-title-icon">🧪</span> Automated Test Coverage</h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--text-muted);">
+                <li>• <strong>Double-Entry Balance Tests:</strong> Rigorously validates that $\sum Debits + \sum Credits = 0$.</li>
+                <li>• <strong>Concurrency & Race Conditions:</strong> Concurrent transfers tested against <code>SELECT ... FOR UPDATE</code> locks to prove zero double-spends.</li>
+                <li>• <strong>3-Strike Security State Machine:</strong> Tests strike 1 warning, strike 2 alert, and strike 3 non-logout freeze with auto-ticket creation.</li>
+                <li>• <strong>Graph Isolation:</strong> Ensures test Cypher projections do not overwrite developer demo graphs.</li>
+              </ul>
+            </div>
+
+            <div class="glass-card">
+              <h3 class="card-title"><span class="card-title-icon">📊</span> Verification Benchmark Stats</h3>
+              <div class="grid-2" style="margin-bottom: 14px;">
+                <div class="metric-box">
+                  <span class="metric-label">Test Scenarios</span>
+                  <span class="metric-value emerald">100% PASS</span>
+                  <span class="metric-sub">Zero regression errors</span>
+                </div>
+                <div class="metric-box">
+                  <span class="metric-label">Ledger Drift</span>
+                  <span class="metric-value">0 EGP</span>
+                  <span class="metric-sub">Mathematically balanced</span>
+                </div>
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted); line-height: 1.45;">
+                <code>pytest -v tests/</code> executes comprehensive unit, integration, and end-to-end tests across the FastAPI gateway, domain services, and agent workflows.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 18: STEP-BY-STEP QUICKSTART RUN GUIDE
+           ==================================================================== -->
+      <section class="slide" id="slide-18">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge">Quickstart Guide</span>
+              <span class="slide-number-indicator">18 / 20</span>
+            </div>
+            <h2 class="slide-title">Step-by-Step GitHub Pull & Quickstart Run Guide</h2>
+            <p class="slide-subtitle">Reproduce the entire platform from scratch in under 3 minutes with Docker, uv, and Vite.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2 animate-enter stagger-1" >
+            <div class="glass-card">
+              <h3 class="card-title"><span class="card-title-icon">🚀</span> 6 Terminal Commands</h3>
+              <div class="code-block" style="font-size: 10.5px; line-height: 1.6;">
+<span class="code-comment"># 1. Clone & environment setup</span>
+git clone https://github.com/abo7adeed/Omerta.ai.git
+cd Omerta.ai && cp .env.example .env
+
+<span class="code-comment"># 2. Launch PostgreSQL 17 & Neo4j 5.26</span>
+docker compose up -d postgres neo4j
+
+<span class="code-comment"># 3. Install dependencies & apply migrations</span>
+uv sync && uv run alembic upgrade head
+
+<span class="code-comment"># 4. Populate deterministic seed scenarios</span>
+uv run python -m infrastructure.database.seed
+
+<span class="code-comment"># 5. Launch FastAPI backend (Port 8000)</span>
+uv run uvicorn apps.api.main:app --reload --port 8000
+
+<span class="code-comment"># 6. Build & launch frontend (Port 5173)</span>
+cd frontend && npm install && npm run dev
+              </div>
+            </div>
+
+            <div class="glass-card">
+              <h3 class="card-title"><span class="card-title-icon">🔗</span> Live Service Endpoints</h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: var(--text-muted);">
+                <li>
+                  <strong>Frontend Banking & Ops App:</strong><br>
+                  <a href="http://localhost:5173" target="_blank" style="color: var(--gold-primary); text-decoration: none;">http://localhost:5173</a>
+                </li>
+                <li>
+                  <strong>FastAPI Interactive Swagger Docs:</strong><br>
+                  <a href="http://localhost:8000/docs" target="_blank" style="color: var(--emerald); text-decoration: none;">http://localhost:8000/docs</a>
+                </li>
+                <li>
+                  <strong>Neo4j Graph Database Browser:</strong><br>
+                  <a href="http://localhost:17474" target="_blank" style="color: #60A5FA; text-decoration: none;">http://localhost:17474</a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 19: STRATEGIC ROADMAP & FUTURE HORIZONS
+           ==================================================================== -->
+      <section class="slide" id="slide-19">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge sapphire">Strategic Horizons</span>
+              <span class="slide-number-indicator">19 / 20</span>
+            </div>
+            <h2 class="slide-title">Strategic Roadmap & Future AML Innovations</h2>
+            <p class="slide-subtitle">Evolution of Omerta.ai from graduation milestone to institutional compliance standard.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-4 animate-enter stagger-1" >
+            <div class="glass-card">
+              <span class="category-badge emerald" style="font-size: 9px; margin-bottom: 8px;">Phase 1 – 17 • Done</span>
+              <h3 class="card-title" style="font-size: 14px;">✓ Core Platform</h3>
+              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.45;">
+                Double-entry ledger, 3-strike security, multi-hop graph, LightGBM ML model, and 9-agent LangGraph consensus.
+              </p>
+            </div>
+            <div class="glass-card">
+              <span class="category-badge" style="font-size: 9px; margin-bottom: 8px;">Q3 2026 • In Progress</span>
+              <h3 class="card-title" style="font-size: 14px;">⚡ Sub-50ms WebSockets</h3>
+              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.45;">
+                Live streaming alert broadcasting to investigator consoles with multi-officer collaborative incident triage.
+              </p>
+            </div>
+            <div class="glass-card">
+              <span class="category-badge sapphire" style="font-size: 9px; margin-bottom: 8px;">Q4 2026 • Planned</span>
+              <h3 class="card-title" style="font-size: 14px;">🌐 Cross-Border Corridors</h3>
+              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.45;">
+                Multi-currency FX routing intelligence and SWIFT MT103 / ISO 20022 message parsing for cross-border mules.
+              </p>
+            </div>
+            <div class="glass-card">
+              <span class="category-badge danger" style="font-size: 9px; margin-bottom: 8px;">2027 • Horizon</span>
+              <h3 class="card-title" style="font-size: 14px;">⛓️ On-Chain Tracing</h3>
+              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.45;">
+                Blockchain bridging for decentralized crypto asset tracing and direct automated FinCEN / GoAML XML filing.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SLIDE 20: DEFENSE CONCLUSION & DEMO HUB
+           ==================================================================== -->
+      <section class="slide" id="slide-20">
+        <div class="slide-header">
+          <div>
+            <div class="slide-tag-row">
+              <span class="category-badge emerald">Defense Conclusion</span>
+              <span class="slide-number-indicator">20 / 20</span>
+            </div>
+            <h2 class="slide-title">Omerta.ai — Graduation Project Defense Conclusion</h2>
+            <p class="slide-subtitle">Thank you for your guidance and evaluation. We invite the examination committee to the live interactive demo.</p>
+          </div>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2 animate-enter stagger-1" >
+            <div class="glass-card">
+              <h3 class="card-title"><span class="card-title-icon">🏆</span> Project Accomplishments Summary</h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--text-muted);">
+                <li>• <strong>Architectural Unification:</strong> Fused core double-entry banking execution with active defense and autonomous AI forensics.</li>
+                <li>• <strong>Proven Mathematical Grounding:</strong> SHA-256 evidence hashing prevents hallucinations in regulatory SAR filings.</li>
+                <li>• <strong>Empirical Machine Learning:</strong> 0.9979 ROC-AUC LightGBM classifier with 13 engineered features.</li>
+                <li>• <strong>Non-Logout Security Innovation:</strong> Solved user abandonment during transfer fraud security freezes.</li>
+              </ul>
+            </div>
+
+            <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <div style="font-size: 50px; margin-bottom: 10px;">🛡️</div>
+              <h3 style="font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--text-main); margin-bottom: 6px;">
+                Ready for Live Interactive Demonstration
+              </h3>
+              <p style="font-size: 13px; color: var(--text-muted); max-width: 420px; margin-bottom: 20px;">
+                National Telecommunication Institute (NTI) Graduation Defense
+              </p>
+              <div style="display: flex; gap: 12px;">
+                <button class="btn-action" onclick="window.open('http://localhost:5173', '_blank')">
+                  Launch Banking Portal (5173) 🚀
+                </button>
+                <button class="btn-outline" onclick="window.open('http://localhost:8000/docs', '_blank')">
+                  API Docs (8000) 📄
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Bottom Navigation Bar with Theme & Controls -->
+  <footer class="presentation-bar">
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+
+    <div class="brand-badge-mini">
+      <div class="brand-shield-icon">🛡️</div>
+      <span>Omerta.ai</span>
+      <span style="font-size: 11px; color: var(--text-dim); margin-left: 4px;">NTI 2026</span>
+    </div>
+
+    <div class="nav-controls-group" style="display: flex; align-items: center; gap: 8px;">
+      <button class="nav-btn" id="btn-prev" title="Previous Slide (← / Space)">‹</button>
+      <div class="nav-slide-counter" id="slide-counter">
+        <span>01</span> / 20
+      </div>
+      <button class="nav-btn" id="btn-next" title="Next Slide (→ / Space)">›</button>
+    </div>
+
+    <div class="nav-actions-group" style="display: flex; align-items: center; gap: 5px;">
+      <button class="shortcuts-help-btn" id="btn-theme-toggle" title="Toggle Light/Dark Theme">🌓 <span class="btn-label">Theme</span></button>
+      <button class="shortcuts-help-btn" id="btn-sound-toggle" title="Toggle Sound">🔊 <span class="btn-label">Audio</span></button>
+      <button class="shortcuts-help-btn" id="btn-notes" title="Toggle Speaker Notes (N)">📝 <span class="btn-label">Notes</span></button>
+      <button class="shortcuts-help-btn" id="btn-overview" title="Slide Overview Grid (O)">📑 <span class="btn-label">Overview</span></button>
+      <button class="shortcuts-help-btn" id="btn-fullscreen" title="Toggle Fullscreen (F)">⛶ <span class="btn-label">Fullscreen</span></button>
+    </div>
+  </footer>
+
+  <!-- Slide Overview Grid Modal -->
+  <div id="overview-modal">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+      <h2 style="font-family: var(--font-display); font-size: 24px; font-weight: 800;">Slide Deck Overview (20 Slides)</h2>
+      <button class="btn-outline" id="btn-close-overview">Close ✕</button>
+    </div>
+    <div class="overview-grid" id="overview-grid"></div>
+  </div>
+
+  <!-- Speaker Notes Drawer -->
+  <div id="notes-drawer">
+    <div class="notes-header">
+      <span>📝 Speaker Defense Notes</span>
+      <button style="background: none; border: none; color: var(--text-dim); cursor: pointer;" id="btn-close-notes">✕</button>
+    </div>
+    <div class="notes-content" id="notes-content">
+      Welcome committee members...
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div id="help-modal">
+    <div class="glass-card" style="max-width: 480px; margin: auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 class="card-title" style="margin-bottom:0;">Keyboard Shortcuts</h3>
+        <button class="btn-outline" id="btn-close-help" style="padding:4px 8px;">✕</button>
+      </div>
+      <div style="font-size:12px; line-height:2; color:var(--text-muted);">
+        <div><strong style="color:var(--gold-primary);">→ / Space:</strong> Next Slide</div>
+        <div><strong style="color:var(--gold-primary);">←:</strong> Previous Slide</div>
+        <div><strong style="color:var(--gold-primary);">Home / End:</strong> First / Last Slide</div>
+        <div><strong style="color:var(--gold-primary);">F:</strong> Fullscreen Mode</div>
+        <div><strong style="color:var(--gold-primary);">O:</strong> Overview Grid</div>
+        <div><strong style="color:var(--gold-primary);">N:</strong> Speaker Notes</div>
+        <div><strong style="color:var(--gold-primary);">M:</strong> Mute Audio</div>
+        <div><strong style="color:var(--gold-primary);">P:</strong> Autoplay Slideshow</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       INTERACTIVE ENGINE & DYNAMIC CONTROLLERS
+       ==================================================================== -->
+  <script>
+    // --- Audio Synthesizer (Web Audio API) ---
+    class PresentationAudio {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+      init() {
+        if (!this.ctx && (window.AudioContext || window.webkitAudioContext)) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioCtx();
+        }
+      }
+      playClick() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.04);
+          gain.gain.setValueAtTime(0.04, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.04);
+        } catch (e) {}
+      }
+      playSuccess() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + i * 0.06);
+            gain.gain.setValueAtTime(0.05, now + i * 0.06);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.25);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + i * 0.06);
+            osc.stop(now + i * 0.06 + 0.25);
+          });
+        } catch (e) {}
+      }
+      playAlert() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(140, this.ctx.currentTime + 0.12);
+          gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.12);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.12);
+        } catch (e) {}
+      }
+      toggleMute() {
+        this.muted = !this.muted;
+        const btn = document.getElementById('btn-sound-toggle');
+        if (btn) {
+          btn.innerHTML = this.muted ? '🔇 Audio' : '🔊 Audio';
+        }
+      }
+    }
+
+    // --- Speaker Notes Database ---
+    const SPEAKER_NOTES = {
+      1: "Welcome committee members. This is Omerta.ai — our NTI Graduation Project in Advanced AI and Cybersecurity. It unites core banking execution with active defense and autonomous multi-agent consensus forensics.",
+      2: "Traditional Transaction Monitoring Systems suffer from a 95%+ false positive rate and up to 48 hours in manual alert triage latency. Omerta.ai replaces static rules with real-time autonomous agentic defense.",
+      3: "Here is the 5-Tier Canonical Architecture cleanly separating the React 19 Client SPA, the asynchronous FastAPI Gateway, the LangGraph Multi-Agent Forensic Tier, 4 read-only MCP tool servers, and Dual Persistence with PostgreSQL and Neo4j.",
+      4: "Financial double-entry ledger balancing enforces that debit plus credit equals zero. We prevent concurrent race conditions via row-level locks: SELECT FOR UPDATE.",
+      5: "Dual-password security separates web login from transfer authorization. If an attacker fails 3 consecutive transfer attempts, outbound transfers freeze, but the user's session remains active to upload National ID proofs.",
+      6: "Support ticket resolution and transfer access restoration are strictly decoupled. Even if a ticket is marked resolved, transfers remain locked until an authorized officer explicitly approves National ID documents and triggers the restoration API.",
+      7: "The Multi-Hop Network Topology visualizer computes itemized fund inflows and outflows. Pass-through conduits are flagged with red pulsing hazard rings in real time.",
+      8: "Device intelligence detects localhost and remote co-location. Multiple accounts sharing hardware escalates risk from LOW (1 account) to HIGH (2 accounts) and CRITICAL (3+ accounts).",
+      9: "Our supervised LightGBM Classifier achieves a 0.9979 ROC-AUC and 0.9886 PR-AUC on 15,000 stratified samples with 13 engineered features.",
+      10: "The LangGraph orchestrator deploys a consensus panel of 9 specialized AI agents evaluating banking rules, behavioral anomalies, ATO, network, graph topology, ML signals, merchant classifications, and identity security.",
+      11: "The Model Context Protocol (MCP) decouples AI models from raw database access. We engineered 4 read-only sandboxed MCP servers with strict Pydantic schemas.",
+      12: "Our Agentic RAG copilot understands 13 natural-language intent classifications. It produces zero-mock visual analytics rendered dynamically via Matplotlib.",
+      13: "Hallucinations are mathematically prevented. Every fact gathered is hashed with SHA-256. Agent findings must cite only verified, cryptographically hashed evidence IDs.",
+      14: "Role-Based Access Control is enforced across 5 roles: Administrator, Fraud Analyst, Senior Investigator, Auditor, and Customer with pre-seeded personas.",
+      15: "Here we demonstrate real showcase test cases seeded in the database: from routine retail payments to cash smurfing, shared hardware syndicates, and rapid ATO liquidations.",
+      16: "Frontend engineering: built with React 19, TypeScript 5.5, Tailwind CSS, and Lucide icons spanning 26+ responsive views.",
+      17: "Verified through automated Pytest and pytest-asyncio suites with 100% test pass fidelity.",
+      18: "Omerta.ai is fully reproducible from scratch in under 3 minutes with Docker Compose, uv, FastAPI, and Vite.",
+      19: "Strategic roadmap: next horizons focus on real-time WebSocket alerts (<50ms), cross-border corridors, and automated regulatory XML filings.",
+      20: "Thank you for your guidance. We now welcome your questions and invite you to explore the live interactive platform."
+    };
+
+    // --- Presentation Deck Controller ---
+    class PresentationDeck {
+      constructor() {
+        this.slides = [];
+        this.currentIndex = 0;
+        this.totalSlides = 0;
+        this.audio = new PresentationAudio();
+        this.autoplayInterval = null;
+        this.init();
+      }
+
+      init() {
+        this.slides = Array.from(document.querySelectorAll('.slide'));
+        this.totalSlides = this.slides.length;
+        
+        const hash = window.location.hash;
+        if (hash && hash.startsWith('#slide-')) {
+          const slideNum = parseInt(hash.replace('#slide-', ''), 10);
+          if (!isNaN(slideNum) && slideNum >= 1 && slideNum <= this.totalSlides) {
+            this.currentIndex = slideNum - 1;
+          }
+        }
+
+        this.setupUI();
+        this.setupEventListeners();
+        this.setupBackgroundCanvas();
+        this.updateSlideDisplay(false);
+        this.initInteractiveComponents();
+      }
+
+      setupUI() {
+        const overviewGrid = document.getElementById('overview-grid');
+        if (overviewGrid) {
+          overviewGrid.innerHTML = '';
+          this.slides.forEach((slide, idx) => {
+            const titleEl = slide.querySelector('.slide-title');
+            const title = titleEl ? titleEl.textContent.trim() : `Slide ${idx + 1}`;
+            const thumb = document.createElement('div');
+            thumb.className = `overview-thumbnail ${idx === this.currentIndex ? 'current' : ''}`;
+            thumb.innerHTML = `
+              <div style="font-family:var(--font-mono); font-size:11px; color:var(--gold-primary); font-weight:700;">SLIDE ${String(idx + 1).padStart(2, '0')}</div>
+              <div style="font-family:var(--font-display); font-size:13px; font-weight:700;">${title}</div>
+            `;
+            thumb.addEventListener('click', () => {
+              this.goToSlide(idx);
+              this.toggleOverview(false);
+            });
+            overviewGrid.appendChild(thumb);
+          });
+        }
+      }
+
+      setupEventListeners() {
+        document.getElementById('btn-prev')?.addEventListener('click', () => this.prevSlide());
+        document.getElementById('btn-next')?.addEventListener('click', () => this.nextSlide());
+        document.getElementById('btn-overview')?.addEventListener('click', () => this.toggleOverview(true));
+        document.getElementById('btn-close-overview')?.addEventListener('click', () => this.toggleOverview(false));
+        document.getElementById('btn-notes')?.addEventListener('click', () => this.toggleNotes());
+        document.getElementById('btn-close-notes')?.addEventListener('click', () => this.toggleNotes(false));
+        document.getElementById('btn-fullscreen')?.addEventListener('click', () => this.toggleFullscreen());
+        document.getElementById('btn-sound-toggle')?.addEventListener('click', () => this.audio.toggleMute());
+        document.getElementById('btn-theme-toggle')?.addEventListener('click', () => this.toggleTheme());
+
+        // Mobile Touch Gesture Support (Horizontal Swipe Detection)
+        let touchStartX = 0;
+        let touchStartY = 0;
+        const viewport = document.getElementById('presentation-viewport');
+        const touchTarget = viewport || window;
+
+        touchTarget.addEventListener('touchstart', (e) => {
+          if (e.touches.length === 1) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+          }
+        }, { passive: true });
+
+        touchTarget.addEventListener('touchend', (e) => {
+          if (e.changedTouches.length === 1) {
+            const diffX = e.changedTouches[0].clientX - touchStartX;
+            const diffY = e.changedTouches[0].clientY - touchStartY;
+            // Only trigger if mostly horizontal swipe > 50px
+            if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY) * 1.4) {
+              if (diffX < 0) {
+                this.nextSlide();
+              } else {
+                this.prevSlide();
+              }
+            }
+          }
+        }, { passive: true });
+
+        window.addEventListener('keydown', (e) => {
+          if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+          switch (e.key) {
+            case 'ArrowRight': case ' ': case 'PageDown':
+              e.preventDefault(); this.nextSlide(); break;
+            case 'ArrowLeft': case 'PageUp':
+              e.preventDefault(); this.prevSlide(); break;
+            case 'Home': e.preventDefault(); this.goToSlide(0); break;
+            case 'End': e.preventDefault(); this.goToSlide(this.totalSlides - 1); break;
+            case 'f': case 'F': e.preventDefault(); this.toggleFullscreen(); break;
+            case 'o': case 'O': e.preventDefault(); this.toggleOverview(); break;
+            case 'n': case 'N': e.preventDefault(); this.toggleNotes(); break;
+            case 'm': case 'M': e.preventDefault(); this.audio.toggleMute(); break;
+            case 't': case 'T': e.preventDefault(); this.toggleTheme(); break;
+            case 'Escape':
+              this.toggleOverview(false); this.toggleNotes(false); break;
+          }
+        });
+      }
+
+      toggleTheme() {
+        document.body.classList.toggle('theme-light');
+        this.audio.playClick();
+      }
+
+      nextSlide() {
+        if (this.currentIndex < this.totalSlides - 1) this.goToSlide(this.currentIndex + 1);
+      }
+
+      prevSlide() {
+        if (this.currentIndex > 0) this.goToSlide(this.currentIndex - 1);
+      }
+
+      goToSlide(index) {
+        if (index < 0 || index >= this.totalSlides || index === this.currentIndex) return;
+        this.currentIndex = index;
+        this.audio.playClick();
+        this.updateSlideDisplay(true);
+        // Reset scroll position on mobile
+        const viewport = document.getElementById('presentation-viewport');
+        if (viewport) viewport.scrollTop = 0;
+        window.scrollTo(0, 0);
+      }
+
+      updateSlideDisplay(animate = true) {
+        this.slides.forEach((slide, idx) => {
+          slide.classList.remove('active', 'prev');
+          if (idx === this.currentIndex) slide.classList.add('active');
+          else if (idx < this.currentIndex) slide.classList.add('prev');
+        });
+
+        const progressFill = document.getElementById('progress-fill');
+        const counter = document.getElementById('slide-counter');
+        const pct = ((this.currentIndex + 1) / this.totalSlides) * 100;
+        
+        if (progressFill) progressFill.style.width = `${pct}%`;
+        if (counter) {
+          counter.innerHTML = `<span>${String(this.currentIndex + 1).padStart(2, '0')}</span> / ${String(this.totalSlides).padStart(2, '0')}`;
+        }
+
+        const thumbs = document.querySelectorAll('.overview-thumbnail');
+        thumbs.forEach((t, i) => t.classList.toggle('current', i === this.currentIndex));
+
+        const notesContent = document.getElementById('notes-content');
+        if (notesContent) notesContent.textContent = SPEAKER_NOTES[this.currentIndex + 1] || "Notes available for this slide.";
+
+        history.replaceState(null, '', `#slide-${this.currentIndex + 1}`);
+
+        if (this.currentIndex + 1 === 9) this.animateMLGauges();
+      }
+
+      toggleOverview(force) {
+        const modal = document.getElementById('overview-modal');
+        if (modal) modal.classList.toggle('active', force !== undefined ? force : !modal.classList.contains('active'));
+      }
+
+      toggleNotes(force) {
+        const drawer = document.getElementById('notes-drawer');
+        if (drawer) drawer.classList.toggle('active', force !== undefined ? force : !drawer.classList.contains('active'));
+      }
+
+      toggleFullscreen() {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+        else if (document.exitFullscreen) document.exitFullscreen();
+      }
+
+      setupBackgroundCanvas() {
+        const canvas = document.getElementById('ambient-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+          width = canvas.width = window.innerWidth;
+          height = canvas.height = window.innerHeight;
+        });
+
+        const particles = [];
+        const count = 42;
+        for (let i = 0; i < count; i++) {
+          particles.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            vx: (Math.random() - 0.5) * 0.4,
+            vy: (Math.random() - 0.5) * 0.4,
+            radius: Math.random() * 2 + 1,
+            color: i % 2 === 0 ? 'rgba(249, 168, 37, ' : 'rgba(30, 136, 229, '
+          });
+        }
+
+        function render() {
+          ctx.clearRect(0, 0, width, height);
+          for (let i = 0; i < count; i++) {
+            for (let j = i + 1; j < count; j++) {
+              const dx = particles[i].x - particles[j].x;
+              const dy = particles[i].y - particles[j].y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist < 130) {
+                ctx.beginPath();
+                ctx.moveTo(particles[i].x, particles[i].y);
+                ctx.lineTo(particles[j].x, particles[j].y);
+                ctx.strokeStyle = `rgba(249, 168, 37, ${0.1 * (1 - dist / 130)})`;
+                ctx.lineWidth = 0.7;
+                ctx.stroke();
+              }
+            }
+          }
+
+          particles.forEach(p => {
+            p.x += p.vx; p.y += p.vy;
+            if (p.x < 0) p.x = width;
+            if (p.x > width) p.x = 0;
+            if (p.y < 0) p.y = height;
+            if (p.y > height) p.y = 0;
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fillStyle = p.color + '0.45)';
+            ctx.fill();
+          });
+          requestAnimationFrame(render);
+        }
+        render();
+      }
+
+      animateMLGauges() {
+        const gauges = document.querySelectorAll('.radial-progress');
+        gauges.forEach(gauge => {
+          const pct = parseFloat(gauge.getAttribute('data-pct') || '0');
+          const offset = 314 - (pct / 100) * 314;
+          setTimeout(() => { gauge.style.strokeDashoffset = offset; }, 150);
+        });
+      }
+
+      initInteractiveComponents() {
+        // Double Entry Simulator
+        const btnTransfer = document.getElementById('btn-sim-transfer');
+        let sBal = 50000, rBal = 25000, count = 0;
+        btnTransfer?.addEventListener('click', () => {
+          if (sBal < 5000) return alert('Insufficient funds');
+          btnTransfer.disabled = true;
+          btnTransfer.textContent = '🔒 Acquiring Row Lock (SELECT FOR UPDATE)...';
+          setTimeout(() => {
+            sBal -= 5000; rBal += 5000; count++;
+            document.getElementById('sim-sender-balance').textContent = `${sBal.toLocaleString()} EGP`;
+            document.getElementById('sim-recip-balance').textContent = `${rBal.toLocaleString()} EGP`;
+            const tbody = document.getElementById('sim-ledger-tbody');
+            if (tbody) {
+              const r1 = document.createElement('tr');
+              r1.innerHTML = `<td class="code-keyword">DEBIT</td><td>ACC-1092-4821</td><td style="color:var(--danger);">-5,000 EGP</td><td>${sBal.toLocaleString()} EGP</td><td>TXN-${count}</td>`;
+              const r2 = document.createElement('tr');
+              r2.innerHTML = `<td class="code-emerald">CREDIT</td><td>ACC-3847-1920</td><td style="color:var(--emerald);">+5,000 EGP</td><td>${rBal.toLocaleString()} EGP</td><td>TXN-${count}</td>`;
+              tbody.prepend(r2); tbody.prepend(r1);
+            }
+            this.audio.playSuccess();
+            btnTransfer.disabled = false;
+            btnTransfer.textContent = 'Execute Another 5,000 EGP Transfer';
+          }, 450);
+        });
+
+        // 3-Strikes Simulator
+        const btnFail = document.getElementById('btn-sim-wrong-pwd');
+        const btnReset = document.getElementById('btn-sim-reset-strikes');
+        let strikes = 0;
+        btnFail?.addEventListener('click', () => {
+          strikes = Math.min(strikes + 1, 3);
+          const banner = document.getElementById('strike-status-banner');
+          const log = document.getElementById('strike-ticket-log');
+          if (strikes === 1) {
+            this.audio.playAlert();
+            banner.innerHTML = '<strong>Strike 1/3:</strong> Wrong password. Warning displayed. Session Active.';
+            banner.className = 'category-badge';
+          } else if (strikes === 2) {
+            this.audio.playAlert();
+            banner.innerHTML = '<strong>Strike 2/3:</strong> Final warning before transfer hold. Session Active.';
+            banner.className = 'category-badge';
+          } else if (strikes === 3) {
+            this.audio.playAlert();
+            banner.innerHTML = '<strong>Strike 3/3:</strong> 🚨 <strong>TRANSFERS FROZEN (BLOCKED)</strong>. Non-Logout Enforced.';
+            banner.className = 'category-badge danger';
+            if (log) log.style.display = 'block';
+            btnFail.disabled = true;
+          }
+        });
+        btnReset?.addEventListener('click', () => {
+          strikes = 0;
+          document.getElementById('strike-status-banner').innerHTML = 'Status: Normal. 0 Failed Attempts. Transfers Fully Enabled.';
+          document.getElementById('strike-status-banner').className = 'category-badge emerald';
+          document.getElementById('strike-ticket-log').style.display = 'none';
+          btnFail.disabled = false;
+          this.audio.playClick();
+        });
+
+        // Topology Clickable Inspector
+        const nodes = document.querySelectorAll('.topology-node');
+        const info = document.getElementById('topology-node-info');
+        nodes.forEach(node => {
+          node.addEventListener('click', () => {
+            this.audio.playClick();
+            const id = node.getAttribute('data-node-id');
+            if (info) info.innerHTML = `
+              <div style="font-family:var(--font-display); font-size:14px; font-weight:700; color:var(--gold-primary); margin-bottom:4px;">Node Inspected: ${id}</div>
+              <div style="font-size:12px; color:var(--emerald);">Status: Active In Ledger & Graph</div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Connected via Cypher MERGE projections in Neo4j.</div>
+            `;
+          });
+        });
+
+        // Device Co-Location Tester
+        document.querySelectorAll('.btn-device-level').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const lvl = btn.getAttribute('data-level');
+            document.querySelectorAll('.btn-device-level').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const badge = document.getElementById('device-risk-badge');
+            const desc = document.getElementById('device-risk-desc');
+            const count = document.getElementById('device-account-count');
+            count.textContent = `${lvl} Account${lvl > 1 ? 's' : ''}`;
+            if (lvl === '1') {
+              badge.textContent = 'LOW RISK'; badge.className = 'category-badge emerald';
+              desc.textContent = 'Single user on dedicated terminal. Standard profile.';
+            } else if (lvl === '2') {
+              badge.textContent = 'HIGH RISK (HOPPING)'; badge.className = 'category-badge';
+              desc.textContent = '2 distinct users authenticating on same device.';
+            } else {
+              badge.textContent = 'CRITICAL (SYNDICATE)'; badge.className = 'category-badge danger';
+              desc.textContent = '3+ accounts on one device: Money Mule syndicate ring.';
+            }
+            this.audio.playAlert();
+          });
+        });
+
+        // Multi-Agent Consensus Runner
+        const btnConsensus = document.getElementById('btn-run-consensus');
+        btnConsensus?.addEventListener('click', () => {
+          btnConsensus.disabled = true;
+          btnConsensus.textContent = '🤖 Evaluating across 9 Agents...';
+          this.audio.playClick();
+          document.querySelectorAll('.agent-status-card').forEach(c => c.className = 'agent-status-card evaluating');
+          setTimeout(() => {
+            document.querySelectorAll('.agent-status-card').forEach(c => c.className = 'agent-status-card done');
+            document.getElementById('agent-graph').className = 'agent-status-card flagged';
+            document.getElementById('agent-ml').className = 'agent-status-card flagged';
+            document.getElementById('agent-decision').className = 'agent-status-card flagged';
+            document.getElementById('consensus-final-status').innerHTML = '<strong>Consensus Reached:</strong> Score <span style="color:var(--danger);">88 / 100 (CRITICAL)</span>. Action: <strong>RESTRICT & DRAFT SAR</strong>.';
+            this.audio.playSuccess();
+            btnConsensus.disabled = false;
+            btnConsensus.textContent = 'Re-Run Consensus';
+          }, 800);
+        });
+
+        // Live SHA-256 Hasher
+        const shaIn = document.getElementById('sha-input-text');
+        const shaOut = document.getElementById('sha-output-hash');
+        const computeHash = async () => {
+          const text = shaIn?.value || 'OMERTA';
+          const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+          shaOut.textContent = Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        };
+        document.getElementById('btn-calc-sha')?.addEventListener('click', () => { computeHash(); this.audio.playClick(); });
+        shaIn?.addEventListener('input', computeHash);
+
+        // Persona Matrix
+        const pDetails = document.getElementById('persona-detail-display');
+        const personas = {
+          admin: { name: 'Dr. Sarah Al-Rashid', role: 'ADMINISTRATOR', desc: 'Full platform governance, staff provisioning, and risk tuning.' },
+          analyst: { name: 'Tariq Mansour', role: 'FRAUD_ANALYST', desc: 'Alert queue triage, ticket handling, and identity checks.' },
+          investigator: { name: 'Laila El-Kady', role: 'SENIOR_INVESTIGATOR', desc: 'LangGraph multi-agent execution, SAR authoring, and sign-off.' },
+          customer: { name: 'Ziad Karim', role: 'CUSTOMER', desc: '50,000 EGP balance, transfers, and support requests.' }
+        };
+        document.querySelectorAll('.persona-tab-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('.persona-tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const p = personas[btn.getAttribute('data-persona')];
+            pDetails.innerHTML = `
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h4 style="font-family:var(--font-display); font-size:18px; font-weight:700;">${p.name}</h4>
+                <span class="category-badge emerald">${p.role}</span>
+              </div>
+              <div style="font-size:12px; color:var(--text-muted); line-height:1.45;">${p.desc}</div>
+            `;
+            this.audio.playClick();
+          });
+        });
+
+        // Case Studies Switcher
+        const caseDetail = document.getElementById('case-study-detail');
+        const cases = {
+          'case-legit': { title: 'TXN-LEGIT-101: Supermarket POS (Routine)', score: 'LOW (Score: 6/100)', amt: '1,250.00 EGP' },
+          'case-smurf': { title: 'TXN-RISK-501: Cash Structuring Smurf', score: 'CRITICAL (Score: 89/100)', amt: '48,900.00 EGP' },
+          'case-syndicate': { title: 'TXN-RISK-502: Hardware Mule Syndicate', score: 'CRITICAL (Score: 94/100)', amt: '35,000.00 EGP' },
+          'case-ato': { title: 'TXN-RISK-503: ATO Rapid Liquidation', score: 'CRITICAL (Score: 91/100)', amt: '42,000.00 EGP' }
+        };
+        document.querySelectorAll('.case-study-tab').forEach(tab => {
+          tab.addEventListener('click', () => {
+            document.querySelectorAll('.case-study-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            const c = cases[tab.getAttribute('data-case')];
+            caseDetail.innerHTML = `
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h4 style="font-family:var(--font-display); font-size:16px; font-weight:700;">${c.title}</h4>
+                <span class="category-badge danger">${c.score}</span>
+              </div>
+              <div class="metric-box" style="margin-bottom:8px;">
+                <span class="metric-label">Amount</span>
+                <span class="metric-value danger">${c.amt}</span>
+              </div>
+            `;
+            this.audio.playClick();
+          });
+        });
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      window.deck = new PresentationDeck();
+    });
+  </script>
+</body>
+</html>

@@ -61,11 +61,13 @@ class TransactionHistoryAgent:
                 created_dt = created_dt.replace(tzinfo=UTC)
             account_age_days = max(0, (anchor_time - created_dt).days)
 
-        # 2. Query Pre-Transaction Historical Outgoing Transactions (up to 30 days)
-        # Excludes current transaction strictly (t.timestamp < anchor_time or t.id != current_transaction_id)
+        # 2. Query Pre-Transaction Historical Outgoing Transactions (strictly within 30-day window)
+        # Excludes current transaction strictly (t.timestamp < anchor_time and t.id != current_transaction_id)
+        # Bounded between [thirty_days_ago, anchor_time) to avoid labeling lifetime data as 30-day baseline
         thirty_days_ago = anchor_time - timedelta(days=30)
         history_filters = [
             Transaction.account_id == account_id,
+            Transaction.timestamp >= thirty_days_ago,
             Transaction.timestamp < anchor_time,
             Transaction.status == "COMPLETED",
         ]
@@ -80,12 +82,29 @@ class TransactionHistoryAgent:
         res = await self.session.scalars(history_stmt)
         tx_history = res.all()
 
-        # 3. Query Pre-Transaction Incoming Transactions (30 days)
+        # Query lifetime aggregates efficiently without loading unlimited rows into memory
+        lifetime_filters = [
+            Transaction.account_id == account_id,
+            Transaction.timestamp < anchor_time,
+            Transaction.status == "COMPLETED",
+        ]
+        if current_transaction_id:
+            lifetime_filters.append(Transaction.id != current_transaction_id)
+
+        lifetime_count = await self.session.scalar(
+            select(func.count(Transaction.id)).where(and_(*lifetime_filters))
+        ) or 0
+        lifetime_total = float(await self.session.scalar(
+            select(func.coalesce(func.sum(Transaction.amount), 0)).where(and_(*lifetime_filters))
+        ) or 0.0)
+
+        # 3. Query Pre-Transaction Incoming Transactions (strictly within 30-day window)
         incoming_stmt = (
             select(Transaction)
             .where(
                 and_(
                     Transaction.recipient_account_id == account_id,
+                    Transaction.timestamp >= thirty_days_ago,
                     Transaction.timestamp < anchor_time,
                     Transaction.status == "COMPLETED",
                 )
@@ -101,6 +120,7 @@ class TransactionHistoryAgent:
             .where(
                 and_(
                     Transaction.account_id == account_id,
+                    Transaction.timestamp >= thirty_days_ago,
                     Transaction.timestamp < anchor_time,
                     Transaction.status.in_(["FAILED", "REVERSED", "CANCELLED"]),
                 )
@@ -108,29 +128,32 @@ class TransactionHistoryAgent:
         )
         failed_reversed_count = await self.session.scalar(failed_stmt) or 0
 
-        # 5. Extract Historical Amounts & Rolling Metrics
-        outgoing_amounts = [float(t.amount) for t in tx_history]
-        total_history_count = len(outgoing_amounts)
+        # Helper to ensure timezone awareness for comparison
+        def _to_aware(dt: datetime) -> datetime:
+            return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
-        # Rolling window partitions
+        # 5. Extract Historical Amounts & Rolling Metrics strictly within defined windows
+        outgoing_amounts = [float(t.amount) for t in tx_history]
+        total_30d_count = len(outgoing_amounts)
+
+        # Rolling window partitions with explicit inclusive lower & exclusive upper bounds [start, anchor_time)
         five_min_ago = anchor_time - timedelta(minutes=5)
         fifteen_min_ago = anchor_time - timedelta(minutes=15)
         sixty_min_ago = anchor_time - timedelta(minutes=60)
         twenty_four_h_ago = anchor_time - timedelta(hours=24)
         seven_days_ago = anchor_time - timedelta(days=7)
 
-        tx_5m = [t for t in tx_history if t.timestamp >= five_min_ago]
-        tx_15m = [t for t in tx_history if t.timestamp >= fifteen_min_ago]
-        tx_60m = [t for t in tx_history if t.timestamp >= sixty_min_ago]
-        tx_24h = [t for t in tx_history if t.timestamp >= twenty_four_h_ago]
-        tx_7d = [t for t in tx_history if t.timestamp >= seven_days_ago]
+        tx_5m = [t for t in tx_history if five_min_ago <= _to_aware(t.timestamp) < anchor_time]
+        tx_15m = [t for t in tx_history if fifteen_min_ago <= _to_aware(t.timestamp) < anchor_time]
+        tx_60m = [t for t in tx_history if sixty_min_ago <= _to_aware(t.timestamp) < anchor_time]
+        tx_24h = [t for t in tx_history if twenty_four_h_ago <= _to_aware(t.timestamp) < anchor_time]
+        tx_7d = [t for t in tx_history if seven_days_ago <= _to_aware(t.timestamp) < anchor_time]
+        tx_30d = [t for t in tx_history if thirty_days_ago <= _to_aware(t.timestamp) < anchor_time]
 
         # Time since last completed transaction
         time_since_last_sec: float | None = None
         if tx_history:
-            last_ts = tx_history[0].timestamp
-            if last_ts.tzinfo is None:
-                last_ts = last_ts.replace(tzinfo=UTC)
+            last_ts = _to_aware(tx_history[0].timestamp)
             time_since_last_sec = max(0.0, (anchor_time - last_ts).total_seconds())
 
         # Beneficiary Analysis
@@ -140,21 +163,21 @@ class TransactionHistoryAgent:
         if recipient_account_id:
             is_first_with_beneficiary = recipient_account_id not in historical_beneficiaries
 
-        # Statistical Calculations (Average, Median, Max, P95)
-        if total_history_count >= 1:
-            historical_avg = sum(outgoing_amounts) / total_history_count
+        # Statistical Calculations (Average, Median, Max, P95 computed on verified 30-day outgoing baseline)
+        if total_30d_count >= 1:
+            historical_avg = sum(outgoing_amounts) / total_30d_count
             historical_max = max(outgoing_amounts)
             sorted_amounts = sorted(outgoing_amounts)
             # Median
-            mid = total_history_count // 2
-            if total_history_count % 2 == 0:
+            mid = total_30d_count // 2
+            if total_30d_count % 2 == 0:
                 historical_median = (sorted_amounts[mid - 1] + sorted_amounts[mid]) / 2.0
             else:
                 historical_median = sorted_amounts[mid]
 
             # 95th Percentile
-            if total_history_count >= 5:
-                p95_idx = min(total_history_count - 1, int(math.ceil(0.95 * total_history_count)) - 1)
+            if total_30d_count >= 5:
+                p95_idx = min(total_30d_count - 1, int(math.ceil(0.95 * total_30d_count)) - 1)
                 historical_p95 = sorted_amounts[p95_idx]
             else:
                 historical_p95 = historical_max
@@ -179,7 +202,7 @@ class TransactionHistoryAgent:
             outgoing_total_24h=sum(float(t.amount) for t in tx_24h),
             previous_transactions_7d=len(tx_7d),
             outgoing_total_7d=sum(float(t.amount) for t in tx_7d),
-            previous_transactions_30d=total_history_count,
+            previous_transactions_30d=total_30d_count,
             outgoing_total_30d=sum(outgoing_amounts),
             incoming_total_30d=incoming_total_30d,
             historical_average_amount=round(historical_avg, 2),
@@ -189,8 +212,8 @@ class TransactionHistoryAgent:
             current_amount=current_amount,
             amount_to_average_ratio=amount_to_avg_ratio,
             amount_to_p95_ratio=amount_to_p95_ratio,
-            withdrawal_count=total_history_count,
-            withdrawal_total=sum(outgoing_amounts),
+            withdrawal_count=lifetime_count,
+            withdrawal_total=lifetime_total,
             distinct_beneficiaries_count=distinct_beneficiaries_count,
             is_first_transaction_with_beneficiary=is_first_with_beneficiary,
             failed_reversed_count=failed_reversed_count,
@@ -204,14 +227,14 @@ class TransactionHistoryAgent:
         points_breakdown: dict[str, float] = {}
         base_score = 0.0
 
-        if total_history_count < 3:
+        if total_30d_count < 3:
             # Insufficient history baseline
             data_quality = AgentDataQuality(
-                history_available=total_history_count > 0,
-                record_count=total_history_count,
+                history_available=total_30d_count > 0,
+                record_count=total_30d_count,
                 lookback_days=30,
                 is_sufficient=False,
-                quality_notes="INSUFFICIENT_HISTORY: Fewer than 3 historical records. Baseline uncalibrated.",
+                quality_notes="INSUFFICIENT_HISTORY: Fewer than 3 historical records in 30-day baseline. Baseline uncalibrated.",
             )
             # Moderately elevated caution score for new accounts without history
             base_score = 25.0
@@ -222,18 +245,18 @@ class TransactionHistoryAgent:
                     rule_name="Uncalibrated Baseline / New Account",
                     points=25.0,
                     severity="LOW",
-                    reason=f"Account has only {total_history_count} previous recorded transaction(s). Operating under conservative baseline.",
+                    reason=f"Account has only {total_30d_count} previous recorded transaction(s) in the 30-day window. Operating under conservative baseline.",
                     evidence_ids=[f"ACC:{account_id}"],
-                    observed_values={"history_count": total_history_count},
+                    observed_values={"history_count": total_30d_count},
                 )
             )
         else:
             data_quality = AgentDataQuality(
                 history_available=True,
-                record_count=total_history_count,
+                record_count=total_30d_count,
                 lookback_days=30,
                 is_sufficient=True,
-                quality_notes=f"Established baseline over {total_history_count} transactions across 30 days.",
+                quality_notes=f"Established baseline over {total_30d_count} transactions across 30 days.",
             )
 
             # Finding: Outlier Amount Ratio

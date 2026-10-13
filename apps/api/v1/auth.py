@@ -182,8 +182,6 @@ async def register(body: RegisterRequest, request: Request) -> AuthResponse:
 
     # Auto-resolve username
     effective_username = (body.username.strip() if body.username and body.username.strip() else body.email.split("@")[0].strip())
-    import re
-    effective_username = re.sub(r"[^a-zA-Z0-9_-]", "_", effective_username)[:30]
 
     # Map Country name to standard code
     country_map = {

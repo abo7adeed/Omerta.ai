@@ -56,11 +56,12 @@ async def test_dual_password_registration_and_validation(seeded_db):
         assert "different from your Account Login Password" in res.text or "TRANSFER_PASSWORD_CANNOT_MATCH_ACCOUNT_PASSWORD" in res.text
 
         # Case 2: Valid distinct passwords and National ID (MUST SUCCEED)
+        valid_nat_id = f"2980101{secrets.randbelow(9000000) + 1000000}"
         valid_payload = {
             "full_name": "Tariq Mansour",
-            "email": "tariq.mansour@omerta.ai",
-            "username": "tariq_mansour",
-            "national_id_number": "29801011234567",
+            "email": f"tariq.{secrets.token_hex(4)}@omerta.ai",
+            "username": f"tariq_{secrets.token_hex(4)}",
+            "national_id_number": valid_nat_id,
             "password": "AccountLoginPass2026!",
             "confirm_password": "AccountLoginPass2026!",
             "transfer_password": "TransferSecure2026!",
@@ -76,7 +77,7 @@ async def test_dual_password_registration_and_validation(seeded_db):
 
         assert "access_token" in data
         assert data["customer"]["name"] == "Tariq Mansour"
-        assert data["customer"]["national_id_number"] == "29801011234567"
+        assert data["customer"]["national_id_number"] == valid_nat_id
         assert data["customer"]["transfer_status"] == "ACTIVE"
 
 

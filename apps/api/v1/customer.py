@@ -334,12 +334,18 @@ async def initiate_transfer(
             headers=dict(request.headers),
         )
 
-        if is_vpn_detected:
-            # Audit VPN detection event; transfer_service will place transaction on verification hold
+        # Untrusted foreign exit nodes or commercial hosting datacenter origins are blocked outright with 403
+        is_hard_block = is_vpn_detected and (
+            (body.isp and any(kw in body.isp.lower() for kw in ["hosting", "m247", "datacenter", "nordvpn"]))
+            or (body.country and body.country.upper() != (customer.declared_country or "EG").upper())
+        )
+
+        if is_hard_block:
+            # Audit VPN detection event and block transfer attempt
             session.add(
                 AuditEvent(
                     event_id=f"EVT-VPN-{secrets.token_hex(4).upper()}",
-                    event_type="VPN_TRANSFER_HELD_FOR_VERIFICATION",
+                    event_type="VPN_TRANSFER_BLOCKED_POLICY",
                     actor_type="CUSTOMER",
                     actor_id=str(customer.user_id),
                     source="SecurityRiskEngine",
@@ -348,11 +354,19 @@ async def initiate_transfer(
                         "amount": str(body.amount),
                         "customer_id": customer.external_id,
                         "client_ip": effective_ip,
-                        "action": "PENDING_CUSTOMER_VERIFICATION",
+                        "action": "VPN_TRANSFER_BLOCKED",
                     },
                 )
             )
             await session.commit()
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "VPN_TRANSFER_BLOCKED",
+                    "message": f"Security Policy Violation: Financial transfers originated through commercial VPNs, proxies, or anonymizer tunnels ({vpn_reason}) are strictly prohibited. Please disconnect from your VPN and use a verified direct connection.",
+                    "vpn_reason": vpn_reason,
+                },
+            )
 
         try:
             sender_acc = body.resolved_sender_account_id

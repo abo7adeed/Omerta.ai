@@ -3,7 +3,7 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
-from fastapi import APIRouter, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,7 @@ from domain.services.banking_transaction_service import BankingTransactionServic
 from domain.services.mock_risk_engine import MockRiskAssessmentEngine
 from infrastructure.database.models import Account, Device, IPAddress, Transaction
 from infrastructure.database.session import get_engine
+from infrastructure.security.jwt_auth import get_current_user, get_current_user_optional
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
@@ -158,21 +159,35 @@ async def create_transaction(body: CreateTransactionRequest) -> dict[str, Any]:
 
 class CustomerConfirmationPayload(BaseModel):
     action: str = "CONFIRM"  # CONFIRM | DENY
+    token: str | None = None  # Single-use signed action token for email flow
 
 
 @router.post("/{transaction_id}/customer-confirmation")
 async def handle_transaction_customer_confirmation(
     transaction_id: str,
     payload: CustomerConfirmationPayload,
+    current_user: dict[str, Any] | None = Depends(get_current_user_optional),
 ) -> dict[str, Any]:
-    """Record customer confirmation (CONFIRM) or fraud denial (DENY) on a held transfer."""
+    """Record customer confirmation (CONFIRM) or fraud denial (DENY) on a held transfer.
+    
+    Security:
+    - If token is supplied: Validates single-use cryptographically signed token.
+    - If no token: Enforces authenticated customer session and verifies transaction ownership.
+    - Never accepts request solely by supplying transaction ID.
+    """
     from domain.services.transfer_service import TransferService, TransferError
-
     from sqlalchemy.orm import selectinload
     from sqlalchemy import or_
-    from infrastructure.database.models import Transfer
+    from infrastructure.database.models import Transfer, Customer
+
+    if not current_user and not payload.token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "UNAUTHORIZED", "message": "Authentication required or valid single-use token must be provided."},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     async with AsyncSession(get_engine(), expire_on_commit=False) as session:
-        # Find transaction with account and customer loaded (supports either TXN or TRF reference)
         txn_stmt = (
             select(Transaction)
             .options(selectinload(Transaction.account).selectinload(Account.customer))
@@ -190,14 +205,30 @@ async def handle_transaction_customer_confirmation(
         if not txn:
             raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": f"Transaction {transaction_id} not found"})
 
-        cust = txn.account.customer if (txn.account and txn.account.customer) else None
-        user_id = cust.user_id if cust and cust.user_id else 1
+        sender_cust = txn.account.customer if txn.account else None
+        caller_user_id = None
+
+        from domain.services.customer_service import CustomerService
+
+        if current_user:
+            cust_svc = CustomerService(session)
+            caller_cust = await cust_svc.get_customer_by_user_id(current_user["sub"])
+            caller_user_id = caller_cust.user_id if caller_cust else (int(current_user["sub"]) if str(current_user["sub"]).isdigit() else None)
+
+            # Verify ownership if no signed token
+            if not payload.token and (not sender_cust or sender_cust.user_id != caller_user_id):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={"error": "FORBIDDEN", "message": "You do not have permission to act on this transaction."},
+                )
+
         transfer_svc = TransferService(session)
         try:
             return await transfer_svc.handle_customer_confirmation(
                 transaction_external_id=txn.external_id,
                 action=payload.action,
-                customer_user_id=user_id,
+                customer_user_id=caller_user_id,
+                token=payload.token,
             )
         except TransferError as terr:
             raise HTTPException(status_code=terr.status_code, detail={"error": terr.code, "message": terr.message})
@@ -206,16 +237,42 @@ async def handle_transaction_customer_confirmation(
 @router.get("/{transaction_id}/history")
 async def get_transaction_history_intel(
     transaction_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Retrieve rolling multi-window historical intelligence for the transaction's sender account."""
+    """Retrieve rolling multi-window historical intelligence for the transaction's sender account.
+    
+    Security: Enforces authentication and IDOR protection (customer can only view own account; analysts allowed).
+    """
     from domain.investigation.history_agent import TransactionHistoryAgent
+    from domain.services.customer_service import CustomerService
+    from sqlalchemy.orm import selectinload
+    from infrastructure.database.models import Customer
 
     async with AsyncSession(get_engine(), expire_on_commit=False) as session:
         txn = await session.scalar(
-            select(Transaction).where(Transaction.external_id == transaction_id).limit(1)
+            select(Transaction)
+            .options(selectinload(Transaction.account).selectinload(Account.customer))
+            .where(Transaction.external_id == transaction_id)
+            .limit(1)
         )
         if not txn:
             raise HTTPException(status_code=404, detail={"error": "NOT_FOUND", "message": f"Transaction {transaction_id} not found"})
+
+        user_role = current_user.get("role", "CUSTOMER")
+        is_staff = user_role in ["ADMINISTRATOR", "SUB_ADMINISTRATOR", "FRAUD_ANALYST", "INVESTIGATOR", "SENIOR_INVESTIGATOR", "AUDITOR"]
+
+        if not is_staff:
+            # Must own the transaction's account
+            cust = txn.account.customer if txn.account else None
+            cust_svc = CustomerService(session)
+            caller_cust = await cust_svc.get_customer_by_user_id(current_user["sub"])
+            caller_user_id = caller_cust.user_id if caller_cust else (int(current_user["sub"]) if str(current_user["sub"]).isdigit() else None)
+
+            if not cust or cust.user_id != caller_user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={"error": "FORBIDDEN", "message": "Access denied: you do not own this transaction's account history."},
+                )
 
         agent = TransactionHistoryAgent(session)
         result = await agent.analyze(

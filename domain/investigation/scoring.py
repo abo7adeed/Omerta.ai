@@ -209,6 +209,10 @@ def calculate_final_risk_score(
     final_score = round(max(0.0, min(100.0, composite_score)), 2)
 
     # 3. Determine Risk Tier from Configured Thresholds
+    # Geographic impossible travel escalates minimum score to HIGH tier
+    if "RULE-GEO-TRAVEL-001" in triggered_rule_ids or "IMPOSSIBLE_TRAVEL_VELOCITY" in triggered_rule_ids:
+        final_score = max(final_score, 65.0)
+
     if final_score < 20.0:
         risk_tier = RiskTier.LOW
     elif final_score < 40.0:
@@ -277,16 +281,19 @@ def calculate_final_risk_score(
         hold_reasons.append("Commercial VPN/proxy detected on transfer session origin. Mandatory customer confirmation triggered.")
 
     # Overriding Control E: Composite score thresholds
-    if final_score >= 60.0:
+    if final_score >= 80.0:
         requires_hold = True
-        requires_verification = True
         requires_review = True
-        hold_reasons.append(f"Composite risk score ({final_score:.1f}/100) exceeds high-risk policy threshold (60.0).")
+        hold_reasons.append(f"Composite risk score ({final_score:.1f}/100) exceeds critical-risk policy threshold (80.0).")
     elif final_score >= 40.0:
-        requires_hold = True
-        requires_verification = True
         requires_review = True
         hold_reasons.append(f"Composite risk score ({final_score:.1f}/100) triggers elevated review threshold (40.0).")
+
+    # Overriding Control F: Fail-safe conservative hold for missing or failed mandatory evidence
+    if has_failed_required_agent:
+        requires_hold = True
+        requires_review = True
+        hold_reasons.append("Mandatory specialist risk evidence unavailable or failed. Fail-safe conservative security hold applied awaiting analyst review.")
 
     # 6. Synthesize Final Policy Decision
     if requires_hold:
@@ -294,8 +301,6 @@ def calculate_final_risk_score(
             decision = TransactionDecision.PENDING_CUSTOMER_VERIFICATION
         else:
             decision = TransactionDecision.PENDING_REVIEW
-    elif requires_review:
-        decision = TransactionDecision.PENDING_REVIEW
     else:
         decision = TransactionDecision.ALLOW
 

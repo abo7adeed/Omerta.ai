@@ -106,7 +106,7 @@ async def test_three_strikes_lockout_and_automatic_ticket_creation(seeded_db):
             "full_name": f"Test User {suffix}",
             "email": f"user.{suffix}@omerta.ai",
             "username": f"user_{suffix}",
-            "national_id_number": "29801011987654",
+            "national_id_number": f"298{secrets.randbelow(89999999999) + 10000000000}",
             "password": "LoginPassword2026!",
             "confirm_password": "LoginPassword2026!",
             "transfer_password": "TransferPassword2026!",

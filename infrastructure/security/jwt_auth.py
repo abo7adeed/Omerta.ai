@@ -16,11 +16,12 @@ from typing import Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import jwt
+import os
 
 logger = logging.getLogger(__name__)
 
 # Fallback secret for local development; in production override via JWT_SECRET env
-JWT_SECRET = "omerta_dev_jwt_secret_key_banking_intelligence_2026_super_secure"
+JWT_SECRET = os.getenv("JWT_SECRET", "omerta_dev_jwt_secret_key_banking_intelligence_2026_super_secure")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
@@ -126,6 +127,13 @@ async def get_current_user(
 ) -> dict[str, Any]:
     """Enforce authenticated user token and verify active session state in database."""
     if not credentials or not credentials.credentials:
+        is_prod = os.getenv("ENVIRONMENT", "development").lower() in ("production", "prod")
+        if is_prod:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"error": "UNAUTHORIZED", "message": "Authentication required. Bearer token missing."},
+                headers={"WWW-Authenticate": "Bearer"},
+            )
         # Default mock user for local testing fallback when no bearer token is supplied
         return {
             "sub": "USR-001",

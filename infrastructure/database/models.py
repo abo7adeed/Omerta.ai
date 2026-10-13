@@ -850,8 +850,36 @@ class IdentityVerification(TimestampMixin, Base):
     )
 
 
+
+class TransactionConfirmationToken(Base):
+    """Cryptographically secure, single-use, short-lived tokens for customer transfer confirmation."""
+
+    __tablename__ = "transaction_confirmation_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    transaction_id: Mapped[int] = mapped_column(
+        ForeignKey("transactions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("customers.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    # CONFIRM | DENY | ANY
+    allowed_action: Mapped[str] = mapped_column(String(16), default="ANY")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    transaction: Mapped["Transaction"] = relationship()
+    customer: Mapped["Customer"] = relationship()
+
+
 async def init_db(engine: AsyncEngine) -> None:
     """Create all database tables asynchronously if they don't already exist."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
 

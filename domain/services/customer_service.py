@@ -109,6 +109,14 @@ class CustomerService:
             if existing_phone:
                 raise ValueError(f"A customer profile with mobile phone '{clean_phone}' is already registered.")
 
+        # 6. Check existing customer by registered legal name
+        if clean_name:
+            existing_name = await self.session.scalar(
+                select(Customer).where(func.lower(Customer.name) == clean_name.lower()).limit(1)
+            )
+            if existing_name:
+                raise ValueError(f"A customer profile with legal name '{clean_name}' is already registered.")
+
         # Ensure unique user number
         for _ in range(10):
             candidate_number = self.generate_omerta_user_number()
@@ -800,7 +808,7 @@ class CustomerService:
         """Record login telemetry, enforce single active session constraint, and detect multi-accounts on device."""
         now = datetime.now(UTC)
 
-        # 1. Enforce Single-Session Constraint: Check if an active session already exists for THIS user
+        # 1. Enforce Single-Session Constraint: Automatically revoke previous active sessions for THIS user
         active_stmt = (
             select(Session)
             .where(and_(Session.user_id == user.id, Session.is_active.is_(True)))
@@ -808,18 +816,12 @@ class CustomerService:
         )
         active_sessions = (await self.session.scalars(active_stmt)).all()
 
-        if active_sessions and not force_login:
-            return (
-                False,
-                f"Active Session Detected: Account '{user.username}' is currently logged in on another device or browser. You cannot sign in from another place until you log out from the other session.",
-                {"active_sessions_count": len(active_sessions)},
-            )
-
         for s in active_sessions:
             s.is_active = False
             s.ended_at = now
             s.revoked_at = now
-        await self.session.flush()
+        if active_sessions:
+            await self.session.flush()
 
         # 2. Find or create IPAddress
         ip_rec = await self.session.scalar(
