@@ -1448,7 +1448,7 @@ async def generate_professional_forensic_report(state: AccountInvestigationState
         llm = get_llm_provider()
         llm_reply = await asyncio.wait_for(
             llm.complete(system=system_prompt, user=user_facts),
-            timeout=10.0,
+            timeout=60.0,
         )
 
         if llm_reply and hasattr(llm_reply, "content"):

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Share2,
   RefreshCw,
@@ -8,13 +9,18 @@ import {
   Maximize2,
   Search,
   AlertTriangle,
-  Move,
   Smartphone,
   Globe,
   User,
-  ArrowRight,
   Shield,
+  ShieldCheck,
+  CheckCircle2,
+  XCircle,
+  ArrowRight,
+  ArrowDownLeft,
+  ArrowUpRight,
   Layers,
+  Filter,
 } from 'lucide-react';
 import { api } from '../api/client';
 import type { GraphNode, GraphLink } from '../types';
@@ -37,17 +43,38 @@ interface NodeCoord {
   cy: number;
 }
 
+interface AggregatedLink {
+  id: string;
+  source: string;
+  target: string;
+  type: string;
+  totalAmount: number;
+  count: number;
+  currency: string;
+  isSuspicious: boolean;
+  pathD: string;
+  labelX: number;
+  labelY: number;
+  isTransfer: boolean;
+  notes: string[];
+}
+
 export const NetworkAnalysisPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawEntity = searchParams.get('entity');
+  const initialEntity = rawEntity && rawEntity !== 'undefined' && rawEntity !== 'null' ? rawEntity.trim() : '';
+
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [links, setLinks] = useState<GraphLink[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeFocus, setActiveFocus] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState(initialEntity);
+  const [activeFocus, setActiveFocus] = useState<string>(initialEntity);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'TRANSFER' | 'INFRASTRUCTURE'>('ALL');
-  const [hoveredLink, setHoveredLink] = useState<GraphLink | null>(null);
+  const [directOnly, setDirectOnly] = useState<boolean>(true);
+  const [hoveredLink, setHoveredLink] = useState<AggregatedLink | null>(null);
 
   // Auto-complete suggestions state
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
@@ -62,12 +89,14 @@ export const NetworkAnalysisPage: React.FC = () => {
   const panStartRef = useRef({ x: 0, y: 0 });
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const fetchGraph = async (focus?: string) => {
+  const fetchGraph = async (focus?: string, direct: boolean = directOnly) => {
     setLoading(true);
     setShowSuggestions(false);
+    const targetFocus = focus !== undefined ? focus.trim() : activeFocus.trim();
     try {
       const res = await api.getNetworkGraph({
-        focus_entity_id: focus ? focus.trim() : undefined,
+        focus_entity_id: targetFocus || undefined,
+        direct_only: direct,
         max_nodes: 50,
       });
       const returnedNodes: GraphNode[] = res.nodes || [];
@@ -75,11 +104,18 @@ export const NetworkAnalysisPage: React.FC = () => {
 
       setNodes(returnedNodes);
       setLinks(returnedLinks);
-      setActiveFocus(focus || '');
+      setActiveFocus(targetFocus);
+
+      // Keep search params in sync
+      if (targetFocus) {
+        setSearchParams({ entity: targetFocus }, { replace: true });
+      } else {
+        setSearchParams({}, { replace: true });
+      }
 
       if (returnedNodes.length > 0) {
-        if (focus) {
-          const fLower = focus.toLowerCase();
+        if (targetFocus) {
+          const fLower = targetFocus.toLowerCase();
           const matched = returnedNodes.find(
             (n) =>
               n.id.toLowerCase() === fLower ||
@@ -102,7 +138,7 @@ export const NetworkAnalysisPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchGraph();
+    fetchGraph(initialEntity, true);
   }, []);
 
   // Debounced live search suggestions
@@ -151,7 +187,45 @@ export const NetworkAnalysisPage: React.FC = () => {
     return links;
   }, [links, activeFilter]);
 
-  // Compute clean layout with guaranteed collision elimination
+  // Aggregate parallel links in the same direction to completely prevent label overlap/clashing
+  const aggregatedLinks = useMemo(() => {
+    const map = new Map<string, AggregatedLink>();
+
+    filteredLinks.forEach((link) => {
+      const isTransfer = link.type === 'TRANSFER';
+      const key = `${link.source}->${link.target}:${link.type}`;
+      const amt = Number(link.amount) || 0;
+      const isSusp = Boolean(link.is_suspicious || (link.risk_score && link.risk_score > 40));
+
+      if (map.has(key)) {
+        const existing = map.get(key)!;
+        existing.totalAmount += amt;
+        existing.count += 1;
+        if (isSusp) existing.isSuspicious = true;
+        if (link.label) existing.notes.push(link.label);
+      } else {
+        map.set(key, {
+          id: key,
+          source: link.source,
+          target: link.target,
+          type: link.type,
+          totalAmount: amt,
+          count: 1,
+          currency: link.currency || 'EGP',
+          isSuspicious: isSusp,
+          pathD: '',
+          labelX: 0,
+          labelY: 0,
+          isTransfer,
+          notes: link.label ? [link.label] : [],
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [filteredLinks]);
+
+  // Compute clean layout with guaranteed collision elimination and ample spacing
   useEffect(() => {
     if (nodes.length === 0) {
       setNodePositions({});
@@ -163,52 +237,64 @@ export const NetworkAnalysisPage: React.FC = () => {
     const focusNode = nodes.find((n) => n.id === focusNodeId) || nodes[0];
     const otherNodes = nodes.filter((n) => n.id !== focusNode.id);
 
-    // 1. Anchor Focus Node centrally
-    posMap[focusNode.id] = { cx: 480, cy: 300 };
+    // Canvas coordinate space: 1100 x 700
+    // 1. Anchor Focus Node centrally with plenty of clearance
+    posMap[focusNode.id] = { cx: 540, cy: 350 };
 
-    // Group remaining nodes by role/type
+    // Group remaining nodes
     const counterparties = otherNodes.filter((n) => n.type === 'ACCOUNT');
     const devices = otherNodes.filter((n) => n.type === 'DEVICE');
     const ips = otherNodes.filter((n) => n.type === 'IP_ADDRESS');
 
-    // 2. Position Counterparty Accounts on the Left quadrant
+    // 2. Position Counterparties on the Left and Center-Bottom quadrants
     counterparties.forEach((n, idx) => {
       const total = counterparties.length;
-      const ySpread = total > 1 ? (idx / (total - 1)) * 320 - 160 : 0;
-      posMap[n.id] = {
-        cx: 190 - (idx % 2 === 0 ? 30 : -20),
-        cy: 300 + ySpread,
-      };
+      if (total <= 4) {
+        // Generous vertical arc on the left
+        const yPos = 180 + (idx / Math.max(1, total - 1)) * 340;
+        posMap[n.id] = {
+          cx: 200 - (idx % 2 === 0 ? 30 : -20),
+          cy: total === 1 ? 350 : yPos,
+        };
+      } else {
+        // Semi-circle around left and bottom
+        const angle = Math.PI * 0.6 + (idx / (total - 1)) * Math.PI * 0.9;
+        const radius = 270;
+        posMap[n.id] = {
+          cx: 540 + radius * Math.cos(angle),
+          cy: 350 + radius * Math.sin(angle),
+        };
+      }
     });
 
     // 3. Position Hardware Devices in Top-Right quadrant
     devices.forEach((n, idx) => {
       const total = devices.length;
-      const xOffset = (idx % 2) * 80;
-      const yOffset = Math.floor(idx / 2) * 90;
+      const xOffset = (idx % 2) * 90;
+      const yOffset = Math.floor(idx / 2) * 110;
       posMap[n.id] = {
-        cx: 740 + xOffset,
-        cy: 180 + yOffset,
+        cx: 840 + xOffset,
+        cy: 160 + yOffset,
       };
     });
 
-    // 4. Position IP Addresses in Bottom-Right quadrant
+    // 4. Position IP Endpoints in Bottom-Right quadrant
     ips.forEach((n, idx) => {
       const total = ips.length;
-      const xOffset = (idx % 2) * 80;
-      const yOffset = Math.floor(idx / 2) * 90;
+      const xOffset = (idx % 2) * 90;
+      const yOffset = Math.floor(idx / 2) * 110;
       posMap[n.id] = {
-        cx: 740 + xOffset,
-        cy: 420 + yOffset,
+        cx: 840 + xOffset,
+        cy: 450 + yOffset,
       };
     });
 
-    // 5. Physics Collision Relaxation pass (Force-directed repulsion)
-    // Mathematically guarantees that no two nodes overlap (min distance = 160px)
+    // 5. Physics Collision Relaxation pass
+    // Mathematically guarantees that no two nodes overlap (min distance = 190px)
     const allNodeList = [focusNode, ...otherNodes];
-    const MIN_DISTANCE = 160;
+    const MIN_DISTANCE = 190;
 
-    for (let iter = 0; iter < 140; iter++) {
+    for (let iter = 0; iter < 160; iter++) {
       for (let i = 0; i < allNodeList.length; i++) {
         for (let j = i + 1; j < allNodeList.length; j++) {
           const uId = allNodeList[i].id;
@@ -226,7 +312,7 @@ export const NetworkAnalysisPage: React.FC = () => {
             const nx = dx / dist;
             const ny = dy / dist;
 
-            // Push apart along vector (focus node has higher inertia)
+            // Focus node has high inertia
             if (uId !== focusNode.id) {
               u.cx -= nx * overlap * 0.85;
               u.cy -= ny * overlap * 0.85;
@@ -239,11 +325,11 @@ export const NetworkAnalysisPage: React.FC = () => {
         }
       }
 
-      // Constrain inside boundaries [90, 870] x [80, 520]
+      // Constrain inside boundaries [100, 1020] x [80, 620]
       for (const id in posMap) {
         if (id !== focusNode.id) {
-          posMap[id].cx = Math.max(90, Math.min(870, posMap[id].cx));
-          posMap[id].cy = Math.max(80, Math.min(520, posMap[id].cy));
+          posMap[id].cx = Math.max(100, Math.min(1020, posMap[id].cx));
+          posMap[id].cy = Math.max(80, Math.min(620, posMap[id].cy));
         }
       }
     }
@@ -251,42 +337,45 @@ export const NetworkAnalysisPage: React.FC = () => {
     setNodePositions(posMap);
   }, [nodes, links, selectedNode?.id]);
 
-  // Compute curved paths for parallel and bidirectional links
+  // Compute curved paths with collision-free label placements
   const computedLinks = useMemo(() => {
-    // Group links by unordered node pair
-    const pairGroups = new Map<string, GraphLink[]>();
-    filteredLinks.forEach((l) => {
-      const key = [l.source, l.target].sort().join('___');
-      const list = pairGroups.get(key) || [];
-      list.push(l);
-      pairGroups.set(key, list);
+    // Check for bidirectional pairs (A->B and B->A)
+    const directionPairs = new Set<string>();
+    aggregatedLinks.forEach((l) => {
+      directionPairs.add(`${l.source}___${l.target}`);
     });
 
-    return filteredLinks
-      .map((link, idx) => {
+    return aggregatedLinks
+      .map((link) => {
         const srcPos = nodePositions[link.source];
         const tgtPos = nodePositions[link.target];
         if (!srcPos || !tgtPos) return null;
 
-        const key = [link.source, link.target].sort().join('___');
-        const group = pairGroups.get(key) || [link];
-        const linkIndex = group.indexOf(link);
-        const isMulti = group.length > 1;
+        const reverseKey = `${link.target}___${link.source}`;
+        const hasReverse = directionPairs.has(reverseKey);
 
-        // Normal vector perpendicular to connecting line
+        // Vector calculation
         const dx = tgtPos.cx - srcPos.cx;
         const dy = tgtPos.cy - srcPos.cy;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
         const nx = -dy / dist;
         const ny = dx / dist;
 
-        // Curve offset: if multi/bidirectional, curve outward in opposite directions (+40 / -40)
+        // Clean curve offsets: bidirectional links curve apart cleanly
         let curveOffset = 0;
-        if (isMulti) {
-          const sign = link.source < link.target ? 1 : -1;
-          curveOffset = sign * (linkIndex === 0 ? 42 : -42);
+        let tParam = 0.5;
+
+        if (hasReverse) {
+          // Asymmetric curvature and t offset to prevent overlapping label boxes
+          const isForward = link.source < link.target;
+          curveOffset = isForward ? 46 : -46;
+          tParam = isForward ? 0.40 : 0.60;
         } else if (link.type !== 'TRANSFER') {
           curveOffset = 18;
+          tParam = 0.50;
+        } else {
+          curveOffset = 16;
+          tParam = 0.48;
         }
 
         const midX = (srcPos.cx + tgtPos.cx) / 2;
@@ -294,11 +383,21 @@ export const NetworkAnalysisPage: React.FC = () => {
         const ctrlX = midX + nx * curveOffset;
         const ctrlY = midY + ny * curveOffset;
 
-        // Label location along quadratic curve at apex (t = 0.5)
-        const labelX = 0.25 * srcPos.cx + 0.5 * ctrlX + 0.25 * tgtPos.cx;
-        const labelY = 0.25 * srcPos.cy + 0.5 * ctrlY + 0.25 * tgtPos.cy;
+        // Quadratic bezier label point at tParam
+        const oneMinusT = 1 - tParam;
+        let labelX = oneMinusT * oneMinusT * srcPos.cx + 2 * oneMinusT * tParam * ctrlX + tParam * tParam * tgtPos.cx;
+        let labelY = oneMinusT * oneMinusT * srcPos.cy + 2 * oneMinusT * tParam * ctrlY + tParam * tParam * tgtPos.cy;
 
-        // Adjust target point along tangent so arrowhead lands on perimeter (R = 26)
+        // Collision safety: verify label is not within 85px of either node center
+        const distSrc = Math.hypot(labelX - srcPos.cx, labelY - srcPos.cy);
+        const distTgt = Math.hypot(labelX - tgtPos.cx, labelY - tgtPos.cy);
+        if (distSrc < 85 || distTgt < 85) {
+          // Re-center along midpoint
+          labelX = 0.25 * srcPos.cx + 0.5 * ctrlX + 0.25 * tgtPos.cx;
+          labelY = 0.25 * srcPos.cy + 0.5 * ctrlY + 0.25 * tgtPos.cy;
+        }
+
+        // Adjust target point along tangent so arrowhead lands cleanly on node perimeter (R = 26)
         const targetRadius = 26;
         const tdx = tgtPos.cx - ctrlX;
         const tdy = tgtPos.cy - ctrlY;
@@ -307,23 +406,16 @@ export const NetworkAnalysisPage: React.FC = () => {
         const endY = tgtPos.cy - (tdy / tdist) * targetRadius;
 
         const pathD = `M ${srcPos.cx} ${srcPos.cy} Q ${ctrlX} ${ctrlY} ${endX} ${endY}`;
-        const isTransfer = link.type === 'TRANSFER';
-        const isSuspicious = Boolean((link as any).is_suspicious || ((link as any).risk_score && (link as any).risk_score > 40));
 
         return {
-          id: `link-${idx}`,
-          link,
+          ...link,
           pathD,
           labelX,
           labelY,
-          isTransfer,
-          isSuspicious,
-          amount: link.amount,
-          currency: link.currency || 'EGP',
         };
       })
-      .filter(Boolean);
-  }, [filteredLinks, nodePositions]);
+      .filter(Boolean) as AggregatedLink[];
+  }, [aggregatedLinks, nodePositions]);
 
   // Interactive Drag & Pan handlers
   const handleMouseDownNode = (e: React.MouseEvent, nodeId: string) => {
@@ -342,16 +434,16 @@ export const NetworkAnalysisPage: React.FC = () => {
   const handleMouseMove = (e: React.MouseEvent) => {
     if (draggingNodeId && svgRef.current) {
       const rect = svgRef.current.getBoundingClientRect();
-      const scaleX = 960 / (rect.width * zoom);
-      const scaleY = 640 / (rect.height * zoom);
+      const scaleX = 1100 / (rect.width * zoom);
+      const scaleY = 700 / (rect.height * zoom);
       const svgX = (e.clientX - rect.left - pan.x) * scaleX;
       const svgY = (e.clientY - rect.top - pan.y) * scaleY;
 
       setNodePositions((prev) => ({
         ...prev,
         [draggingNodeId]: {
-          cx: Math.max(50, Math.min(910, svgX)),
-          cy: Math.max(50, Math.min(590, svgY)),
+          cx: Math.max(50, Math.min(1050, svgX)),
+          cy: Math.max(50, Math.min(650, svgY)),
         },
       }));
     } else if (isPanning) {
@@ -371,22 +463,28 @@ export const NetworkAnalysisPage: React.FC = () => {
     e.preventDefault();
     setShowSuggestions(false);
     if (searchTerm.trim()) {
-      fetchGraph(searchTerm.trim());
+      fetchGraph(searchTerm.trim(), directOnly);
     } else {
-      fetchGraph();
+      fetchGraph('', directOnly);
     }
   };
 
   const handleSelectSuggestion = (suggestion: SearchSuggestion) => {
     setSearchTerm(suggestion.query_value);
     setShowSuggestions(false);
-    fetchGraph(suggestion.query_value);
+    fetchGraph(suggestion.query_value, directOnly);
   };
 
   const handleQuickPreset = (query: string) => {
     setSearchTerm(query);
     setShowSuggestions(false);
-    fetchGraph(query);
+    fetchGraph(query, directOnly);
+  };
+
+  const toggleDirectOnly = () => {
+    const nextVal = !directOnly;
+    setDirectOnly(nextVal);
+    fetchGraph(activeFocus, nextVal);
   };
 
   const formatCurrency = (amt?: number, curr = 'EGP') => {
@@ -394,10 +492,24 @@ export const NetworkAnalysisPage: React.FC = () => {
     return `${Number(amt).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${curr}`;
   };
 
+  // Extract deduplicated risk factors (Why Flagged)
   const selectedRiskFactors: string[] = useMemo(() => {
     if (!selectedNode) return [];
-    const details = selectedNode.details || {};
-    return Array.isArray(details.risk_factors) ? details.risk_factors : [];
+    const directList = selectedNode.risk_factors || selectedNode.details?.risk_factors;
+    if (Array.isArray(directList)) {
+      return Array.from(new Set(directList.filter(Boolean)));
+    }
+    return [];
+  }, [selectedNode]);
+
+  // Extract clearance / safe factors (Why Legitimate / Safe)
+  const selectedSafeFactors: string[] = useMemo(() => {
+    if (!selectedNode) return [];
+    const directList = selectedNode.safe_factors || selectedNode.details?.safe_factors;
+    if (Array.isArray(directList)) {
+      return Array.from(new Set(directList.filter(Boolean)));
+    }
+    return [];
   }, [selectedNode]);
 
   return (
@@ -407,24 +519,38 @@ export const NetworkAnalysisPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#F9A825] mb-1">
             <Share2 className="w-4 h-4" />
-            Graph Intelligence
+            Financial Crime Link Analysis
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#002D72]">
-            Network Intelligence &amp; Link Analysis
+            Network Intelligence &amp; Graph Topology
           </h1>
           <p className="text-xs text-[#64748B] mt-1 font-medium">
-            Forensic multi-hop relationship mapping, shared devices, counterparties, and cyclic money flow detection.
+            Forensic entity-relationship mapping, direct counterparty fund flows, hardware co-location, and AML diagnostics.
           </p>
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
+          {/* Mode Toggle: Direct vs Syndicate */}
+          <button
+            onClick={toggleDirectOnly}
+            className={`px-3 py-2 rounded-[8px] text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+              directOnly
+                ? 'bg-[#EBF3FC] text-[#002D72] border-[#002D72]/30 shadow-xs'
+                : 'bg-[#FFF9E6] text-[#D97706] border-[#D97706]/40 shadow-xs'
+            }`}
+            title="Toggle between Direct Transactions Only (1-Hop) and Multi-Hop Extended Network"
+          >
+            <Filter className="w-3.5 h-3.5" />
+            <span>{directOnly ? 'Direct Transactions Only' : 'Multi-Hop Extended Syndicate'}</span>
+          </button>
+
           <Button
-            onClick={() => fetchGraph(activeFocus)}
+            onClick={() => fetchGraph(activeFocus, directOnly)}
             variant="primary"
             size="sm"
             leftIcon={<RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />}
           >
-            Refresh Graph
+            Refresh
           </Button>
         </div>
       </Card>
@@ -441,7 +567,7 @@ export const NetworkAnalysisPage: React.FC = () => {
                 onFocus={() => {
                   if (suggestions.length > 0) setShowSuggestions(true);
                 }}
-                placeholder="Search Account (ACC-001), Customer Name, Device (DEV-101), or IP..."
+                placeholder="Search Customer Full Name, Account (ACC-001), Device (DEV-101), or IP..."
                 leftIcon={<Search className="w-4 h-4 text-[#64748B]" />}
                 className="h-10 text-xs"
               />
@@ -467,7 +593,7 @@ export const NetworkAnalysisPage: React.FC = () => {
             )}
           </div>
 
-          {/* Filter Buttons */}
+          {/* Filter Type Buttons */}
           <div className="flex items-center gap-1.5 shrink-0">
             {(['ALL', 'TRANSFER', 'INFRASTRUCTURE'] as const).map((filter) => (
               <button
@@ -490,12 +616,12 @@ export const NetworkAnalysisPage: React.FC = () => {
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] shrink-0">
             Quick Entities:
           </span>
-          {['Tariq Mansour', 'Abdo Haaland', 'ACC-1001', 'DEV-1001', '41.179.245.75'].map((preset) => (
+          {['Abdelrahman Mostafa sayed', 'Mohamed El-Sayed', 'Amira El-Sayed', 'Ziad Karim', 'DEV-F860703B', '41.179.245.75'].map((preset) => (
             <button
               key={preset}
               type="button"
               onClick={() => handleQuickPreset(preset)}
-              className="px-2.5 py-1 rounded-[6px] bg-[#F4F1EC] hover:bg-[#EBF3FC] text-[#002D72] font-mono text-[11px] font-semibold border border-[#E0DDD6] transition-colors cursor-pointer"
+              className="px-2.5 py-1 rounded-[6px] bg-[#F4F1EC] hover:bg-[#EBF3FC] text-[#002D72] font-mono text-[11px] font-semibold border border-[#E0DDD6] transition-colors cursor-pointer whitespace-nowrap"
             >
               {preset}
             </button>
@@ -506,7 +632,7 @@ export const NetworkAnalysisPage: React.FC = () => {
       {/* Main Split-Pane Graph Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* GRAPH CANVAS (8 Cols) */}
-        <Card className="lg:col-span-8 flex flex-col h-[700px] relative overflow-hidden bg-[#FAFAF9] border border-[#E0DDD6] shadow-sm">
+        <Card className="lg:col-span-8 flex flex-col h-[740px] relative overflow-hidden bg-[#FAFAF9] border border-[#E0DDD6] shadow-sm">
           {/* Top Controls Toolbar */}
           <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 bg-white/95 backdrop-blur-xs p-1.5 rounded-[10px] border border-[#E0DDD6] shadow-sm">
             <button
@@ -533,6 +659,12 @@ export const NetworkAnalysisPage: React.FC = () => {
             >
               <Maximize2 className="w-4 h-4" />
             </button>
+          </div>
+
+          {/* Active Mode Badge on Canvas */}
+          <div className="absolute top-4 left-4 z-20 bg-white/95 backdrop-blur-xs px-3 py-1.5 rounded-[8px] border border-[#E0DDD6] text-xs font-semibold text-[#002D72] shadow-xs flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
+            <span>{directOnly ? 'Direct Transactions with Target' : 'Full Network Syndicate View'}</span>
           </div>
 
           {/* Interactive Graph Legend Bar */}
@@ -569,17 +701,19 @@ export const NetworkAnalysisPage: React.FC = () => {
             {loading ? (
               <div className="h-full flex flex-col items-center justify-center text-[#64748B] space-y-2">
                 <Share2 className="w-8 h-8 animate-spin text-[#002D72]" />
-                <p className="text-xs font-bold text-[#002D72]">Calculating network topology...</p>
+                <p className="text-xs font-bold text-[#002D72]">Calculating topology &amp; fund flows...</p>
               </div>
             ) : nodes.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-xs text-[#64748B]">
-                No graph entities found matching query.
+              <div className="h-full flex flex-col items-center justify-center text-xs text-[#64748B] space-y-2">
+                <Info className="w-8 h-8 text-[#CBD5E1]" />
+                <p className="font-bold text-[#002D72]">No matching network entities found</p>
+                <p className="text-[#64748B]">Try searching for a customer name, account ID, or device.</p>
               </div>
             ) : (
               <svg
                 ref={svgRef}
                 className="w-full h-full"
-                viewBox="0 0 960 640"
+                viewBox="0 0 1100 700"
                 onMouseDown={handleSvgMouseDown}
                 style={{
                   transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
@@ -588,12 +722,12 @@ export const NetworkAnalysisPage: React.FC = () => {
                 }}
               >
                 <defs>
-                  {/* Subtle drop shadows */}
+                  {/* Drop shadows */}
                   <filter id="node-shadow" x="-30%" y="-30%" width="160%" height="160%">
                     <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.08" />
                   </filter>
                   <filter id="badge-shadow" x="-30%" y="-30%" width="160%" height="160%">
-                    <feDropShadow dx="0" dy="2" stdDeviation="4" floodOpacity="0.12" />
+                    <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.10" />
                   </filter>
 
                   {/* Transfer Arrowhead (Sapphire) */}
@@ -635,14 +769,13 @@ export const NetworkAnalysisPage: React.FC = () => {
 
                 {/* GRAPH LINKS (Curved Paths with Non-Overlapping Arcs) */}
                 {computedLinks.map((item) => {
-                  if (!item) return null;
-                  const { link, pathD, labelX, labelY, isTransfer, isSuspicious, amount, currency } = item;
-                  const isHovered = hoveredLink === link;
+                  const { id, pathD, labelX, labelY, isTransfer, isSuspicious, totalAmount, count, currency } = item;
+                  const isHovered = hoveredLink?.id === id;
 
                   return (
                     <g
-                      key={item.id}
-                      onMouseEnter={() => setHoveredLink(link)}
+                      key={id}
+                      onMouseEnter={() => setHoveredLink(item)}
                       onMouseLeave={() => setHoveredLink(null)}
                       className="cursor-pointer"
                     >
@@ -663,36 +796,37 @@ export const NetworkAnalysisPage: React.FC = () => {
                         }
                       />
 
-                      {/* Prominent High-Contrast Amount Pill Badge */}
-                      {amount && (
+                      {/* Prominent High-Contrast Amount Pill Badge — Compact & Collision-Safe */}
+                      {isTransfer && totalAmount > 0 && (
                         <g transform={`translate(${labelX}, ${labelY})`} className="cursor-pointer">
                           <rect
-                            x="-52"
-                            y="-13"
-                            width="104"
-                            height="26"
-                            rx="13"
+                            x={count > 1 ? -48 : -42}
+                            y="-11"
+                            width={count > 1 ? 96 : 84}
+                            height="22"
+                            rx="6"
                             fill="#FFFFFF"
                             stroke={isSuspicious ? '#DC2626' : '#002D72'}
-                            strokeWidth={isSuspicious ? 2 : 1.5}
+                            strokeWidth={isSuspicious ? 1.8 : 1.2}
                             filter="url(#badge-shadow)"
                             className="transition-all hover:scale-105"
                           />
                           <text
                             x="0"
-                            y="4.5"
+                            y="4"
                             textAnchor="middle"
                             fill={isSuspicious ? '#DC2626' : '#002D72'}
-                            fontSize={10.5}
+                            fontSize={9.5}
                             fontWeight="bold"
                             fontFamily="monospace"
                             className="select-none"
                           >
-                            {Number(amount).toLocaleString(undefined, {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
+                            {Number(totalAmount).toLocaleString(undefined, {
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 0,
                             })}{' '}
                             {currency}
+                            {count > 1 ? ` (${count})` : ''}
                           </text>
                         </g>
                       )}
@@ -700,13 +834,12 @@ export const NetworkAnalysisPage: React.FC = () => {
                   );
                 })}
 
-                {/* GRAPH NODES (Structured Intelligence Cards with Shields) */}
+                {/* GRAPH NODES */}
                 {nodes.map((node) => {
                   const pos = nodePositions[node.id];
                   if (!pos) return null;
 
                   const isSelected = selectedNode?.id === node.id;
-                  const isFocus = activeFocus && node.id.toLowerCase() === activeFocus.toLowerCase();
                   const isCritical = node.risk_level === 'CRITICAL';
                   const isHighRisk = node.risk_level === 'HIGH';
 
@@ -771,35 +904,35 @@ export const NetworkAnalysisPage: React.FC = () => {
                       </text>
 
                       {/* Floating Label Card below Circle (Shielded White Box) */}
-                      <g transform={`translate(0, ${circleRadius + 10})`}>
+                      <g transform={`translate(0, ${circleRadius + 8})`}>
                         <rect
-                          x="-68"
+                          x="-65"
                           y="0"
-                          width="136"
-                          height="36"
-                          rx="8"
+                          width="130"
+                          height="34"
+                          rx="6"
                           fill="#FFFFFF"
                           stroke={isSelected ? '#F9A825' : '#E2E8F0'}
-                          strokeWidth={isSelected ? 2 : 1.5}
+                          strokeWidth={isSelected ? 2 : 1.2}
                           filter="url(#node-shadow)"
                         />
                         <text
                           x="0"
-                          y="15"
+                          y="14"
                           textAnchor="middle"
                           fill="#002D72"
-                          fontSize={11}
+                          fontSize={10.5}
                           fontWeight="bold"
                           className="select-none"
                         >
-                          {labelTitle.length > 17 ? `${labelTitle.slice(0, 16)}...` : labelTitle}
+                          {labelTitle.length > 15 ? `${labelTitle.slice(0, 14)}...` : labelTitle}
                         </text>
                         <text
                           x="0"
-                          y="28"
+                          y="27"
                           textAnchor="middle"
                           fill="#64748B"
-                          fontSize={9.5}
+                          fontSize={9}
                           fontFamily="monospace"
                           className="select-none"
                         >
@@ -815,11 +948,11 @@ export const NetworkAnalysisPage: React.FC = () => {
         </Card>
 
         {/* ENTITY INSPECTION SIDEBAR (4 Cols) */}
-        <Card className="lg:col-span-4 flex flex-col h-[700px] overflow-hidden bg-white border border-[#E0DDD6] shadow-sm">
+        <Card className="lg:col-span-4 flex flex-col h-[740px] overflow-hidden bg-white border border-[#E0DDD6] shadow-sm">
           {selectedNode ? (
             <div className="flex-1 flex flex-col overflow-y-auto">
               {/* Header */}
-              <CardHeader className="p-5 border-b border-[#E0DDD6] bg-[#F4F1EC]/50">
+              <CardHeader className="p-5 border-b border-[#E0DDD6] bg-[#F4F1EC]/50 shrink-0">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">
                     {selectedNode.type} Entity
@@ -838,42 +971,137 @@ export const NetworkAnalysisPage: React.FC = () => {
                   <div>
                     <span className="text-[10px] uppercase font-bold text-[#64748B]">Degree Count</span>
                     <p className="font-bold text-[#002D72] mt-0.5">
-                      {(selectedNode as any).degree_count || 3} Connections
+                      {(selectedNode as any).degree_count || (selectedNode.inflow_count || 0) + (selectedNode.outflow_count || 0) || 1} Direct Links
                     </p>
                   </div>
                   <div>
                     <span className="text-[10px] uppercase font-bold text-[#64748B]">Risk Score</span>
-                    <p className="font-bold text-[#F9A825] font-mono mt-0.5">
-                      {selectedNode.risk_score ? `${selectedNode.risk_score}%` : 'Low'}
+                    <p className={`font-bold font-mono mt-0.5 ${
+                      selectedNode.risk_level === 'CRITICAL'
+                        ? 'text-[#DC2626]'
+                        : selectedNode.risk_level === 'HIGH'
+                        ? 'text-[#D97706]'
+                        : 'text-[#10B981]'
+                    }`}>
+                      {selectedNode.risk_score ? `${selectedNode.risk_score}%` : 'Low Risk'}
                     </p>
                   </div>
                 </div>
 
-                {/* Risk Factors */}
-                {selectedRiskFactors.length > 0 && (
-                  <div className="space-y-1.5">
+                {/* Overall Verdict Banner */}
+                {selectedNode.risk_level === 'CRITICAL' ? (
+                  <div className="p-3 bg-[#FEF2F2] border border-[#FECACA] rounded-[8px] text-xs text-[#991B1B] flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-[#DC2626] shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Critical AML Alert</p>
+                      <p className="text-[11px] text-[#B91C1C] mt-0.5">
+                        High-velocity pass-through conduit, shared hardware co-location, or unverified credentials detected.
+                      </p>
+                    </div>
+                  </div>
+                ) : selectedNode.risk_level === 'HIGH' ? (
+                  <div className="p-3 bg-[#FFFBEB] border border-[#FDE68A] rounded-[8px] text-xs text-[#92400E] flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-[#D97706] shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Elevated Risk Warning</p>
+                      <p className="text-[11px] text-[#B45309] mt-0.5">
+                        Multi-account hopping or proxy connection detected. Requires supervisory review.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-[#ECFDF5] border border-[#A7F3D0] rounded-[8px] text-xs text-[#065F46] flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Verified Clean Profile</p>
+                      <p className="text-[11px] text-[#047857] mt-0.5">
+                        All KYC and network integrity checks passed. Standard retail velocity.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* AML ASSESSMENT RATIONALE: WHY FLAGGED VS WHY SAFE */}
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center justify-between border-b border-[#E0DDD6] pb-1.5">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-[#002D72]">
-                      Observed Risk Vectors
+                      AML Diagnostic Assessment
                     </span>
-                    <div className="space-y-1">
-                      {selectedRiskFactors.map((rf, idx) => (
-                        <div
-                          key={idx}
-                          className="p-2.5 bg-[#FFF9E6] border border-[#FFE082] rounded-[8px] text-[11px] text-[#002D72] flex items-center gap-2"
-                        >
-                          <AlertTriangle className="w-3.5 h-3.5 text-[#F9A825] shrink-0" />
-                          <span>{rf}</span>
-                        </div>
-                      ))}
+                    <span className="text-[10px] text-[#64748B]">Automated Forensics</span>
+                  </div>
+
+                  {/* 1. WHY FLAGGED (Risk Factors) */}
+                  {selectedRiskFactors.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-[#DC2626]">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        <span>Observed Risk Factors (Why Flagged)</span>
+                      </div>
+                      <div className="space-y-1">
+                        {selectedRiskFactors.map((rf, idx) => (
+                          <div
+                            key={idx}
+                            className="p-2.5 bg-[#FFF1F2] border border-[#FECDD3] rounded-[8px] text-[11px] text-[#9F1239] flex items-start gap-2"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#DC2626] mt-1.5 shrink-0" />
+                            <span>{rf}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2. WHY LEGITIMATE / SAFE (Clearance Factors) */}
+                  {selectedSafeFactors.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-[#059669]">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>Clearance Indicators (Why Safe)</span>
+                      </div>
+                      <div className="space-y-1">
+                        {selectedSafeFactors.map((sf, idx) => (
+                          <div
+                            key={idx}
+                            className="p-2.5 bg-[#F0FDF4] border border-[#BBF7D0] rounded-[8px] text-[11px] text-[#166534] flex items-start gap-2"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] mt-1.5 shrink-0" />
+                            <span>{sf}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Financial Summary Flow */}
+                {selectedNode.type === 'ACCOUNT' && (
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#E0DDD6] text-xs">
+                    <div className="p-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[8px]">
+                      <span className="text-[10px] text-[#64748B] uppercase font-bold flex items-center gap-1">
+                        <ArrowDownLeft className="w-3 h-3 text-[#10B981]" />
+                        Total Inflows
+                      </span>
+                      <p className="font-mono font-bold text-[#10B981] text-xs mt-1">
+                        +{formatCurrency(selectedNode.inflow_total, selectedNode.currency)}
+                      </p>
+                    </div>
+                    <div className="p-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[8px]">
+                      <span className="text-[10px] text-[#64748B] uppercase font-bold flex items-center gap-1">
+                        <ArrowUpRight className="w-3 h-3 text-[#002D72]" />
+                        Total Outflows
+                      </span>
+                      <p className="font-mono font-bold text-[#002D72] text-xs mt-1">
+                        -{formatCurrency(selectedNode.outflow_total, selectedNode.currency)}
+                      </p>
                     </div>
                   </div>
                 )}
 
                 {/* Inflow Sources ("From Where Got Money") */}
                 {selectedNode.inflow_sources && selectedNode.inflow_sources.length > 0 && (
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 pt-2 border-t border-[#E0DDD6]">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-[#002D72]">
-                      Inflow Sources (Incoming Funds)
+                      Inbound Funding Sources ("From Where Got Money")
                     </span>
                     <div className="space-y-1 text-xs">
                       {selectedNode.inflow_sources.map((src, idx) => (
@@ -898,9 +1126,9 @@ export const NetworkAnalysisPage: React.FC = () => {
 
                 {/* Outflow Destinations ("Where Money Went") */}
                 {selectedNode.outflow_destinations && selectedNode.outflow_destinations.length > 0 && (
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 pt-2 border-t border-[#E0DDD6]">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-[#002D72]">
-                      Outflow Destinations (Disbursed Funds)
+                      Outbound Disbursed Funds ("Where Money Went")
                     </span>
                     <div className="space-y-1 text-xs">
                       {selectedNode.outflow_destinations.map((dest, idx) => (
@@ -927,7 +1155,7 @@ export const NetworkAnalysisPage: React.FC = () => {
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-[#64748B]">
               <Info className="w-8 h-8 text-[#CBD5E1] mb-2" />
-              <p className="font-bold text-[#002D72]">Click an entity in the graph</p>
+              <p className="font-bold text-[#002D72]">Select an entity in the graph</p>
               <p className="text-xs text-[#64748B]">
                 Inspect degree centrality, connected accounts, and transaction topology.
               </p>

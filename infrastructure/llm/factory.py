@@ -12,9 +12,27 @@ from infrastructure.llm.fake_provider import FakeLLMProvider
 from infrastructure.llm.openai_provider import OpenAICompatibleProvider
 
 
-def get_llm_provider() -> LLMProvider:
-    """Build the configured provider; unset/``fake`` means deterministic local."""
+def get_llm_provider(force_local: bool | None = None) -> LLMProvider:
+    """Build the configured provider; unset/``fake`` means deterministic local.
+
+    If ``force_local`` is True, or if ``settings.use_local_llm`` is enabled,
+    routes to the local Ollama provider instance (e.g., qwen3.5:4b).
+    """
     settings = get_settings()
+
+    is_local = force_local if force_local is not None else getattr(settings, "use_local_llm", False)
+    if is_local:
+        model = getattr(settings, "ollama_model", None) or "qwen3.5:4b"
+        base_url = getattr(settings, "ollama_base_url", None) or "http://localhost:11434/v1"
+        return OpenAICompatibleProvider(
+            name="ollama",
+            model=model,
+            api_key=settings.llm_api_key or "ollama",
+            api_keys=["ollama"],
+            base_url=base_url,
+            timeout=120.0,
+        )
+
     provider_name = (settings.llm_provider or "fake").strip().lower()
 
     if provider_name == "fake" or provider_name == "":

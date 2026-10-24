@@ -355,6 +355,8 @@ export interface GraphNode {
   outflow_count?: number;
   outflow_destinations?: OutflowDestinationItem[];
   net_flow?: number;
+  risk_factors?: string[];
+  safe_factors?: string[];
   properties?: Record<string, any>;
   details?: Record<string, any>;
   x?: number;

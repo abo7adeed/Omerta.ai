@@ -15,7 +15,7 @@ from infrastructure.llm.base import LLMResponse
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TIMEOUT_SECONDS = 30.0
+DEFAULT_TIMEOUT_SECONDS = 120.0
 DEFAULT_MAX_TOKENS = 1024
 TEMPERATURE = 0.0  # investigations must be reproducible
 
@@ -47,6 +47,11 @@ class OpenAICompatibleProvider:
         self._base_url = (base_url or "https://api.openai.com/v1").rstrip("/")
         self._timeout = timeout
         self._max_tokens = max_tokens
+
+    @property
+    def base_url(self) -> str:
+        """Current base URL."""
+        return self._base_url
 
     @property
     def _api_key(self) -> str | None:

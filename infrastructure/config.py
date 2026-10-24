@@ -47,6 +47,13 @@ class Settings(BaseSettings):
     groq_api_keys: str | None = None
     llm_base_url: str | None = None
 
+    # --- Local Ollama Experiment Toggle ---
+    # Set USE_LOCAL_LLM=true to immediately switch all platform LLM calls to local Ollama.
+    # Set USE_LOCAL_LLM=false to route to your existing running provider (e.g., Groq).
+    use_local_llm: bool = False
+    ollama_model: str = "qwen3.5:4b"
+    ollama_base_url: str = "http://localhost:11434/v1"
+
     # --- Vector store (consumed in later phases) ---
     vector_db_url: str | None = None
 

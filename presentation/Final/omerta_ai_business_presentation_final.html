@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Omerta.ai — Business Presentation</title>
+    <style>
+        :root {
+            --w: #fff;
+            --lb: #F1F7FF;
+            --n: #17324D;
+            --b: #3478F6;
+            --t: #14B8A6;
+            --p: #8B7CF6;
+            --c: #FF7B72;
+            --y: #FFD166;
+            --bd: #E4EAF2;
+            --g: #65758B;
+            --ui-h: 64px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+            background: #fff;
+            font-family: Manrope, Inter, system-ui, sans-serif;
+            color: var(--n);
+            touch-action: manipulation;
+        }
+
+        #bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0
+        }
+
+        #stage {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 1920px;
+            height: 1080px;
+            transform-origin: center center;
+            z-index: 1;
+            will-change: transform;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .s {
+            position: absolute;
+            inset: 0;
+            padding: 44px 100px 56px;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(70px);
+            transition: opacity .55s, transform .55s, visibility .55s;
+            background: radial-gradient(circle at 85% 10%, #F1F7FFcc, transparent 55%)
+        }
+
+        .s.on {
+            opacity: 1;
+            visibility: visible;
+            transform: none
+        }
+
+        .s.pv {
+            transform: translateX(-70px)
+        }
+
+        h1 {
+            font-size: 68px;
+            line-height: 1.1;
+            font-weight: 800;
+            letter-spacing: -.02em;
+            max-width: 1720px
+        }
+
+        h1 em {
+            font-style: normal;
+            color: var(--b)
+        }
+
+        .sub {
+            font-size: 36px;
+            color: var(--g);
+            margin-top: 12px
+        }
+
+        .vis {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 0;
+            position: relative
+        }
+
+        .tk {
+            font-size: 34px;
+            font-weight: 700;
+            color: var(--n);
+            background: var(--lb);
+            border: 1px solid var(--bd);
+            border-left: 8px solid var(--b);
+            border-radius: 14px;
+            padding: 14px 30px;
+            align-self: flex-start
+        }
+
+        .rv {
+            opacity: 0
+        }
+
+        .s.on .rv {
+            animation: up .6s both;
+            animation-delay: calc(var(--i, 0)*.13s + .25s)
+        }
+
+        @keyframes up {
+            from {
+                opacity: 0;
+                transform: translateY(22px)
+            }
+
+            to {
+                opacity: 1;
+                transform: none
+            }
+        }
+
+        svg.net {
+            width: 100%;
+            height: 100%
+        }
+
+        .net text {
+            font: 700 20px Manrope, sans-serif;
+            fill: var(--n);
+            text-anchor: middle;
+            dominant-baseline: central
+        }
+
+        .chip {
+            background: #fff;
+            border: 2px solid var(--c);
+            border-radius: 40px;
+            padding: 14px 30px;
+            font-size: 30px;
+            font-weight: 700;
+            box-shadow: 0 6px 18px #17324d14
+        }
+
+        .flow {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: nowrap
+        }
+
+        .step {
+            flex: 1;
+            background: #fff;
+            border: 1px solid var(--bd);
+            border-top: 8px solid var(--c);
+            border-radius: 20px;
+            padding: 24px 10px;
+            text-align: center;
+            font-size: 28px;
+            font-weight: 700;
+            box-shadow: 0 10px 30px #17324d14;
+            min-height: 190px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 10px
+        }
+
+        .step b {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--c);
+            color: #fff;
+            margin: 0 auto;
+            display: grid;
+            place-items: center;
+            font-size: 26px
+        }
+
+        .ar {
+            font-size: 40px;
+            color: var(--g)
+        }
+
+        .grid {
+            display: grid;
+            gap: 28px;
+            width: 100%
+        }
+
+        .g3 {
+            grid-template-columns: repeat(3, 1fr)
+        }
+
+        .g4 {
+            grid-template-columns: repeat(4, 1fr)
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid var(--bd);
+            border-radius: 22px;
+            padding: 30px;
+            box-shadow: 0 10px 30px #17324d14;
+            font-size: 30px;
+            line-height: 1.3;
+            border-top: 8px solid var(--c)
+        }
+
+        .card b {
+            display: block;
+            font-size: 40px;
+            margin-bottom: 8px;
+            line-height: 1.15
+        }
+
+        .card i {
+            font-style: normal;
+            font-size: 52px;
+            display: block;
+            margin-bottom: 6px
+        }
+
+        .card small {
+            color: var(--g);
+            font-size: 29px;
+            display: block;
+            line-height: 1.3
+        }
+
+        .hero {
+            align-items: center;
+            justify-content: center;
+            text-align: center
+        }
+
+        .hero .net {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%
+        }
+
+        .hero .tx {
+            position: relative;
+            z-index: 2;
+            background: #ffffffdd;
+            border-radius: 30px;
+            padding: 30px 60px
+        }
+
+        .hero h1 {
+            font-size: 66px;
+            max-width: 1250px;
+            text-wrap: balance
+        }
+
+        #stage>.s:last-child .tx h1 {
+            max-width: 950px
+        }
+
+        .hero .sub {
+            font-size: 40px;
+            max-width: 1000px;
+            margin-left: auto;
+            margin-right: auto
+        }
+
+        .hero .cta {
+            display: inline-block;
+            margin-top: 30px;
+            background: var(--b);
+            color: #fff;
+            font-size: 36px;
+            font-weight: 800;
+            border-radius: 60px;
+            padding: 20px 50px
+        }
+
+        .cmp {
+            display: grid;
+            grid-template-columns: 1fr 70px 1fr;
+            gap: 18px 14px;
+            width: 100%;
+            align-items: center;
+            font-size: 34px;
+            font-weight: 700
+        }
+
+        .cmp div {
+            padding: 20px 28px;
+            border-radius: 16px
+        }
+
+        .old {
+            background: var(--lb);
+            color: var(--g);
+            border: 1px solid var(--bd)
+        }
+
+        .new {
+            background: var(--t);
+            color: #fff
+        }
+
+        .cmp .m {
+            text-align: center;
+            color: var(--g);
+            padding: 0;
+            font-size: 44px
+        }
+
+        .bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 26px;
+            height: 380px;
+            border-bottom: 3px solid var(--bd);
+            padding: 0 20px
+        }
+
+        .bar {
+            width: 120px;
+            border-radius: 14px 14px 0 0;
+            background: var(--c);
+            transform-origin: bottom;
+            text-align: center;
+            font-weight: 800;
+            font-size: 26px;
+            padding-top: 8px;
+            color: #fff
+        }
+
+        .s.on .bar {
+            animation: grow .9s both .4s
+        }
+
+        @keyframes grow {
+            from {
+                transform: scaleY(0)
+            }
+
+            to {
+                transform: none
+            }
+        }
+
+        .lbls {
+            display: flex;
+            gap: 26px;
+            padding: 10px 20px;
+            font-size: 27px;
+            font-weight: 700;
+            color: var(--g)
+        }
+
+        .lbls span {
+            width: 120px;
+            text-align: center
+        }
+
+        .tag {
+            display: inline-block;
+            background: var(--y);
+            color: var(--n);
+            font-weight: 800;
+            font-size: 26px;
+            border-radius: 30px;
+            padding: 8px 22px
+        }
+
+        .kpi {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            font-size: 30px;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--bd)
+        }
+
+        .kpi span {
+            color: var(--g);
+            white-space: nowrap;
+            font-size: 24px
+        }
+
+        .case {
+            background: #fff;
+            border: 1px solid var(--bd);
+            border-radius: 26px;
+            box-shadow: 0 14px 40px #17324d1c;
+            padding: 36px 44px;
+            width: 1050px;
+            font-size: 36px
+        }
+
+        .case div {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--bd)
+        }
+
+        .case span {
+            color: var(--g)
+        }
+
+        .lc {
+            display: flex;
+            gap: 14px;
+            margin-bottom: 34px
+        }
+
+        .lc div {
+            flex: 1;
+            text-align: center;
+            border-radius: 40px;
+            padding: 18px 8px;
+            background: var(--lb);
+            color: var(--g);
+            font-weight: 800;
+            font-size: 32px;
+            border: none
+        }
+
+        .s.on .lc div {
+            animation: hl .5s forwards;
+            animation-delay: calc(var(--i)*1.2s + .6s)
+        }
+
+        @keyframes hl {
+            to {
+                background: var(--b);
+                color: #fff
+            }
+        }
+
+        .join {
+            border: 3px dashed var(--b);
+            border-radius: 30px;
+            padding: 36px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            width: 1500px;
+            position: relative
+        }
+
+        .join .chip {
+            animation: j 1.1s both;
+            animation-delay: 1.3s
+        }
+
+        .join::before {
+            content: "One investigation view";
+            position: absolute;
+            top: -20px;
+            left: 40px;
+            background: #fff;
+            padding: 0 14px;
+            font-weight: 800;
+            font-size: 34px;
+            color: var(--b)
+        }
+
+        @keyframes j {
+            from {
+                transform: translate(var(--x), var(--y));
+                opacity: .7
+            }
+
+            to {
+                transform: none;
+                opacity: 1
+            }
+        }
+
+        .hd {
+            align-self: flex-start;
+            display: inline-flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--n);
+            background: #fff;
+            border: 2px solid var(--bd);
+            border-radius: 50px;
+            padding: 8px 30px 8px 10px;
+            margin-bottom: 18px;
+            box-shadow: 0 6px 18px #17324d14
+        }
+
+        .hd b {
+            background: var(--hc, var(--b));
+            color: #fff;
+            border-radius: 40px;
+            padding: 6px 18px;
+            font-size: 26px;
+            letter-spacing: .04em
+        }
+
+        .hero .hd {
+            position: absolute;
+            left: 100px;
+            top: 44px;
+            z-index: 3;
+            margin: 0
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 34px;
+            margin-bottom: 14px
+        }
+
+        .logo svg {
+            width: 160px;
+            height: 160px;
+            flex: none
+        }
+
+        .logo span {
+            font-size: 200px;
+            font-weight: 800;
+            letter-spacing: -.03em;
+            line-height: 1;
+            color: var(--n)
+        }
+
+        .logo span em {
+            font-style: normal;
+            color: var(--b);
+            font-size: .5em;
+            letter-spacing: 0;
+            margin-left: 6px
+        }
+
+        .logo.sm {
+            gap: 22px;
+            margin-bottom: 6px
+        }
+
+        .logo.sm svg {
+            width: 84px;
+            height: 84px
+        }
+
+        .logo.sm span {
+            font-size: 100px
+        }
+
+        .stmt {
+            --c: #FF7B72;
+            font-size: 40px;
+            line-height: 1.35;
+            font-weight: 600;
+            background: var(--lb);
+            border: 1px solid var(--bd);
+            border-left: 12px solid var(--c);
+            border-radius: 22px;
+            padding: 30px 44px
+        }
+
+        .stmt b {
+            color: var(--c)
+        }
+
+        .ag {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            width: 100%
+        }
+
+        .agc {
+            flex: 1;
+            background: #fff;
+            border: 1px solid var(--bd);
+            border-top: 8px solid var(--c);
+            border-radius: 20px;
+            padding: 22px 14px;
+            text-align: center;
+            box-shadow: 0 10px 30px #17324d14
+        }
+
+        .agc.big {
+            flex: 1.15
+        }
+
+        .agc i {
+            font-style: normal;
+            font-size: 52px;
+            display: block;
+            margin-bottom: 6px
+        }
+
+        .agc b {
+            display: block;
+            font-size: 32px;
+            margin-bottom: 8px;
+            line-height: 1.15
+        }
+
+        .agc small {
+            font-size: 24px;
+            color: var(--g);
+            display: block;
+            line-height: 1.3
+        }
+
+        .agstack {
+            flex: 1.75;
+            display: flex;
+            flex-direction: column;
+            gap: 12px
+        }
+
+        .aga {
+            background: #fff;
+            border: 1px solid var(--bd);
+            border-left: 8px solid var(--c);
+            border-radius: 16px;
+            padding: 12px 16px;
+            font-size: 27px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 8px 22px #17324d14;
+            line-height: 1.2
+        }
+
+        .aga i {
+            font-style: normal;
+            font-size: 36px
+        }
+
+        .loop {
+            margin-top: 30px;
+            font-size: 30px;
+            font-weight: 700;
+            color: var(--n);
+            background: #fff;
+            border: 3px dashed var(--b);
+            border-radius: 50px;
+            padding: 14px 36px
+        }
+
+        #ui {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: var(--ui-h, 64px);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 22px;
+            z-index: 5;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-top: 1px solid var(--bd);
+            font-weight: 700;
+            box-shadow: 0 -4px 20px rgba(23, 50, 77, 0.05);
+        }
+
+        #ui button {
+            border: 1px solid var(--bd);
+            background: #fff;
+            color: var(--n);
+            font: 700 16px Manrope, sans-serif;
+            border-radius: 10px;
+            padding: 9px 16px;
+            cursor: pointer;
+            touch-action: manipulation;
+            transition: background .2s, border-color .2s;
+        }
+
+        #ui button:hover {
+            background: var(--lb);
+            border-color: var(--b);
+        }
+
+        #ui button:focus-visible {
+            outline: 3px solid var(--b);
+        }
+
+        #cnt {
+            margin-left: auto;
+            font-size: 18px;
+            white-space: nowrap;
+        }
+
+        #pb {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 5px;
+            background: linear-gradient(90deg, var(--b), var(--t), var(--p));
+            z-index: 6;
+            transition: width .5s;
+        }
+
+        #notes {
+            position: fixed;
+            right: 0;
+            top: 0;
+            bottom: var(--ui-h, 64px);
+            width: min(440px, 92vw);
+            background: #fff;
+            border-left: 1px solid var(--bd);
+            box-shadow: -10px 0 30px #17324d1a;
+            padding: 28px;
+            overflow: auto;
+            z-index: 4;
+            transform: translateX(105%);
+            transition: transform .35s cubic-bezier(0.16, 1, 0.3, 1);
+            font-size: 17px;
+            line-height: 1.6;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #notes.open {
+            transform: none;
+        }
+
+        #rotate-hint {
+            display: none;
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(23, 50, 77, 0.94);
+            color: #fff;
+            padding: 10px 22px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 700;
+            z-index: 10;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            white-space: nowrap;
+            pointer-events: none;
+            letter-spacing: .02em;
+        }
+
+        @media (max-width: 900px) and (orientation: portrait) {
+            #rotate-hint {
+                display: block;
+            }
+        }
+
+        @media (max-width: 768px) {
+            :root {
+                --ui-h: 52px;
+            }
+
+            #ui {
+                padding: 0 12px;
+                gap: 8px;
+            }
+
+            #ui button {
+                padding: 6px 12px;
+                font-size: 13px;
+                border-radius: 8px;
+            }
+
+            #cnt {
+                font-size: 14px;
+            }
+
+            #notes {
+                padding: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #ui button#fs {
+                display: none;
+            }
+
+            #ui {
+                padding: 0 8px;
+                gap: 6px;
+            }
+
+            #ui button {
+                padding: 6px 9px;
+                font-size: 12px;
+            }
+        }
+
+        #notes h3 {
+            color: var(--b);
+            margin-bottom: 12px
+        }
+
+        .det {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-top: 16px
+        }
+
+        .hero .det {
+            justify-content: center
+        }
+
+        .det span {
+            font-size: 25px;
+            font-weight: 700;
+            color: var(--g);
+            background: #fff;
+            border: 1px solid var(--bd);
+            border-radius: 30px;
+            padding: 8px 20px 8px 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .det span::before {
+            content: "";
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--k, #3478F6)
+        }
+
+        #glow {
+            position: fixed;
+            width: 360px;
+            height: 360px;
+            margin: -180px 0 0 -180px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #3478F622, #14B8A614 45%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+            left: -999px;
+            top: -999px
+        }
+
+        .vis {
+            translate: calc(var(--mx, 0)*-12px) calc(var(--my, 0)*-8px)
+        }
+
+        .s h1 {
+            translate: calc(var(--mx, 0)*6px) calc(var(--my, 0)*4px)
+        }
+
+        .hero .net {
+            translate: calc(var(--mx, 0)*-26px) calc(var(--my, 0)*-16px)
+        }
+
+        .card,
+        .step,
+        .chip,
+        .case,
+        .agc,
+        .aga,
+        .cmp div:not(.m) {
+            translate: calc(var(--tx, 0)*1px) calc(var(--ty, 0)*1px);
+            scale: 1;
+            transition: scale .25s, translate .2s, box-shadow .25s
+        }
+
+        .card:hover,
+        .step:hover,
+        .chip:hover,
+        .case:hover,
+        .agc:hover,
+        .aga:hover,
+        .cmp div:not(.m):hover {
+            scale: 1.05;
+            box-shadow: 0 18px 40px #17324d2e
+        }
+
+        .net g:has(rect) {
+            cursor: pointer;
+            transform-box: fill-box;
+            transform-origin: center;
+            transition: scale .25s
+        }
+
+        .net g:has(rect):hover {
+            scale: 1.18
+        }
+
+        .arch-diag {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+
+        .arch-diag text {
+            font-family: Manrope, Inter, system-ui, sans-serif;
+            user-select: none;
+        }
+
+        .arch-diag g:has(rect) {
+            cursor: pointer;
+            transform-box: fill-box;
+            transform-origin: center;
+            transition: transform .25s ease, filter .25s ease;
+        }
+
+        .arch-diag g:has(rect):hover {
+            transform: translateY(-2px);
+            filter: drop-shadow(0 10px 22px rgba(23, 50, 77, 0.14));
+        }
+
+        .bar {
+            transition: filter .2s, scale .2s
+        }
+
+        .bar:hover {
+            filter: brightness(1.1);
+            scale: 1.08 1.03
+        }
+
+        .rip {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            margin: -10px;
+            border-radius: 50%;
+            border: 3px solid var(--b);
+            pointer-events: none;
+            z-index: 7;
+            animation: rp .8s forwards
+        }
+
+        @keyframes rp {
+            to {
+                transform: scale(9);
+                opacity: 0
+            }
+        }
+
+        @media(prefers-reduced-motion:reduce) {
+            * {
+                animation: none !important;
+                transition: none !important
+            }
+
+            .rv {
+                opacity: 1
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="bg"></canvas>
+    <div id="glow"></div>
+    <div id="pb"></div>
+    <div id="rotate-hint">🔄 Rotate device to landscape for optimal presentation</div>
+    <div id="stage"></div>
+    <aside id="notes" aria-label="Speaker notes">
+        <h3>Speaker notes</h3>
+        <div id="nt"></div>
+    </aside>
+    <div id="ui"><button id="pv">← Previous</button><button id="nx">Next →</button><button id="fs">Fullscreen
+            (F)</button><button id="nb">Notes (N)</button><span id="cnt">01 / 22</span></div>
+    <script>
+        const C = { b: '#3478F6', t: '#14B8A6', p: '#8B7CF6', c: '#FF7B72', y: '#FFD166' }, R = (a, b) => a + Math.random() * (b - a);
+        // network builder: nodes [id,x,y,label,color,big], edges [a,b,color,dur,delay]
+        function net(N, E, vb = '-150 0 1300 500', fs = 26) {
+            const m = {}; N.forEach(n => m[n[0]] = n); let s = `<svg class="net" viewBox="${vb}">`;
+            E.forEach(([a, b, col, d = 3, dl = 0], i) => {
+                const A = m[a], B = m[b], p = `M${A[1]} ${A[2]}L${B[1]} ${B[2]}`;
+                s += `<g class="rv" style="--i:${dl}"><path d="${p}" stroke="${col}" stroke-width="3" stroke-dasharray="8 8" opacity=".45" fill="none"/>` + [0, 1].map(k => `<circle r="7" fill="${col}"><animateMotion dur="${d}s" begin="${k * d / 2}s" repeatCount="indefinite" path="${p}"/></circle>`).join('') + '</g>'
+            });
+            N.forEach(([id, x, y, l, col, big], i) => { const k = big ? 1.15 : 1, w = l.length * fs * .58 * k + fs * 1.7, h = fs * (big ? 3.2 : 2.3); s += `<g class="rv" style="--i:${i * .4}"><rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${h / 2}" fill="${big ? col : '#fff'}" stroke="${col}" stroke-width="3"/><text x="${x}" y="${y}" style="font-size:${fs * k}px${big ? ';fill:#fff' : ''}">${l}</text></g>` }); return s + '</svg>'
+        }
+        const chip = (t, c, i) => `<div class="chip rv" style="--c:${c};--i:${i}">${t}</div>`;
+        const flow = a => `<div class="flow" style="width:100%">` + a.map(([t, c], i) => `<div class="step rv" style="--c:${c};--i:${i}"><b>${i + 1}</b>${t}</div>`).join('<span class="ar">›</span>') + '</div>';
+        const card = (i, t, d, c, k) => `<div class="card rv" style="--c:${c};--i:${k}"><i>${i}</i><b>${t}</b><small>${d}</small></div>`;
+        const ring = (cx, cy, rx, ry, items, cols, pre) => items.map((l, i) => { const a = i / items.length * 6.283 - 1.57; return [pre + i, cx + rx * Math.cos(a), cy + ry * Math.sin(a), l, cols[i % cols.length]] });
+        const LOGO = z => `<div class="logo ${z || ''} rv"><svg viewBox="0 0 120 120"><g stroke="#17324D" stroke-width="6" opacity=".35" stroke-linecap="round" stroke-linejoin="round"><path d="M25 92L60 24L95 92Z" fill="none"/><path d="M60 24V62M25 92L60 62M95 92L60 62"/></g><circle cx="60" cy="24" r="14" fill="${C.b}"/><circle cx="25" cy="92" r="14" fill="${C.t}"/><circle cx="95" cy="92" r="14" fill="${C.p}"/><circle cx="60" cy="62" r="11" fill="${C.c}"/></svg><span>OMERTA<em>.ai</em></span></div>`;
+        const S = [
+            {
+                hero: 1, hd: 'Introduction', h: 'Every Transaction <em>Has a Story.</em>', s: 'Omerta.ai connects the signals behind financial risk.', v: () => net([['a', 140, 90, 'Account', C.b], ['b', 840, 90, 'Device', C.p], ['c', 90, 400, 'Merchant', C.t], ['d', 890, 400, 'IP address', C.p], ['e', 260, 455, 'Customer', C.b], ['f', 690, 455, 'Account', C.b], ['g', 500, 40, 'Payment', C.c]], [['a', 'b', C.b, 5], ['c', 'e', C.t, 4, 1], ['d', 'f', C.c, 4, 2], ['g', 'a', C.b, 4, 1], ['g', 'b', C.p, 4, 2], ['e', 'f', C.b, 6, 3]], '0 0 1000 500', 17),
+                n: "Welcome. Every financial transaction leaves a trail: who sent it, from which device, to whom, and how it fits their normal life. Omerta.ai is built to connect those signals so teams see the whole story, not just one alert. Today I will show the problem, how Omerta.ai helps, and what a pilot could look like."
+            },
+            {
+                hd: 'Problem Statement', h: 'Teams See Alerts, <em>Not the Full Story.</em>', s: 'Strong tools exist, but the evidence behind each alert is spread out.',
+                v: () => `<div style="width:100%;display:flex;flex-direction:column;gap:26px"><div class="stmt rv" style="--i:0">Fraud and risk teams receive alerts, but the proof needed to judge each one sits in many different tools. <b>Analysts spend their time searching, not deciding.</b></div><div class="grid g3">` + [['🧩', 'Scattered evidence', 'Alerts, devices, accounts and notes live in separate places.', C.c], ['⏳', 'Slow manual work', 'Every case starts with searching and copying.', C.y], ['❓', 'Hard-to-explain decisions', 'It is unclear why a case was flagged or closed.', C.p]].map((x, i) => card(...x, i + 1)).join('') + '</div></div>', tk: 'Omerta.ai connects the evidence so people can decide.',
+                n: "This is the problem we solve. Fraud and risk teams already receive alerts. The difficulty is that the evidence for each alert sits in separate tools: transactions, devices, accounts, and notes. Analysts spend time searching and copying instead of deciding. That makes work slow and makes decisions hard to explain later. Omerta.ai is built to fix exactly this."
+            },
+            {
+                hd: 'The Problem · One Alert, Many Clues', h: 'One Alert Is <em>Not the Whole Story.</em>', s: 'A transaction can look ordinary alone. Its wider context may raise questions.', v: () => net([['t', 500, 250, 'Suspicious transaction', C.c, 1], ...ring(500, 250, 430, 190, ['Account activity', 'Customer behavior', 'Device & IP signals', 'Related accounts', 'Transaction history'], [C.b, C.t, C.p, C.y, C.b], 'x')], [['x0', 't', C.b], ['x1', 't', C.t, 3, 1], ['x2', 't', C.p, 3, 2], ['x3', 't', C.y, 3, 3], ['x4', 't', C.b, 3, 4]]), tk: 'The full story needs the pieces connected.',
+                n: "Picture one transfer. On its own it may look fine. But around it sit the account's recent activity, the customer's habits, the device and network used, related accounts, and past transactions. Each lives in a different place. Analysts must piece them together by hand. That is the problem Omerta.ai addresses. Next: what businesses use today."
+            },
+
+            {
+                hd: 'The Gap · Scattered Evidence', h: 'The Challenge Is <em>Connecting the Evidence.</em>', s: 'Disconnected information adds work and hides the full picture.', v: () => `<div class="join">` + [['Transaction alert', C.c, '-500px', '-200px'], ['Device details', C.p, '500px', '-150px'], ['Account history', C.b, '-450px', '200px'], ['Graph links', C.y, '450px', '220px'], ['Investigation notes', C.t, '0px', '260px']].map(([t, c, x, y], i) => `<div class="chip" style="--c:${c};--x:${x};--y:${y}">${t}</div>`).join('') + '</div>', tk: 'One view saves repeated searching.',
+                n: "Here the alert, device details, account history, graph links, and notes sit in separate places. Watch them move into one investigation view. The challenge is not a lack of data. It is that evidence is scattered, so every case starts with searching. Bringing it together is the heart of Omerta.ai."
+            },
+            {
+                hd: 'Our Solution · Omerta.ai Overview', h: 'Meet Omerta.ai: <em>Connect the Full Picture.</em>', s: 'Risk signals and investigation context, together.', v: () => flow([['Transaction', C.b], ['Risk signals', C.c], ['Related entities', C.y], ['Investigation', C.p], ['Evidence', C.t], ['Decision', C.b]]), tk: 'From one transaction to an informed decision.',
+                n: "This is the Omerta.ai journey. A transaction comes in. We gather risk signals, then find related accounts, devices, and addresses. An AI-assisted investigation brings the evidence together, and a person makes the decision. Each color is a type of information. The rest of the deck shows each step in action."
+            },
+            {
+                hd: 'How It Works · Signals Read Together', h: 'One Signal Raises a Question. <em>Context Helps Explain It.</em>', s: 'No single signal proves fraud.', v: () => net([['r', 500, 250, 'Risk assessment', C.b, 1], ...ring(500, 250, 430, 190, ['Unusual amount', 'Recent activity', 'New device', 'IP or VPN context', 'Connected accounts', 'Past patterns'], [C.c, C.b, C.p, C.p, C.y, C.t], 'x')], [['x0', 'r', C.c], ['x1', 'r', C.b, 3, 1], ['x2', 'r', C.p, 3, 2], ['x3', 'r', C.p, 3, 3], ['x4', 'r', C.y, 3, 4], ['x5', 'r', C.t, 3, 5]]), tk: 'Read signals together, not one by one.',
+                n: "This is a hypothetical transaction. An unusual amount, a new device, a VPN, or a connected account can each be harmless. A traveler uses a VPN. A family shares a phone. Omerta.ai places each signal beside the others, so the assessment reflects the whole context and not one trigger."
+            },
+            {
+                hd: 'Proof · Evidence & Pilot Metrics', h: 'Evidence, <em>Not Just a Score.</em>', s: 'Illustrative example. Not measured results.', v: () => `<div style="display:flex;gap:80px;align-items:center"><div><div class="bars">` + [['Low', 270, C.t], ['Medium', 170, C.y], ['High', 100, C.c], ['Critical', 50, C.p]].map(([l, h, c]) => `<div class="bar" style="height:${h}px;background:${c}"></div>`).join('') + `</div><div class="lbls"><span>Low</span><span>Medium</span><span>High</span><span>Critical</span></div><span class="tag">Illustrative risk-score spread</span></div><div style="width:780px"><b style="font-size:38px">How a pilot proves it</b>` + ['Precision: how many alerts were right', 'Recall: how much fraud was found', 'Review rate: how many were false alarms', 'Evidence completeness per case'].map(x => `<div class="kpi">${x}<span>to measure</span></div>`).join('') + '</div></div>', tk: 'A score is a start. Evidence explains it.',
+                n: "I want to be honest here. The bars are an illustration of how risk could spread across low to critical. They are not measured results. In a pilot we would measure precision, recall, false-alarm review rate, and how complete each case's evidence is, using your data. A score alone is not enough. Teams need the reasons behind it."
+            },
+            {
+                hd: 'Example · Unusual Activity', h: 'Spot Unusual Activity. <em>Understand Why It Matters.</em>', s: 'An unusual device or VPN alone does not prove fraud.', v: () => `<div style="width:100%">` + flow([['Unusual transfer', C.c], ['Customer history', C.b], ['Device & IP', C.p], ['Related activity', C.y], ['Supporting evidence', C.t]]) + `<div style="margin-top:44px;text-align:center" class="rv" ><span class="chip" style="--c:${C.t}">✔ Case ready for review</span></div></div>`, tk: 'Context turns a flag into a case.',
+                n: "A customer makes an unusual transfer from a device we have not seen. The system checks the transaction, the customer's history, the device and network, related activity, and gathers supporting evidence. The new device alone proves nothing. The result is a case ready for a person to review, with reasons attached."
+            },
+            {
+                hd: 'Network View · Hidden Connections', h: 'See the Connections <em>Behind the Transactions.</em>', s: 'Illustrative network.', v: () => `<div style="display:flex;gap:40px;width:100%;align-items:center"><div style="flex:3;height:520px">` + net([['a', 120, 80, 'Account A', C.b], ['b', 420, 60, 'Account B', C.b], ['c', 250, 260, 'Shared device', C.p, 1], ['d', 650, 180, 'Account C', C.b], ['e', 130, 430, 'IP address', C.p], ['f', 520, 400, 'Merchant', C.t], ['g', 860, 300, 'Account D', C.b]], [['a', 'c', C.c, 3, 2], ['b', 'c', C.c, 3, 3], ['d', 'c', C.c, 3, 4], ['e', 'c', C.p, 3, 5], ['d', 'f', C.b, 4, 6], ['g', 'd', C.c, 3, 7]]) + `</div><div class="card rv" style="--c:${C.t};--i:8;flex:1"><b>Also normal</b>A family shares one tablet. Same device, harmless link.<small>Context decides.</small></div></div>`, tk: 'Links raise questions. Context answers them.',
+                n: "At first these accounts look unrelated. Then the links appear: several accounts reach one device and one address, and money moves onward. That pattern deserves a look. But on the right, a family sharing a tablet also creates a shared device, and it is harmless. Omerta.ai shows links; people and context decide. This diagram is illustrative."
+            },
+            {
+                hd: 'AI Investigation · The Steps', h: 'AI-Assisted <em>Investigation</em>', s: 'AI prepares the evidence. People decide.', v: () => `<div style="width:100%">` + flow([['Alert', C.c], ['Gather context', C.b], ['Check evidence', C.t], ['Find gaps', C.y], ['Summarize findings', C.p], ['Human review', C.b]]) + `<div class="grid g4" style="margin-top:40px">` + ['Identity check', 'Device & network check', 'Transaction pattern check', 'Knowledge lookup'].map((x, i) => `<div class="chip rv" style="--c:${[C.b, C.p, C.y, C.t][i]};--i:${i + 6};text-align:center">${x}</div>`).join('') + '</div></div>', tk: 'Clearer summaries. Human decisions.',
+                n: "When an alert needs a closer look, specialist checks run: identity, device and network, transaction patterns, and a lookup of known fraud patterns. They gather context, flag what is missing, and write a clear summary. AI is a helper here. Every conclusion goes to a person for review, and the evidence stays visible."
+            },
+            {
+                hd: 'Agent Workflow · Who Does What', h: 'Agents Prepare, <em>People Decide.</em>', s: 'Each agent has one job. Together they prepare the case.',
+                v: () => `<div style="width:100%;display:flex;flex-direction:column;align-items:center"><div class="ag"><div class="agc rv" style="--c:${C.c};--i:0"><i>🚨</i><b>Alert</b><small>A suspicious transaction comes in</small></div><span class="ar rv" style="--i:1">›</span><div class="agc big rv" style="--c:${C.b};--i:1"><i>🧠</i><b>Orchestrator Agent</b><small>Plans the checks and assigns the work</small></div><span class="ar rv" style="--i:2">›</span><div class="agstack">` + [['🪪', 'Identity Agent', C.b], ['📱', 'Device & Network Agent', C.p], ['📈', 'Transaction Pattern Agent', C.y], ['📚', 'Knowledge Agent', C.t]].map(([ic, t, c], i) => `<div class="aga rv" style="--c:${c};--i:${i + 2}"><i>${ic}</i>${t}</div>`).join('') + `</div><span class="ar rv" style="--i:6">›</span><div class="agc rv" style="--c:${C.p};--i:6"><i>📝</i><b>Summary Agent</b><small>Collects the evidence and writes the case summary</small></div><span class="ar rv" style="--i:7">›</span><div class="agc rv" style="--c:${C.t};--i:7"><i>👤</i><b>Human Analyst</b><small>Reviews and makes the decision</small></div></div><div class="loop rv" style="--i:8">↺ Gap found? The Orchestrator asks the agents for more evidence.</div></div>`, tk: 'AI prepares the evidence. A person makes the decision.',
+                n: "Here is the agent workflow. An alert arrives and the Orchestrator Agent plans which checks are needed. Four specialist agents each do one job: the Identity Agent checks who is acting, the Device and Network Agent checks what they are using, the Transaction Pattern Agent compares behavior with history, and the Knowledge Agent looks up known fraud patterns. The Summary Agent gathers everything into a clear case summary. If something is missing, the Orchestrator asks for more evidence. A human analyst always makes the final decision."
+            },
+            {
+                hd: 'Case Management · Alert to Resolution', h: 'From Investigation to <em>Case Resolution</em>', s: 'Example case. Illustrative values.', v: () => `<div><div class="lc">` + ['New', 'Investigating', 'Under review', 'Decision recorded'].map((x, i) => `<div style="--i:${i}">${x}</div>`).join('') + `</div><div class="case rv"><div><span>Case number</span>CASE-0001</div><div><span>Risk category</span>High</div><div><span>Evidence summary</span>Linked device, new IP</div><div><span>Reviewer</span>Assigned analyst</div></div></div>`, tk: 'Every useful alert needs a recorded decision.',
+                n: "A case card moves through a simple life: new, investigating, under review, decision recorded. It carries the case number, risk category, evidence summary, and reviewer. This gives teams a clear trail from first alert to final decision, which also helps with audits. The values on screen are examples."
+            },
+            {
+                hd: 'Comparison · What Makes Us Different', h: 'What Makes Omerta.ai <em>Different?</em>', s: 'Established platforms may offer some of these. This is our focus.', v: () => `<div class="cmp">` + [['Individual alerts', 'Connected evidence'], ['Isolated risk scores', 'Contextual investigation'], ['Separate sources', 'One unified view'], ['Manual evidence gathering', 'AI-assisted investigation'], ['Scattered notes', 'Structured case tracking']].map(([a, b], i) => `<div class="old rv" style="--i:${i}">${a}</div><div class="m">→</div><div class="new rv" style="--i:${i}">${b}</div>`).join('') + '</div>', tk: 'Signals, links, AI, and cases in one place.',
+                n: "To be fair: many mature products offer parts of this. Our intent is to bring signals, relationships, investigation, knowledge, and case tracking into one connected experience. On the left is the common starting point, on the right is where Omerta.ai aims to help. We invite you to test this against your own workflow."
+            },
+            {
+                hd: 'Business Impact · Pilot Goals', h: 'Business Impact: <em>What Matters to Customers</em>', s: 'Pilot goals. Not achieved results.', v: () => `<div style="display:flex;gap:30px;width:100%"><div class="grid" style="grid-template-columns:1fr 1fr;flex:2">` + [['⏱️', 'Save time', 'Less repeated evidence gathering', C.b], ['🎯', 'Prioritize attention', 'Focus on cases that need it', C.c], ['🔍', 'Improve clarity', 'Related evidence in one view', C.t], ['✅', 'Better decisions', 'Clear context, structured review', C.p]].map((x, i) => card(...x, i)).join('') + `</div><div class="card rv" style="--c:${C.y};--i:4;flex:1.1"><b>Pilot KPIs</b>` + ['Case handling time', 'False-positive review rate', 'Alert-to-decision time', 'Precision and recall', 'Evidence completeness'].map(x => `<div class="kpi" style="font-size:29px">${x}</div>`).join('') + '</div></div>', tk: 'We will measure it together in a pilot.',
+                n: "Four outcomes matter: saving investigation time, prioritizing attention, improving case clarity, and supporting better decisions. These are goals, not claims. The panel lists what a pilot should measure: handling time, false-positive review rate, time from alert to decision, precision and recall, and evidence completeness. We would agree on baselines with you first."
+            },
+            {
+                hd: 'OMERTA.AI | AI ARCHITECTURE', h: 'Autonomous Investigation: <em>Alert to Case Resolution.</em>', s: 'Structured multi-stage pipeline coordinating specialized analysis engines with human oversight.',
+                v: () => {
+                    const curves = [
+                        ['M 480 255 C 560 255, 560 79, 640 79', C.b, 2.8, 0],
+                        ['M 480 255 C 560 255, 560 167, 640 167', C.p, 2.8, 0.4],
+                        ['M 480 255 L 640 255', C.c, 2.8, 0.8],
+                        ['M 480 255 C 560 255, 560 343, 640 343', C.y, 2.8, 1.2],
+                        ['M 480 255 C 560 255, 560 431, 640 431', C.t, 2.8, 1.6],
+                        ['M 1080 79 C 1160 79, 1160 255, 1240 255', C.b, 2.8, 0.8],
+                        ['M 1080 167 C 1160 167, 1160 255, 1240 255', C.p, 2.8, 1.2],
+                        ['M 1080 255 L 1240 255', C.c, 2.8, 1.6],
+                        ['M 1080 343 C 1160 343, 1160 255, 1240 255', C.y, 2.8, 2.0],
+                        ['M 1080 431 C 1160 431, 1160 255, 1240 255', C.t, 2.8, 2.4],
+                        ['M 210 255 L 250 255', C.c, 2.0, 0],
+                        ['M 1470 255 L 1510 255', C.t, 2.0, 1.5]
+                    ];
+                    const pathsHtml = curves.map(([d, col, dur, del]) => `
+                        <g class="rv" style="--i:${del}">
+                            <path d="${d}" stroke="${col}" stroke-width="2.5" stroke-dasharray="6 6" opacity=".45" fill="none"/>
+                            <circle r="5" fill="${col}">
+                                <animateMotion dur="${dur}s" begin="${del}s" repeatCount="indefinite" path="${d}"/>
+                            </circle>
+                            <circle r="5" fill="${col}">
+                                <animateMotion dur="${dur}s" begin="${del + dur/2}s" repeatCount="indefinite" path="${d}"/>
+                            </circle>
+                        </g>
+                    `).join('');
+
+                    return `
+                    <svg class="arch-diag" viewBox="0 0 1720 480" style="width:100%;height:100%">
+                        <defs>
+                            <filter id="c-sh" x="-15%" y="-15%" width="130%" height="130%">
+                                <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#17324D" flood-opacity="0.08"/>
+                            </filter>
+                        </defs>
+
+                        <!-- Column Headers / Stages -->
+                        <g class="rv" style="--i:0.1;font-size:13px;font-weight:800;letter-spacing:.12em;text-anchor:middle;fill:var(--g)">
+                            <text x="120" y="24">1. RISK ALERT</text>
+                            <text x="365" y="24">2. ORCHESTRATION</text>
+                            <text x="860" y="24">3. INVESTIGATION COMPONENTS</text>
+                            <text x="1355" y="24">4. EVIDENCE SYNTHESIS</text>
+                            <text x="1600" y="24">5. HUMAN REVIEW</text>
+                        </g>
+
+                        <!-- Paths & Animated Flow -->
+                        ${pathsHtml}
+
+                        <!-- Stage 1: Risk Alert -->
+                        <g class="rv" style="--i:0.2">
+                            <rect x="30" y="197" width="180" height="116" rx="16" fill="#fff" stroke="var(--c)" stroke-width="2.5" filter="url(#c-sh)"/>
+                            <rect x="30" y="197" width="180" height="6" rx="3" fill="var(--c)"/>
+                            <text x="120" y="235" text-anchor="middle" font-size="28px">🚨</text>
+                            <text x="120" y="268" text-anchor="middle" font-size="16px" font-weight="800" fill="var(--n)">Risk Alert</text>
+                            <text x="120" y="290" text-anchor="middle" font-size="12px" font-weight="700" fill="var(--c)">Transaction Anomaly</text>
+                        </g>
+
+                        <!-- Stage 2: Orchestration -->
+                        <g class="rv" style="--i:0.4">
+                            <rect x="250" y="187" width="230" height="136" rx="18" fill="var(--b)" stroke="var(--b)" stroke-width="2.5" filter="url(#c-sh)"/>
+                            <text x="365" y="226" text-anchor="middle" font-size="30px">🧠</text>
+                            <text x="365" y="262" text-anchor="middle" font-size="18px" font-weight="800" fill="#fff">LangGraph Orchestrator</text>
+                            <text x="365" y="286" text-anchor="middle" font-size="12px" font-weight="600" fill="#E4EAF2">State Machine &amp; Workflow</text>
+                            <text x="365" y="306" text-anchor="middle" font-size="11px" font-weight="700" fill="#BFDBFE">Specialized Task Dispatch</text>
+                        </g>
+
+                        <!-- Stage 3: Investigation Components -->
+                        <!-- 3.1: PostgreSQL -->
+                        <g class="rv" style="--i:0.6">
+                            <rect x="640" y="46" width="440" height="66" rx="14" fill="#fff" stroke="var(--b)" stroke-width="2.5" filter="url(#c-sh)"/>
+                            <text x="675" y="87" text-anchor="middle" font-size="22px">🐘</text>
+                            <text x="705" y="73" text-anchor="start" font-size="15px" font-weight="800" fill="var(--n)">PostgreSQL Relational DB</text>
+                            <text x="705" y="93" text-anchor="start" font-size="12px" font-weight="600" fill="var(--g)">Account History &amp; Transaction Analytics</text>
+                        </g>
+
+                        <!-- 3.2: Neo4j Graph -->
+                        <g class="rv" style="--i:0.8">
+                            <rect x="640" y="134" width="440" height="66" rx="14" fill="#fff" stroke="var(--p)" stroke-width="2.5" filter="url(#c-sh)"/>
+                            <text x="675" y="175" text-anchor="middle" font-size="22px">🕸️</text>
+                            <text x="705" y="161" text-anchor="start" font-size="15px" font-weight="800" fill="var(--n)">Neo4j Graph Analytics</text>
+                            <text x="705" y="181" text-anchor="start" font-size="12px" font-weight="600" fill="var(--g)">Entity Topology &amp; Shared Device Rings</text>
+                        </g>
+
+                        <!-- 3.3: LightGBM ML Classifier -->
+                        <g class="rv" style="--i:1.0">
+                            <rect x="640" y="222" width="440" height="66" rx="14" fill="#fff" stroke="var(--c)" stroke-width="2.5" filter="url(#c-sh)"/>
+                            <text x="675" y="263" text-anchor="middle" font-size="22px">🎯</text>
+                            <text x="705" y="249" text-anchor="start" font-size="15px" font-weight="800" fill="var(--n)">LightGBM ML Risk Model</text>
+                            <text x="705" y="269" text-anchor="start" font-size="12px" font-weight="700" fill="var(--c)">Model Validation: 98.3% Recall | 0.998 ROC-AUC</text>
+                        </g>
+
+                        <!-- 3.4: Rules Engine -->
+                        <g class="rv" style="--i:1.2">
+                            <rect x="640" y="310" width="440" height="66" rx="14" fill="#fff" stroke="var(--y)" stroke-width="2.5" filter="url(#c-sh)"/>
+                            <text x="675" y="351" text-anchor="middle" font-size="22px">⚡</text>
+                            <text x="705" y="337" text-anchor="start" font-size="15px" font-weight="800" fill="var(--n)">Deterministic Rules Engine</text>
+                            <text x="705" y="357" text-anchor="start" font-size="12px" font-weight="600" fill="var(--g)">Velocity Analysis &amp; Smurfing Thresholds</text>
+                        </g>
+
+                        <!-- 3.5: Knowledge RAG -->
+                        <g class="rv" style="--i:1.4">
+                            <rect x="640" y="398" width="440" height="66" rx="14" fill="#fff" stroke="var(--t)" stroke-width="2.5" filter="url(#c-sh)"/>
+                            <text x="675" y="439" text-anchor="middle" font-size="22px">📚</text>
+                            <text x="705" y="425" text-anchor="start" font-size="15px" font-weight="800" fill="var(--n)">Knowledge Retrieval (RAG)</text>
+                            <text x="705" y="445" text-anchor="start" font-size="12px" font-weight="600" fill="var(--g)">AML Typologies &amp; Regulatory Reference</text>
+                        </g>
+
+                        <!-- Stage 4: Evidence Synthesis -->
+                        <g class="rv" style="--i:1.6">
+                            <rect x="1240" y="187" width="230" height="136" rx="18" fill="var(--p)" stroke="var(--p)" stroke-width="2.5" filter="url(#c-sh)"/>
+                            <text x="1355" y="226" text-anchor="middle" font-size="30px">📝</text>
+                            <text x="1355" y="260" text-anchor="middle" font-size="17px" font-weight="800" fill="#fff">Local LLM Synthesis</text>
+                            <text x="1355" y="284" text-anchor="middle" font-size="12px" font-weight="700" fill="#E4EAF2">Ollama (Qwen 2.5 1.5B)</text>
+                            <text x="1355" y="304" text-anchor="middle" font-size="11px" font-weight="700" fill="#DDD6FE">Air-Gapped · 3.3s SAR Draft</text>
+                        </g>
+
+                        <!-- Stage 5: Human Review -->
+                        <g class="rv" style="--i:1.8">
+                            <rect x="1510" y="197" width="180" height="116" rx="16" fill="#fff" stroke="var(--t)" stroke-width="2.5" filter="url(#c-sh)"/>
+                            <rect x="1510" y="197" width="180" height="6" rx="3" fill="var(--t)"/>
+                            <text x="1600" y="235" text-anchor="middle" font-size="28px">👤</text>
+                            <text x="1600" y="268" text-anchor="middle" font-size="16px" font-weight="800" fill="var(--n)">Human Review</text>
+                            <text x="1600" y="290" text-anchor="middle" font-size="12px" font-weight="700" fill="var(--t)">Compliance Officer Sign-Off</text>
+                        </g>
+                    </svg>`;
+                },
+                tk: '100% Local AI Pipeline: ML Risk Scoring + Graph Analytics + Local Rules + Air-Gapped Local LLM',
+                n: "This diagram shows the 100% on-premise Omerta.ai investigation pipeline. Every single layer runs locally without touching the public cloud. An incoming transaction risk alert triggers the LangGraph Orchestrator to coordinate five local engines: PostgreSQL for account history, Neo4j for network topology, LightGBM running on local CPU for risk scoring, a local rules engine for velocity thresholds, and local knowledge retrieval. The findings are synthesized by an air-gapped local LLM into a structured SAR dossier draft, presented to a human compliance officer for final sign-off."
+            },
+            {
+                hd: 'Evaluation Pipeline & Benchmarks', h: 'Benchmarked Performance & <em>Evaluation Pipeline.</em>', s: 'Trained and validated on 20,000 real financial transactions with sub-3-second SAR turnaround.',
+                v: () => `<div style="width:100%">` + flow([['Core Banking Data', C.b], ['PostgreSQL & Neo4j ETL', C.c], ['LightGBM Inference (<3ms)', C.p], ['Local LLM Synthesis (<2.5s)', C.y], ['Audit-Grade SAR Dossier', C.t], ['Compliance Sign-Off', C.b]]) + `<div class="grid g4" style="margin-top:40px">` + [
+                    ['🎯', '98.29% Fraud Recall', 'LightGBM model caught 860 of 875 fraud transactions (ROC-AUC: 0.9979)', C.b],
+                    ['⚡', '< 3s Automated SAR', 'Reduces investigation handling time from 45 minutes to under 3 seconds', C.t],
+                    ['🛡️', '100% Air-Gapped / Zero Cloud', 'All models execute on-premise: zero customer data or transactions sent to cloud', C.p],
+                    ['📜', '100% Grounded Citations', 'Zero hallucination guarantee: every finding is anchored to a SHA-256 evidence hash', C.y]
+                ].map((x, i) => card(...x, i + 6)).join('') + `</div></div>`,
+                tk: 'Proven 98.3% recall, 0.998 ROC-AUC, and sub-3-second air-gapped case resolution.',
+                n: "Omerta.ai is validated against 20,000 banking transactions (15k train / 5k validation). The LightGBM classifier achieves a 98.29% recall, catching 860 out of 875 fraud scenarios with a 0.9979 ROC-AUC and 94.3% precision. Crucially for banking compliance, all models execute 100% locally on-premise with zero cloud data transmission. Furthermore, end-to-end investigation and automated SAR generation takes under 3 seconds — down from 45 minutes of manual copy-pasting across systems."
+            },
+            {
+                hd: 'Local Models & Cost Analysis', h: 'Local Models & <em>Zero-Cloud Economics.</em>', s: 'Zero cloud dependency: Every agent and model runs on-premise with zero external API fees.',
+                v: () => `<div style="width:100%;font-size:26px"><div class="rv" style="--i:0;display:grid;grid-template-columns:1.8fr 1.8fr 1fr 1fr;font-weight:800;color:var(--g);padding:0 10px 10px"><span>Component / Agent</span><span>Engine / Model</span><span>Execution Tier</span><span>Cloud API Cost</span></div>` + [
+                    ['Lead Orchestrator', 'LangGraph Deterministic Dispatch', 'Local Python Runtime', '$0.0000'],
+                    ['Relational Ledger & Velocity', 'PostgreSQL 16 CTE Analytics', 'Local Server Database', '$0.0000'],
+                    ['Graph Topology & Co-Location', 'Neo4j Graph 5.26 Cypher Engine', 'Local Graph Service', '$0.0000'],
+                    ['Tabular Risk Classification', 'LightGBM ML (lgbm-risk-v1)', 'Local CPU (< 3ms)', '$0.0000'],
+                    ['Compliance Typology RAG', 'TF-IDF Lexical Sparse Vectors', 'Local In-Memory', '$0.0000'],
+                    ['Forensic SAR Synthesis Agent', 'Local LLM (Ollama Qwen 2.5 1.5B)', 'Air-Gapped GPU (~82 t/s)', '$0.0000']
+                ].map(([a, m, t, c], i) => `<div class="rv" style="--i:${i + 1};display:grid;grid-template-columns:1.8fr 1.8fr 1fr 1fr;padding:8px 10px;border-top:1px solid var(--bd);font-weight:700"><span>${a}</span><span style="color:var(--b)">${m}</span><span style="color:var(--p)">${t}</span><span style="color:var(--t);font-weight:800">${c}</span></div>`).join('') + `<div class="rv" style="--i:8;display:grid;grid-template-columns:1.8fr 1.8fr 1fr 1fr;padding:12px 10px;border-top:4px solid var(--b);background:var(--lb);font-weight:800"><span>Total Pipeline Per Investigation</span><span style="color:var(--n)">100% On-Premise Local Inference</span><span style="color:var(--p)">Zero External Calls</span><span style="color:var(--t);font-size:28px">$0.00 Cloud Cost</span></div></div>`,
+                tk: '100% Air-Gapped & Local: Zero cloud data exposure, zero third-party token bills, full data sovereignty.',
+                n: "This slide outlines our 100% local model economics. Omerta.ai does not use any cloud LLM services, external APIs, or third-party cloud infrastructure. Every single model—from relational SQL and Neo4j graph queries to LightGBM machine learning and our local Qwen 2.5 (1.5B) synthesis engine running on Ollama at 82 tokens/sec—runs inside the organization's private environment. This eliminates cloud token billing entirely ($0 recurring API costs) and guarantees that sensitive financial data and customer identities never leave the bank's security perimeter."
+            },
+            {
+                hd: 'Our Unique Selling Points', h: 'Our Unique <em>Selling Points.</em>', s: 'Active defense banking: Zero-trust dual passwords, real-time syndicates, and audited forensic AI.',
+                v: () => `<div class="grid g4">` + [
+                    ['🔐', 'Zero-Trust Dual Passwords', 'Separate login & transfer credentials; 3-strikes hold stops funds without logging user out of support', C.c],
+                    ['🛡️', '100% Air-Gapped / Zero Cloud', 'All ML, graph, and LLM models run on-premise: zero customer data or transactions ever touch the public cloud', C.t],
+                    ['🕸️', 'Real-Time Syndicate Graph', 'Neo4j multi-hop topology instantly unmasks money mule networks, shared devices, and smurfing conduits', C.p],
+                    ['🤖', 'Audited Multi-Agent SAR', 'SHA-256 hashed evidence dossiers with automated regulatory and FATF compliance citations', C.b]
+                ].map((x, i) => card(...x, i)).join('') + `</div>`,
+                tk: 'Not just alert triage: True core banking protection with real-time syndicate unmasking and zero cloud leakage.',
+                n: "What makes Omerta.ai unique? Four pillars: First, Zero-Trust Dual-Password protection with our 3-strikes non-logout hold. If an unauthorized transfer is attempted, only outbound funds are locked; the customer remains logged in to verify their identity via support tickets. Second, a 100% air-gapped local model architecture where no sensitive banking data ever touches the cloud. Third, real-time Neo4j syndicate detection linking hardware devices, IP addresses, and accounts to uncover mule rings. Fourth, audited multi-agent SAR generation that binds every statement to SHA-256 evidence hashes and regulatory compliance standards."
+            },
+            {
+                hd: 'Target Domains & Use Cases', h: 'Target Domains & <em>High-Impact Use Cases.</em>', s: 'Engineered for financial technology, core banking compliance, and digital payment networks.',
+                v: () => `<div style="width:100%"><div class="grid g4">` + [
+                    ['🏦', 'Retail & Commercial Banks', 'Automated regulatory SAR filing, AML transaction monitoring, and risk scoring', C.b],
+                    ['📱', 'Digital Wallets & Fintech', 'Instant P2P protection and mobile payment rails against rapid mule wash cycles', C.t],
+                    ['🛒', 'Payment Aggregators', 'Merchant gateway protection and POS rails against rapid pass-through conduit structuring', C.p],
+                    ['🌐', 'Telecom & Network Providers', 'Network hardware telemetry, carrier infrastructure, and VPN proxy detection', C.c]
+                ].map((x, i) => card(...x, i)).join('') + `</div><div class="grid g4" style="margin-top:36px">` + [
+                    ['Money Mule Syndicate Rings', C.c],
+                    ['Structuring / Fan-In Smurfing', C.b],
+                    ['Account Takeover & Device Hopping', C.p],
+                    ['Automated Regulatory SAR Filing', C.t]
+                ].map(([t, c], i) => `<div class="chip rv" style="--c:${c};--i:${i + 5};text-align:center">${t}</div>`).join('') + `</div></div>`,
+                tk: 'Unified defense across commercial banks, digital payment rails, and telecom networks.',
+                n: "Omerta.ai addresses four core enterprise sectors: Retail and commercial banks needing automated regulatory and FATF compliance; Instant payment fintechs and mobile digital wallets vulnerable to rapid money mule structuring; Payment aggregators and merchant gateways exposed to pass-through conduit structuring; and Telecom and network providers tracking device fingerprints and VPN proxies. Key use cases include detecting mule rings across shared devices, identifying smurfing under reporting thresholds, preventing account takeover, and instant regulatory dossier drafting."
+            },
+            {
+                hd: 'Production Deployment & Costs', h: 'Production Hardware & <em>Deployment Economics.</em>', s: 'Exact production GPU, server specifications, and 3-way financial model: Buy On-Premise vs. Rent Cloud vs. Legacy SaaS.',
+                v: () => `<div style="width:100%;display:flex;flex-direction:column;gap:24px">
+                    <div class="grid g3">
+                        <div class="card rv" style="--c:${C.b};--i:0;padding:22px">
+                            <span style="font-size:38px;display:block;margin-bottom:4px">🎮</span>
+                            <b style="font-size:30px;color:var(--b)">Production GPU Choice</b>
+                            <div style="font-size:24px;font-weight:800;color:var(--n);margin-bottom:6px">NVIDIA RTX 4000 Ada (20GB) / A10G (24GB)</div>
+                            <small style="font-size:20px;line-height:1.35;color:var(--g)">Enterprise single-slot PCIe, 70W-150W low TDP, ECC VRAM. Serves 50+ concurrent investigations via Ollama in under 1GB VRAM footprint with massive headroom.</small>
+                        </div>
+                        <div class="card rv" style="--c:${C.t};--i:1;padding:22px">
+                            <span style="font-size:38px;display:block;margin-bottom:4px">🖥️</span>
+                            <b style="font-size:30px;color:var(--t)">Host & Database Specs</b>
+                            <div style="font-size:24px;font-weight:800;color:var(--n);margin-bottom:6px">16-Core Server CPU + 64GB DDR5 ECC</div>
+                            <small style="font-size:20px;line-height:1.35;color:var(--g)">2x 1TB NVMe PCIe 4.0 in RAID-1. Powers PostgreSQL 16 ACID ledger + Neo4j 5.26 in-memory graph cache + LightGBM tabular ML (< 3ms CPU inference).</small>
+                        </div>
+                        <div class="card rv" style="--c:${C.p};--i:2;padding:22px">
+                            <span style="font-size:38px;display:block;margin-bottom:4px">🤖</span>
+                            <b style="font-size:30px;color:var(--p)">On-Premise Model Stack</b>
+                            <div style="font-size:24px;font-weight:800;color:var(--n);margin-bottom:6px">Air-Gapped Ollama (Qwen 2.5 1.5B)</div>
+                            <small style="font-size:20px;line-height:1.35;color:var(--g)">Sub-3.5s SAR dossier generation at ~82 tokens/sec. 100% data sovereignty: zero financial transactions or customer PII ever cross external firewalls.</small>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px">
+                        <div class="rv" style="--i:3;background:var(--lb);border:2px solid var(--b);border-radius:18px;padding:20px 24px">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                                <b style="font-size:26px;color:var(--b)">Option A: Buy On-Premise</b>
+                                <span style="background:var(--b);color:#fff;font-size:16px;font-weight:800;padding:4px 12px;border-radius:20px">BEST ROI / CAPEX</span>
+                            </div>
+                            <div style="font-size:36px;font-weight:800;color:var(--n)">~$5,200 <span style="font-size:20px;font-weight:600;color:var(--g)">one-time server purchase</span></div>
+                            <div style="font-size:21px;font-weight:700;color:var(--t);margin:6px 0">Amortized 3-Year TCO: ~$165 / month</div>
+                            <div style="font-size:18px;color:var(--g);line-height:1.4">Dell PowerEdge / Supermicro 1U + RTX 4000 Ada. Zero recurring cloud bills. 100% bank data center ownership.</div>
+                        </div>
+                        <div class="rv" style="--i:4;background:#fff;border:2px solid var(--bd);border-radius:18px;padding:20px 24px">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                                <b style="font-size:26px;color:var(--p)">Option B: Rent Cloud VPC</b>
+                                <span style="background:var(--p);color:#fff;font-size:16px;font-weight:800;padding:4px 12px;border-radius:20px">OPEX FLEXIBILITY</span>
+                            </div>
+                            <div style="font-size:36px;font-weight:800;color:var(--n)">$240 – $340 <span style="font-size:20px;font-weight:600;color:var(--g)">/ month ($2.9k/yr)</span></div>
+                            <div style="font-size:21px;font-weight:700;color:var(--p);margin:6px 0">Zero upfront hardware capital</div>
+                            <div style="font-size:18px;color:var(--g);line-height:1.4">Dedicated private GPU instance (AWS g5.xlarge A10G or Hetzner A4000). Self-hosted within bank's private VPC. Zero token fees.</div>
+                        </div>
+                        <div class="rv" style="--i:5;background:#fff;border:2px solid #FF7B7244;border-radius:18px;padding:20px 24px">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                                <b style="font-size:26px;color:var(--c)">Option C: Legacy AML SaaS</b>
+                                <span style="background:var(--c);color:#fff;font-size:16px;font-weight:800;padding:4px 12px;border-radius:20px">LEGACY INDUSTRY</span>
+                            </div>
+                            <div style="font-size:36px;font-weight:800;color:var(--c)">$35,000+ <span style="font-size:20px;font-weight:600;color:var(--g)">/ year + per-API fees</span></div>
+                            <div style="font-size:21px;font-weight:700;color:var(--c);margin:6px 0">Over 85% higher 3-year TCO</div>
+                            <div style="font-size:18px;color:var(--g);line-height:1.4">Third-party commercial vendors (Actimize, Feedzai, ComplyAdvantage) with per-query pricing and public cloud data exposure.</div>
+                        </div>
+                    </div>
+                </div>`,
+                tk: 'Production GPU: NVIDIA RTX 4000 Ada / A10G — Buy On-Prem: ~$5,200 one-time (~$165/mo) vs. Legacy SaaS: $35,000+/yr.',
+                n: "Let's examine our exact production hardware and total cost of ownership economics. For a production-ready enterprise deployment, Omerta.ai runs on a single enterprise blade server with a 16-Core CPU, 64GB ECC RAM, 2TB NVMe RAID-1, and an enterprise NVIDIA RTX 4000 Ada Generation (20GB) or NVIDIA A10G (24GB) GPU. This GPU consumes only 70 to 150 watts, fits in a single PCIe slot, and can serve over 50 concurrent compliance investigations simultaneously because Qwen 2.5 1.5B requires under 1GB VRAM. When comparing financial models: Option A, buying the physical on-premise server, requires a one-time CapEx of approximately $5,200, which amortizes over 3 years to roughly $165 per month with zero recurring software licenses. Option B, renting a dedicated private cloud instance such as an AWS g5.xlarge with an A10G GPU in a private bank VPC, costs between $240 and $340 per month with zero upfront capital. Both options eliminate third-party API token fees entirely and deliver over 85% lower total cost of ownership compared to legacy cloud AML SaaS tools, which typically charge $35,000 to $75,000 annually plus per-call transaction surcharges."
+            },
+            {
+                hd: 'Roadmap · Where We’re Heading', h: 'Better Connected <em>Financial Protection</em>', s: 'Direction, not delivery dates.', v: () => net([['o', 500, 250, 'Omerta.ai', C.b, 1], ...ring(500, 250, 430, 195, ['Connected entities', 'Better summaries', 'Case analytics', 'More integrations', 'Audit trails', 'Learning from reviews'], [C.t, C.p, C.y, C.b, C.c, C.t], 'x')], [['x0', 'o', C.t, 4], ['x1', 'o', C.p, 4, 1], ['x2', 'o', C.y, 4, 2], ['x3', 'o', C.b, 4, 3], ['x4', 'o', C.c, 4, 4], ['x5', 'o', C.t, 4, 5]]), tk: 'Customer feedback shapes what comes next.',
+                n: "Looking ahead, we see opportunities: deeper connected-entity analysis, better investigation summaries, richer case analytics, more integrations with financial systems, stronger monitoring and audit trails, and learning from reviewed cases through controlled, approved processes. These are directions, not promises or dates. Your feedback decides priorities."
+            },
+            {
+                hero: 1, hd: 'Next Step · Let’s Pilot', logo: 'sm', h: 'Connect the Signals. <em>Understand the Story.</em>', s: 'Omerta.ai helps turn financial risk signals into clearer investigations and more informed decisions.', cta: 'Let\u2019s explore a fraud-investigation pilot.', v: () => net([['a', 140, 100, 'Account', C.b], ['b', 840, 100, 'Device', C.p], ['c', 90, 300, 'Merchant', C.t], ['d', 880, 300, 'IP address', C.p], ['e', 250, 450, 'Case', C.t], ['f', 760, 450, 'Decision', C.b], ['g', 500, 40, 'Evidence', C.y]], [['a', 'g', C.b, 4], ['b', 'g', C.p, 4, 1], ['a', 'c', C.b, 4, 1], ['b', 'd', C.p, 4, 2], ['c', 'e', C.t, 4, 2], ['d', 'f', C.t, 4, 3], ['e', 'f', C.t, 5, 4]], '0 0 1000 500', 17),
+                n: "To close: every signal is more useful when connected. Omerta.ai helps turn scattered risk signals into clearer investigations and more informed decisions, with people in control. The next step is simple: a fraud-investigation pilot, with goals and measures we agree on together. Thank you. I am happy to take questions."
+            }];
+        const st = document.getElementById('stage');
+        st.innerHTML = S.map((x, i) => `<section class="s${x.hero ? ' hero' : ''}" data-i="${i}"><div class="hd rv" style="--hc:${[C.b, C.t, C.p, C.c][i % 4]}"><b>${String(i + 1).padStart(2, '0')}</b>${x.hd}</div>${x.hero ? x.v() : ''}${x.hero ? `<div class="tx">${LOGO(x.logo)}<h1 class="rv">${x.h}</h1><p class="sub rv" style="--i:2">${x.s}</p>${x.cta ? `<div class="cta rv" style="--i:4">${x.cta}</div>` : ''}</div>` : `<h1 class="rv">${x.h}</h1><p class="sub rv" style="--i:1">${x.s}</p><div class="vis">${x.v()}</div>${x.tk ? `<div class="tk rv" style="--i:9">${x.tk}</div>` : ''}`}</section>`).join('');
+        const sl = [...st.children], pad = n => String(n).padStart(2, '0'); let cur = 0;
+        function go(n) {
+            cur = Math.max(0, Math.min(S.length - 1, n)); sl.forEach((e, i) => { e.classList.toggle('on', i === cur); e.classList.toggle('pv', i < cur) });
+            cnt.textContent = pad(cur + 1) + ' / ' + pad(S.length); pb.style.width = (cur + 1) / S.length * 100 + '%'; nt.textContent = S[cur].n; location.hash = cur + 1
+        }
+        function fit() {
+            const uiEl = document.getElementById('ui');
+            const uiH = (uiEl && uiEl.offsetHeight) ? uiEl.offsetHeight : 64;
+            document.documentElement.style.setProperty('--ui-h', uiH + 'px');
+            const winW = window.innerWidth;
+            const winH = window.innerHeight;
+            const marginX = winW < 768 ? 16 : 32;
+            const marginY = winH < 600 ? 12 : 24;
+            const availW = Math.max(winW - marginX, 320);
+            const availH = Math.max(winH - uiH - marginY, 180);
+            const k = Math.min(availW / 1920, availH / 1080);
+            st.style.transformOrigin = 'center center';
+            st.style.left = '50%';
+            st.style.top = `calc(50% - ${uiH / 2}px)`;
+            st.style.transform = `translate(-50%, -50%) scale(${k})`;
+        }
+        addEventListener('resize', fit);
+        window.addEventListener('orientationchange', () => {
+            fit();
+            setTimeout(fit, 100);
+            setTimeout(fit, 300);
+        });
+        document.addEventListener('fullscreenchange', fit);
+        document.addEventListener('webkitfullscreenchange', fit);
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+        fit();
+
+        pv.onclick = () => go(cur - 1);
+        nx.onclick = () => go(cur + 1);
+        nb.onclick = () => notes.classList.toggle('open');
+        fs.onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+        st.onclick = () => { if (notes.classList.contains('open')) notes.classList.remove('open'); };
+
+        addEventListener('keydown', e => {
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                e.preventDefault(); go(cur + 1);
+            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                e.preventDefault(); go(cur - 1);
+            } else if (e.key === 'Home') {
+                e.preventDefault(); go(0);
+            } else if (e.key === 'End') {
+                e.preventDefault(); go(S.length - 1);
+            } else if (e.key === 'n' || e.key === 'N') {
+                nb.onclick();
+            } else if (e.key === 'f' || e.key === 'F') {
+                fs.onclick();
+            } else if (e.key === 'Escape') {
+                if (notes.classList.contains('open')) notes.classList.remove('open');
+            }
+        });
+
+        // Touch swipe gestures for mobile & tablets
+        let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+        window.addEventListener('touchstart', e => {
+            if (e.touches.length === 1) {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                touchStartTime = Date.now();
+            }
+        }, { passive: true });
+
+        window.addEventListener('touchend', e => {
+            if (e.changedTouches.length === 1) {
+                const dx = e.changedTouches[0].clientX - touchStartX;
+                const dy = e.changedTouches[0].clientY - touchStartY;
+                const dt = Date.now() - touchStartTime;
+                if (Math.abs(dx) > 45 && Math.abs(dy) < 80 && dt < 500) {
+                    if (dx < 0) go(cur + 1);
+                    else go(cur - 1);
+                }
+            }
+        }, { passive: true });
+
+        // Smooth trackpad / horizontal wheel navigation
+        let wheelLock = false;
+        window.addEventListener('wheel', e => {
+            if (wheelLock) return;
+            if (Math.abs(e.deltaX) > 40 && Math.abs(e.deltaX) > Math.abs(e.deltaY) * 1.5) {
+                wheelLock = true;
+                if (e.deltaX > 0) go(cur + 1);
+                else go(cur - 1);
+                setTimeout(() => { wheelLock = false; }, 400);
+            }
+        }, { passive: true });
+        // ambient dots
+        const cv = bg, x = cv.getContext('2d'), red = matchMedia('(prefers-reduced-motion:reduce)').matches; let D = [];
+        function rs() { cv.width = innerWidth; cv.height = innerHeight; D = Array.from({ length: Math.round(innerWidth * innerHeight / 26000) }, () => ({ x: R(0, cv.width), y: R(0, cv.height), vx: R(-.25, .25), vy: R(-.25, .25), r: R(1.5, 3) })) }
+        const pm = { x: -999, y: -999 };
+        function dr() {
+            x.clearRect(0, 0, cv.width, cv.height); D.forEach(d => {
+                const dx = d.x - pm.x, dy = d.y - pm.y, q = Math.hypot(dx, dy);
+                if (!red) { if (q < 170 && q > 0) { d.x += dx / q * (1 - q / 170) * 3; d.y += dy / q * (1 - q / 170) * 3 } d.x = (d.x + d.vx + cv.width) % cv.width; d.y = (d.y + d.vy + cv.height) % cv.height }
+                if (q < 190) { x.strokeStyle = `rgba(52,120,246,${.45 * (1 - q / 190)})`; x.lineWidth = 1.5; x.beginPath(); x.moveTo(d.x, d.y); x.lineTo(pm.x, pm.y); x.stroke() }
+                x.fillStyle = q < 190 ? 'rgba(52,120,246,.6)' : 'rgba(23,50,77,.22)'; x.beginPath(); x.arc(d.x, d.y, d.r + (q < 190 ? 1.5 : 0), 0, 6.283); x.fill()
+            }); if (!red && !document.hidden) requestAnimationFrame(dr)
+        }
+        addEventListener('resize', () => { rs(); if (red) dr() }); rs(); dr();
+        document.addEventListener('visibilitychange', () => { document.querySelectorAll('svg.net').forEach(s => document.hidden ? s.pauseAnimations() : s.unpauseAnimations()); if (!document.hidden) dr() });
+        if (red) document.querySelectorAll('svg.net').forEach(s => s.pauseAnimations());
+
+        const DET = [["Accounts", "Devices", "IP addresses", "Merchants"], ["Evidence is scattered", "Work is manual", "Decisions are hard to explain"], ["5 pieces of context", "Each incomplete alone", "Hypothetical example"], ["5 separate places", "Extra manual work", "One view instead"], ["Six connected steps", "Color = type of information", "A person decides"], ["Each signal adds context", "Never proof alone", "Read together"], ["Illustrative only", "Pilot uses your data", "Reasons, not just numbers"], ["Hypothetical customer", "New device is not fraud", "Ends in a reviewable case"], ["Illustrative network", "Shared device can be harmless", "People confirm"], ["AI prepares", "People decide", "Evidence stays visible"], ["One agent, one job", "Gaps trigger more checks", "A person decides"], ["Example case", "Four stages", "Decision is recorded"], ["Fair comparison", "Others may offer parts", "Our intended focus"], ["Pilot goals", "Not achieved results", "Baselines agreed first"], ["Risk Alert & Triage", "Investigation Components", "Human Review"], ["98.29% Fraud Recall", "0.998 ROC-AUC", "< 3s SAR Dossier"], ["100% Local Models", "Zero Cloud Calls", "$0 Cloud Token Cost"], ["Dual-Password Security", "Air-Gapped Architecture", "Compliance Audited"], ["Retail & Commercial Banks", "Digital Wallets & Fintech", "Telecom & Networks"], ["Zero Cloud Dependency", "Local Ollama / vLLM", "80% Lower TCO"], ["Direction only", "No dates promised", "Feedback shapes priorities"], ["Pilot-ready", "Goals agreed together", "People stay in control"]], K = ['#3478F6', '#14B8A6', '#8B7CF6', '#FF7B72', '#FFD166'];
+        sl.forEach((e, i) => { const d = document.createElement('div'); d.className = 'det rv'; d.style.setProperty('--i', 1.6); d.innerHTML = DET[i].map((t, j) => `<span style="--k:${K[(i + j) % 5]}">${t}</span>`).join(''); e.querySelector('.sub').after(d) });
+        if (!red) {
+            let last = null;
+            addEventListener('mousemove', e => {
+                pm.x = e.clientX; pm.y = e.clientY; glow.style.left = e.clientX + 'px'; glow.style.top = e.clientY + 'px';
+                st.style.setProperty('--mx', (e.clientX / innerWidth - .5) * 2); st.style.setProperty('--my', (e.clientY / innerHeight - .5) * 2);
+                const t = e.target.closest && e.target.closest('.card,.step,.chip,.case,.agc,.aga,.cmp div:not(.m)');
+                if (last && last !== t) { last.style.setProperty('--tx', 0); last.style.setProperty('--ty', 0) }
+                if (t) { const r = t.getBoundingClientRect(), k = 1920 / st.getBoundingClientRect().width * 0 + 1; t.style.setProperty('--tx', Math.max(-10, Math.min(10, (e.clientX - r.left - r.width / 2) * .1))); t.style.setProperty('--ty', Math.max(-10, Math.min(10, (e.clientY - r.top - r.height / 2) * .1))) } last = t
+            });
+            addEventListener('mouseout', e => { if (!e.relatedTarget) { pm.x = pm.y = -999 } });
+            addEventListener('click', e => { if (e.target.closest('#ui')) return; const r = document.createElement('div'); r.className = 'rip'; r.style.left = e.clientX + 'px'; r.style.top = e.clientY + 'px'; document.body.append(r); setTimeout(() => r.remove(), 800) })
+        }
+        go((parseInt(location.hash.slice(1)) || 1) - 1);
+    </script>
+</body>
+
+</html>

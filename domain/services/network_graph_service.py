@@ -171,6 +171,7 @@ class NetworkGraphService:
         focus_entity_id: str | None = None,
         entity_type: str | None = "account",
         max_nodes: int = 50,
+        direct_only: bool = True,
     ) -> dict[str, Any]:
         """Build dynamic entity-relationship graph with guaranteed customer resolution and full fund flow tracing."""
         nodes: dict[str, dict[str, Any]] = {}
@@ -178,18 +179,22 @@ class NetworkGraphService:
 
         inflows: dict[str, list[dict[str, Any]]] = {}
         outflows: dict[str, list[dict[str, Any]]] = {}
-        account_devices: dict[str, list[dict[str, Any]]] = {}
-        account_ips: dict[str, list[dict[str, Any]]] = {}
-        device_accounts: dict[str, list[str]] = {}
-        ip_accounts: dict[str, list[str]] = {}
+        account_devices: dict[str, dict[str, dict[str, Any]]] = {}
+        account_ips: dict[str, dict[str, dict[str, Any]]] = {}
+        device_accounts: dict[str, set[str]] = {}
+        ip_accounts: dict[str, set[str]] = {}
 
         # 1. Resolve Focus Entity & All Matching Accounts / Customers
         target_account_ids: set[int] = set()
         target_account_exts: set[str] = set()
         target_device_ids: set[int] = set()
+        target_device_exts: set[str] = set()
         target_ip_ids: set[int] = set()
+        target_ip_exts: set[str] = set()
         focus_meta: dict[str, Any] = {}
         matched_accounts_map: dict[str, Account] = {}
+        matched_devices: list[Device] = []
+        matched_ips: list[IPAddress] = []
 
         if focus_entity_id and focus_entity_id.strip():
             query = focus_entity_id.strip()
@@ -274,12 +279,22 @@ class NetworkGraphService:
             matched_devices = (await self.session.scalars(dev_stmt)).all()
             for d in matched_devices:
                 target_device_ids.add(d.id)
+                target_device_exts.add(d.external_id)
 
             # E. Search IPs
             ip_stmt = select(IPAddress).where(IPAddress.address.ilike(f"%{query}%"))
             matched_ips = (await self.session.scalars(ip_stmt)).all()
             for ip in matched_ips:
                 target_ip_ids.add(ip.id)
+                target_ip_exts.add(ip.address)
+
+            # Ensure fresh account models from DB to avoid any stale cached relations
+            if target_account_ids:
+                fresh_accs = (await self.session.scalars(
+                    select(Account).options(selectinload(Account.customer)).where(Account.id.in_(target_account_ids))
+                )).all()
+                for fa in fresh_accs:
+                    matched_accounts_map[fa.external_id] = fa
 
         # 2. Query Sessions to link Accounts with Devices & IPs
         sessions_stmt = select(Session).options(
@@ -292,25 +307,40 @@ class NetworkGraphService:
             if s.account and s.device:
                 acc_ext = s.account.external_id
                 dev_ext = s.device.external_id
-                account_devices.setdefault(acc_ext, []).append({
+                # Deduplicate by device_id per account
+                account_devices.setdefault(acc_ext, {})[dev_ext] = {
                     "device_id": dev_ext,
                     "platform": s.device.platform,
                     "is_emulator": s.device.is_emulator,
                     "is_rooted": s.device.is_rooted,
                     "risk_level": s.device.risk_level,
-                })
-                device_accounts.setdefault(dev_ext, []).append(acc_ext)
+                }
+                device_accounts.setdefault(dev_ext, set()).add(acc_ext)
+
+                # If searching by Device, link this account into target accounts
+                if s.device.id in target_device_ids:
+                    target_account_ids.add(s.account.id)
+                    target_account_exts.add(acc_ext)
+                    matched_accounts_map[acc_ext] = s.account
 
             if s.account and s.ip_address:
                 acc_ext = s.account.external_id
                 ip_addr = s.ip_address.address
-                account_ips.setdefault(acc_ext, []).append({
+                # Deduplicate by ip_address per account
+                account_ips.setdefault(acc_ext, {})[ip_addr] = {
                     "ip_address": ip_addr,
                     "country": s.ip_address.country,
                     "is_vpn": s.ip_address.is_vpn,
+                    "is_datacenter": getattr(s.ip_address, "is_datacenter", False),
                     "risk_level": s.ip_address.risk_level,
-                })
-                ip_accounts.setdefault(ip_addr, []).append(acc_ext)
+                }
+                ip_accounts.setdefault(ip_addr, set()).add(acc_ext)
+
+                # If searching by IP, link this account into target accounts
+                if s.ip_address.id in target_ip_ids:
+                    target_account_ids.add(s.account.id)
+                    target_account_exts.add(acc_ext)
+                    matched_accounts_map[acc_ext] = s.account
 
         # 3. Query Transfers (Customer peer-to-peer transfers)
         transfers_stmt = (
@@ -345,7 +375,7 @@ class NetworkGraphService:
         active_txns: list[Transaction] = []
 
         if is_filtered:
-            # First hop transfers
+            # First hop transfers (ONLY transfers directly involving the searched entity's accounts)
             for tr in all_transfers:
                 if tr.sender_account_id in target_account_ids or tr.recipient_account_id in target_account_ids:
                     active_transfers.append(tr)
@@ -360,31 +390,31 @@ class NetworkGraphService:
                 ):
                     active_txns.append(tx)
 
-            # Discovered counterparty accounts
-            discovered_acc_ids = set(target_account_ids)
-            for tr in active_transfers:
-                if tr.sender_account_id:
-                    discovered_acc_ids.add(tr.sender_account_id)
-                if tr.recipient_account_id:
-                    discovered_acc_ids.add(tr.recipient_account_id)
-            for tx in active_txns:
-                if tx.account_id:
-                    discovered_acc_ids.add(tx.account_id)
-                if tx.recipient_account_id:
-                    discovered_acc_ids.add(tx.recipient_account_id)
+            # Only connect second-hop counterparties if user specifically requested extended multi-hop mode
+            if not direct_only:
+                discovered_acc_ids = set(target_account_ids)
+                for tr in active_transfers:
+                    if tr.sender_account_id:
+                        discovered_acc_ids.add(tr.sender_account_id)
+                    if tr.recipient_account_id:
+                        discovered_acc_ids.add(tr.recipient_account_id)
+                for tx in active_txns:
+                    if tx.account_id:
+                        discovered_acc_ids.add(tx.account_id)
+                    if tx.recipient_account_id:
+                        discovered_acc_ids.add(tx.recipient_account_id)
 
-            # Second hop: connect discovered counterparties
-            for tr in all_transfers:
-                if tr not in active_transfers and (
-                    tr.sender_account_id in discovered_acc_ids and tr.recipient_account_id in discovered_acc_ids
-                ):
-                    active_transfers.append(tr)
+                for tr in all_transfers:
+                    if tr not in active_transfers and (
+                        tr.sender_account_id in discovered_acc_ids and tr.recipient_account_id in discovered_acc_ids
+                    ):
+                        active_transfers.append(tr)
 
-            for tx in all_txns:
-                if tx not in active_txns and (
-                    tx.account_id in discovered_acc_ids and tx.recipient_account_id in discovered_acc_ids
-                ):
-                    active_txns.append(tx)
+                for tx in all_txns:
+                    if tx not in active_txns and (
+                        tx.account_id in discovered_acc_ids and tx.recipient_account_id in discovered_acc_ids
+                    ):
+                        active_txns.append(tx)
         else:
             active_transfers = all_transfers[:max_nodes]
             active_txns = all_txns[:max_nodes]
@@ -397,6 +427,9 @@ class NetworkGraphService:
             c_name = acc.customer_name or (acc.customer.name if acc.customer else "Customer")
             omerta_id = acc.customer.omerta_user_number if acc.customer else "N/A"
             bal = float(acc.balance)
+
+            # Cache in matched_accounts_map for customer property lookups
+            matched_accounts_map[acc_ext] = acc
 
             if acc_ext not in nodes:
                 nodes[acc_ext] = {
@@ -422,15 +455,58 @@ class NetworkGraphService:
                         "outflow_count": 0,
                         "outflow_destinations": [],
                         "net_flow": 0.0,
-                        "shared_devices": account_devices.get(acc_ext, []),
-                        "shared_ips": account_ips.get(acc_ext, []),
+                        "shared_devices": list(account_devices.get(acc_ext, {}).values()),
+                        "shared_ips": list(account_ips.get(acc_ext, {}).values()),
                         "risk_factors": [],
+                        "safe_factors": [],
                     },
                 }
+            else:
+                nodes[acc_ext]["balance"] = bal
+                nodes[acc_ext]["details"]["balance"] = bal
 
         # Guaranteed inclusion: register all searched target accounts immediately
-        for acc in matched_accounts_map.values():
+        for acc in list(matched_accounts_map.values()):
             register_account_node(acc)
+
+        # Guaranteed inclusion: register all searched target devices & IPs immediately
+        for d in matched_devices:
+            dev_ext = d.external_id
+            linked_accs = list(device_accounts.get(dev_ext, set()))
+            d_risk = "CRITICAL" if len(linked_accs) >= 3 else ("HIGH" if (d.is_emulator or d.is_rooted or len(linked_accs) > 1) else (d.risk_level or "LOW"))
+            nodes[dev_ext] = {
+                "id": dev_ext,
+                "label": f"{dev_ext}\n({d.platform})",
+                "type": "DEVICE",
+                "risk_level": d_risk,
+                "risk_score": 90.0 if d_risk == "CRITICAL" else (80.0 if d_risk == "HIGH" else 15.0),
+                "details": {
+                    "device_id": dev_ext,
+                    "platform": d.platform,
+                    "is_emulator": d.is_emulator,
+                    "is_rooted": d.is_rooted,
+                    "linked_accounts": linked_accs,
+                },
+            }
+
+        for ip in matched_ips:
+            ip_addr = ip.address
+            linked_accs = list(ip_accounts.get(ip_addr, set()))
+            ip_risk = "HIGH" if (ip.is_vpn or getattr(ip, "is_datacenter", False)) else (ip.risk_level or "LOW")
+            nodes[ip_addr] = {
+                "id": ip_addr,
+                "label": ip_addr,
+                "type": "IP_ADDRESS",
+                "risk_level": ip_risk,
+                "risk_score": 75.0 if ip_risk in ("HIGH", "CRITICAL") else 10.0,
+                "details": {
+                    "ip_address": ip_addr,
+                    "country": ip.country,
+                    "is_vpn": ip.is_vpn,
+                    "is_datacenter": getattr(ip, "is_datacenter", False),
+                    "linked_accounts": linked_accs,
+                },
+            }
 
         # Ingest Transfers into Inflows & Outflows
         seen_transfer_keys = set()
@@ -497,8 +573,6 @@ class NetworkGraphService:
         for tx in active_txns:
             s_acc = tx.account
             r_acc = tx.recipient_account
-            dev = tx.device
-            ip = tx.ip_address
             amt = float(tx.amount)
             r_score = float(tx.risk_score) if tx.risk_score else 0.0
             ts = tx.timestamp.isoformat() if tx.timestamp else ""
@@ -555,77 +629,86 @@ class NetworkGraphService:
                             "timestamp": ts,
                         })
 
-        # Ingest Sessions for all active accounts into nodes and links (Device & IP bindings)
+        # Ingest Sessions for relevant accounts into nodes and links (Device & IP bindings)
         for s in sessions:
             acc = s.account
             dev = s.device
             ip = s.ip_address
 
-            if acc and acc.external_id in nodes:
-                acc_ext = acc.external_id
+            if not acc:
+                continue
+            acc_ext = acc.external_id
 
-                # Record Device node & edge
-                if dev:
-                    dev_ext = dev.external_id
-                    linked_accs = device_accounts.get(dev_ext, [])
-                    d_risk = "CRITICAL" if len(set(linked_accs)) >= 3 else ("HIGH" if (dev.is_emulator or dev.is_rooted or len(set(linked_accs)) > 1) else dev.risk_level)
-                    if dev_ext not in nodes:
-                        nodes[dev_ext] = {
-                            "id": dev_ext,
-                            "label": f"{dev_ext}\n({dev.platform})",
-                            "type": "DEVICE",
-                            "risk_level": d_risk,
-                            "risk_score": 90.0 if d_risk == "CRITICAL" else (80.0 if d_risk == "HIGH" else 15.0),
-                            "details": {
-                                "device_id": dev_ext,
-                                "platform": dev.platform,
-                                "is_emulator": dev.is_emulator,
-                                "is_rooted": dev.is_rooted,
-                                "linked_accounts": list(set(linked_accs)),
-                            },
-                        }
-                    link_key = f"DEVICE:{acc_ext}->{dev_ext}"
+            # In direct_only mode, only bind devices and IPs of the searched target accounts!
+            if is_filtered and direct_only:
+                if acc_ext not in target_account_exts:
+                    continue
+            else:
+                if acc_ext not in nodes:
+                    continue
+
+            # Record Device node & edge
+            if dev:
+                dev_ext = dev.external_id
+                linked_accs = list(device_accounts.get(dev_ext, set()))
+                d_risk = "CRITICAL" if len(linked_accs) >= 3 else ("HIGH" if (dev.is_emulator or dev.is_rooted or len(linked_accs) > 1) else dev.risk_level)
+                if dev_ext not in nodes:
+                    nodes[dev_ext] = {
+                        "id": dev_ext,
+                        "label": f"{dev_ext}\n({dev.platform})",
+                        "type": "DEVICE",
+                        "risk_level": d_risk,
+                        "risk_score": 90.0 if d_risk == "CRITICAL" else (80.0 if d_risk == "HIGH" else 15.0),
+                        "details": {
+                            "device_id": dev_ext,
+                            "platform": dev.platform,
+                            "is_emulator": dev.is_emulator,
+                            "is_rooted": dev.is_rooted,
+                            "linked_accounts": linked_accs,
+                        },
+                    }
+                link_key = f"DEVICE:{acc_ext}->{dev_ext}"
+                if link_key not in seen_transfer_keys:
+                    seen_transfer_keys.add(link_key)
+                    links.append({
+                        "source": acc_ext,
+                        "target": dev_ext,
+                        "type": "USED_DEVICE",
+                        "label": f"Shared Device ({len(linked_accs)} Accounts)" if len(linked_accs) > 1 else "Observed Device",
+                        "is_suspicious": dev.is_emulator or dev.is_rooted or len(linked_accs) > 1,
+                    })
+
+            # Record IP node & edge
+            if ip:
+                ip_addr = ip.address
+                linked_accs = list(ip_accounts.get(ip_addr, set()))
+                ip_risk = "HIGH" if (ip.is_vpn or ip.is_datacenter) else ip.risk_level
+                if ip_addr not in nodes:
+                    nodes[ip_addr] = {
+                        "id": ip_addr,
+                        "label": ip_addr,
+                        "type": "IP_ADDRESS",
+                        "risk_level": ip_risk,
+                        "risk_score": 75.0 if ip_risk in ("HIGH", "CRITICAL") else 10.0,
+                        "details": {
+                            "ip_address": ip_addr,
+                            "country": ip.country,
+                            "is_vpn": ip.is_vpn,
+                            "is_datacenter": ip.is_datacenter,
+                            "linked_accounts": linked_accs,
+                        },
+                    }
+                if dev and dev.external_id in nodes:
+                    link_key = f"IP:{dev.external_id}->{ip_addr}"
                     if link_key not in seen_transfer_keys:
                         seen_transfer_keys.add(link_key)
                         links.append({
-                            "source": acc_ext,
-                            "target": dev_ext,
-                            "type": "USED_DEVICE",
-                            "label": f"Shared Device ({len(set(linked_accs))} Accounts)" if len(set(linked_accs)) > 1 else "Observed Device",
-                            "is_suspicious": dev.is_emulator or dev.is_rooted or len(set(linked_accs)) > 1,
+                            "source": dev.external_id,
+                            "target": ip_addr,
+                            "type": "CONNECTED_IP",
+                            "label": "VPN Endpoint" if ip.is_vpn else "Network Endpoint",
+                            "is_suspicious": ip.is_vpn,
                         })
-
-                # Record IP node & edge
-                if ip:
-                    ip_addr = ip.address
-                    linked_accs = ip_accounts.get(ip_addr, [])
-                    ip_risk = "HIGH" if (ip.is_vpn or ip.is_datacenter) else ip.risk_level
-                    if ip_addr not in nodes:
-                        nodes[ip_addr] = {
-                            "id": ip_addr,
-                            "label": ip_addr,
-                            "type": "IP_ADDRESS",
-                            "risk_level": ip_risk,
-                            "risk_score": 75.0 if ip_risk in ("HIGH", "CRITICAL") else 10.0,
-                            "details": {
-                                "ip_address": ip_addr,
-                                "country": ip.country,
-                                "is_vpn": ip.is_vpn,
-                                "is_datacenter": ip.is_datacenter,
-                                "linked_accounts": list(set(linked_accs)),
-                            },
-                        }
-                    if dev and dev.external_id in nodes:
-                        link_key = f"IP:{dev.external_id}->{ip_addr}"
-                        if link_key not in seen_transfer_keys:
-                            seen_transfer_keys.add(link_key)
-                            links.append({
-                                "source": dev.external_id,
-                                "target": ip_addr,
-                                "type": "CONNECTED_IP",
-                                "label": "VPN Endpoint" if ip.is_vpn else "Network Endpoint",
-                                "is_suspicious": ip.is_vpn,
-                            })
 
         # 6. Recompute Node Risk Factors, Total Inflow, Total Outflow, and AML Diagnostics
         for n_id, n_obj in nodes.items():
@@ -636,6 +719,7 @@ class NetworkGraphService:
                 out_sum = sum(x["amount"] for x in n_out)
 
                 risk_factors: list[str] = []
+                safe_factors: list[str] = []
                 current_risk = n_obj["risk_level"]
 
                 # A. Rapid Pass-Through Mule Velocity (Inbound received & immediately outbound dispatched)
@@ -643,45 +727,91 @@ class NetworkGraphService:
                     pass_ratio = min(in_sum, out_sum) / max(in_sum, out_sum, 1.0)
                     if pass_ratio > 0.65 and in_sum >= 2000:
                         current_risk = "CRITICAL"
-                        risk_factors.append(f"Rapid pass-through mule velocity ({pass_ratio * 100:.0f}% fund fan-out)")
+                        risk_factors.append(f"Rapid pass-through conduit: {pass_ratio * 100:.0f}% fund fan-out ({in_sum:,.2f} EGP in → {out_sum:,.2f} EGP out)")
+                    else:
+                        safe_factors.append(f"Normal transaction velocity (conduit ratio: {pass_ratio * 100:.0f}%, no immediate fund draining)")
+                elif in_sum > 0:
+                    safe_factors.append(f"Retained inbound capital ({in_sum:,.2f} EGP in, no immediate exit)")
+                elif out_sum > 0:
+                    safe_factors.append(f"Standard outbound disbursements ({out_sum:,.2f} EGP out)")
+                else:
+                    safe_factors.append("Dormant/Stable balance: No recent rapid velocity spikes")
 
                 # B. Structuring / Smurfing Collector Node (Multiple feeders)
                 if in_sum >= 4000 and len(n_in) >= 2:
                     current_risk = "CRITICAL"
-                    risk_factors.append(f"Structuring aggregation node: {len(n_in)} inbound feeder transfers ({in_sum:,.2f} EGP)")
+                    risk_factors.append(f"Structuring aggregation: {len(n_in)} inbound feeder transfers pooling {in_sum:,.2f} EGP")
+                elif len(n_in) <= 1:
+                    safe_factors.append("Low structuring risk: Single or zero inbound feeder channels")
 
-                # C. Check shared hardware device hopping (Multi-account co-location)
-                s_devs = account_devices.get(n_id, [])
+                # C. Check unique shared hardware devices
+                s_devs = list(account_devices.get(n_id, {}).values())
+                has_shared_dev = False
                 for d_info in s_devs:
-                    other_accs = [a for a in device_accounts.get(d_info["device_id"], []) if a != n_id]
+                    other_accs = [a for a in device_accounts.get(d_info["device_id"], set()) if a != n_id]
                     if len(other_accs) >= 2:
                         current_risk = "CRITICAL"
-                        risk_factors.append(f"Multi-account hardware co-location: device {d_info['device_id']} shared with {len(other_accs)} other accounts ({', '.join(other_accs)})")
+                        has_shared_dev = True
+                        risk_factors.append(f"Multi-account hardware co-location: Device {d_info['device_id']} shared with {len(other_accs)} other accounts ({', '.join(other_accs)})")
                     elif len(other_accs) == 1:
                         if current_risk == "LOW":
                             current_risk = "HIGH"
-                        risk_factors.append(f"Shared hardware device {d_info['device_id']} co-located with account {other_accs[0]}")
+                        has_shared_dev = True
+                        risk_factors.append(f"Shared hardware: Device {d_info['device_id']} co-located with account {other_accs[0]}")
                     if d_info.get("is_emulator") or d_info.get("is_rooted"):
                         current_risk = "CRITICAL"
                         risk_factors.append(f"Emulated/Rooted hardware detected ({d_info['device_id']})")
 
-                # D. Check VPN / Datacenter Proxy Usage
-                s_ips = account_ips.get(n_id, [])
+                if s_devs and not has_shared_dev:
+                    safe_factors.append("Hardware integrity: Dedicated single-user physical device (No co-location)")
+
+                # D. Check unique IP Endpoints / VPN / Proxy
+                s_ips = list(account_ips.get(n_id, {}).values())
+                has_vpn = False
                 for ip_info in s_ips:
-                    if ip_info.get("is_vpn"):
+                    if ip_info.get("is_vpn") or ip_info.get("is_datacenter"):
+                        has_vpn = True
                         risk_factors.append(f"Accessed via VPN/Datacenter proxy ({ip_info['ip_address']})")
                         if current_risk == "LOW":
                             current_risk = "HIGH"
+
+                if s_ips and not has_vpn:
+                    safe_factors.append("Domestic residential IP: Verified Egyptian ISP endpoint without VPN tunnel")
+
+                # E. Customer KYC & Identity Verification
+                acc_inst = matched_accounts_map.get(n_id)
+                if acc_inst and acc_inst.customer:
+                    c = acc_inst.customer
+                    if getattr(c, "identity_status", "") == "VERIFIED":
+                        safe_factors.append(f"KYC Identity Verified: National ID confirmed ({c.national_id_number or 'Government ID'})")
+                    elif getattr(c, "identity_status", "") == "REJECTED":
+                        current_risk = "CRITICAL"
+                        risk_factors.append("Identity verification failed: KYC documents rejected by compliance")
+                    elif getattr(c, "identity_status", "") == "PENDING_REVIEW":
+                        risk_factors.append("KYC Identity pending: Awaiting compliance document verification")
+                    else:
+                        risk_factors.append("Unverified Identity: Customer has not completed National ID verification")
+
+                    if getattr(c, "transfer_status", "") == "BLOCKED":
+                        current_risk = "CRITICAL"
+                        risk_factors.append(f"Transfer Security Hold: Outbound transfers locked ({c.transfer_failed_attempts} failed attempts)")
+                    else:
+                        safe_factors.append("Transfer Security: Credentials active and verified (0 security holds)")
+
+                # Deduplicate while preserving order
+                risk_factors = list(dict.fromkeys(risk_factors))
+                safe_factors = list(dict.fromkeys(safe_factors))
 
                 n_obj["risk_level"] = current_risk
                 if current_risk == "CRITICAL":
                     calc_score = min(98.0, 85.0 + len(risk_factors) * 4.0)
                 elif current_risk == "HIGH":
-                    calc_score = min(84.0, 70.0 + len(risk_factors) * 3.0)
+                    calc_score = min(84.0, 65.0 + len(risk_factors) * 3.0)
                 elif current_risk == "MEDIUM":
                     calc_score = 45.0
                 else:
-                    calc_score = 10.0
+                    calc_score = max(5.0, 15.0 - len(safe_factors) * 2.0)
+
                 n_obj["risk_score"] = round(calc_score, 1)
                 det = n_obj["details"]
                 det["risk_score"] = round(calc_score, 1)
@@ -692,9 +822,10 @@ class NetworkGraphService:
                 n_obj["outflow_count"] = len(n_out)
                 n_obj["outflow_destinations"] = n_out
                 n_obj["net_flow"] = in_sum - out_sum
+                n_obj["risk_factors"] = risk_factors
+                n_obj["safe_factors"] = safe_factors
 
                 # Synchronize inside details dictionary
-                det = n_obj["details"]
                 det["inflow_total"] = in_sum
                 det["inflow_count"] = len(n_in)
                 det["inflow_sources"] = n_in
@@ -703,16 +834,22 @@ class NetworkGraphService:
                 det["outflow_destinations"] = n_out
                 det["net_flow"] = in_sum - out_sum
                 det["risk_factors"] = risk_factors
+                det["safe_factors"] = safe_factors
 
-        # When viewing the default network graph without a specific focus filter,
-        # connect users who actually make transactions/transfers rather than floating disconnected account nodes.
+        # Prune disconnected nodes when filtered or direct_only
         final_nodes = list(nodes.values())
-        if not is_filtered and links:
+        if links:
             connected_node_ids = set()
             for lk in links:
                 connected_node_ids.add(lk["source"])
                 connected_node_ids.add(lk["target"])
-            final_nodes = [n for n in final_nodes if n["id"] in connected_node_ids]
+            # Always preserve target accounts/entities that were searched, plus any node connected via links
+            final_nodes = [
+                n for n in final_nodes
+                if n["id"] in connected_node_ids or n["id"] in target_account_exts or n["id"] in target_device_ids or n["id"] in target_ip_ids
+            ]
+        elif is_filtered:
+            final_nodes = [n for n in final_nodes if n["id"] in target_account_exts]
 
         return {
             "nodes": final_nodes,

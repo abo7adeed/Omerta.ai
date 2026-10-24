@@ -15,6 +15,7 @@ async def get_network_graph(
     focus_entity_id: str | None = Query(default=None),
     entity_type: str = Query(default="account"),
     max_nodes: int = Query(default=40, ge=10, le=100),
+    direct_only: bool = Query(default=True),
 ) -> dict[str, Any]:
     """Retrieve node-link graph payload (Accounts, Devices, IPs, Transfers)."""
     async with AsyncSession(get_engine(), expire_on_commit=False) as session:
@@ -22,6 +23,7 @@ async def get_network_graph(
             focus_entity_id=focus_entity_id,
             entity_type=entity_type,
             max_nodes=max_nodes,
+            direct_only=direct_only,
         )
 
 
