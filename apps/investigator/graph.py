@@ -80,7 +80,17 @@ def run_investigation(transaction_id: str, alert_id: str | None = None) -> dict[
     # request's own lifetime bounds the cached Neo4j driver there.
     app = build_investigation_graph()
     initial = InvestigationState(transaction_id=transaction_id, alert_id=alert_id)
-    final = _normalize(app.invoke(initial))
+
+    from infrastructure.observability import get_langfuse_callback
+
+    cb = get_langfuse_callback(
+        session_id=transaction_id,
+        tags=["transaction_investigation", "sync"],
+        metadata={"transaction_id": transaction_id, "alert_id": alert_id},
+    )
+    config = {"callbacks": [cb]} if cb else None
+
+    final = _normalize(app.invoke(initial, config=config))
     logger.info(
         "investigation_finished",
         extra={
@@ -114,7 +124,17 @@ async def _run_on_private_loop(transaction_id: str, alert_id: str | None) -> dic
         with graph_client.use_driver(driver):
             app = build_investigation_graph()
             initial = InvestigationState(transaction_id=transaction_id, alert_id=alert_id)
-            return _normalize(await app.ainvoke(initial))
+
+            from infrastructure.observability import get_langfuse_callback
+
+            cb = get_langfuse_callback(
+                session_id=transaction_id,
+                tags=["transaction_investigation", "async"],
+                metadata={"transaction_id": transaction_id, "alert_id": alert_id},
+            )
+            config = {"callbacks": [cb]} if cb else None
+
+            return _normalize(await app.ainvoke(initial, config=config))
     finally:
         await driver.close()
 

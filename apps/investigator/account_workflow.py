@@ -1750,7 +1750,17 @@ async def run_account_investigation(
         persist=request.persist,
     )
 
-    final = await graph.ainvoke(initial_state)
+    from infrastructure.observability import get_langfuse_callback
+
+    cb = get_langfuse_callback(
+        session_id=request.account_id,
+        user_id=caller_id,
+        tags=["account_investigation", "multi_agent_swarm"],
+        metadata={"account_id": request.account_id, "investigation_id": inv_id},
+    )
+    config = {"callbacks": [cb]} if cb else None
+
+    final = await graph.ainvoke(initial_state, config=config)
     elapsed_ms = (time.perf_counter() - t0) * 1000
 
     report = AccountInvestigationReport(
@@ -1831,7 +1841,21 @@ async def run_transaction_investigation(
         persist=request.persist,
     )
 
-    final = await graph.ainvoke(initial_state)
+    from infrastructure.observability import get_langfuse_callback
+
+    cb = get_langfuse_callback(
+        session_id=account_id,
+        user_id=caller_id,
+        tags=["account_investigation", "targeted_transaction", "multi_agent_swarm"],
+        metadata={
+            "account_id": account_id,
+            "transaction_id": request.transaction_id,
+            "investigation_id": inv_id,
+        },
+    )
+    config = {"callbacks": [cb]} if cb else None
+
+    final = await graph.ainvoke(initial_state, config=config)
     elapsed_ms = (time.perf_counter() - t0) * 1000
 
     report = AccountInvestigationReport(

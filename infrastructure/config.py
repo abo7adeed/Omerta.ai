@@ -70,6 +70,12 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 0
     rate_limit_burst: int | None = None
 
+    # --- Observability (Langfuse) ---
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
+    langfuse_host: str = "http://localhost:3000"
+    langfuse_enabled: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:

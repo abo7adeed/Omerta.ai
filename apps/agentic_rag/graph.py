@@ -129,7 +129,17 @@ async def execute_agentic_rag(
         user_id=user_id,
     )
 
-    final_dict = await graph.ainvoke(initial_state)
+    from infrastructure.observability import get_langfuse_callback
+
+    cb = get_langfuse_callback(
+        session_id=request.conversation_id,
+        user_id=user_id,
+        tags=["agentic_rag"],
+        metadata={"question": request.question, "user_role": user_role},
+    )
+    config = {"callbacks": [cb]} if cb else None
+
+    final_dict = await graph.ainvoke(initial_state, config=config)
     elapsed_ms = (time.perf_counter() - t0) * 1000
 
     # Package into AgenticRAGResponse contract

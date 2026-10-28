@@ -1,0 +1,37 @@
+services:
+  langfuse-server:
+    image: ghcr.io/langfuse/langfuse:2
+    container_name: omerta-langfuse
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=omerta_langfuse_super_secret_key_12345
+      - SALT=omerta_langfuse_salt_value_123456789
+      - TELEMETRY_ENABLED=false
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: omerta-langfuse-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    ports:
+      - "15433:5432"
+    volumes:
+      - langfuse_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  langfuse_postgres_data:

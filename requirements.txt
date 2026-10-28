@@ -19,3 +19,4 @@ faker>=30.8.0
 matplotlib
 pypdf
 python-docx
+langfuse>=2.50.0,<3.0.0

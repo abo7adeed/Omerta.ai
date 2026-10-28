@@ -26,6 +26,8 @@ dependencies = [
     "matplotlib",
     "pypdf",
     "python-docx",
+    "langfuse<3",
+    "langchain>=1.4.7",
 ]
 
 [dependency-groups]

@@ -21,6 +21,7 @@ import {
   Building2,
   Bot,
   LifeBuoy,
+  Cpu,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -56,6 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/admin/support-cases', label: 'Cases & Tickets', icon: LifeBuoy },
     { to: '/admin/network-analysis', label: 'Network Intelligence', icon: Share2 },
     { to: '/admin/ai-assistant', label: 'AI Forensics Copilot', icon: Bot, badge: 'RAG' },
+    { to: '/admin/mcp-servers', label: 'MCP Servers', icon: Cpu, badge: '4 MCP' },
     { to: '/admin/audit-logs', label: 'Audit Trail', icon: ScrollText },
   ];
 
@@ -67,6 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/admin/investigations', label: 'Investigations', icon: FolderSearch },
     { to: '/admin/reports', label: 'Reports', icon: FileBarChart },
     { to: '/admin/ai-assistant', label: 'AI Forensics Copilot', icon: Bot, badge: 'RAG' },
+    { to: '/admin/mcp-servers', label: 'MCP Servers', icon: Cpu, badge: '4 MCP' },
   ];
 
   const auditorNavItems: NavItem[] = [
@@ -91,6 +94,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/admin/audit-logs', label: 'Audit Trail', icon: ScrollText },
     { to: '/admin/ai-assistant', label: 'AI Forensics Copilot', icon: Bot, badge: 'RAG' },
+    { to: '/admin/mcp-servers', label: 'MCP Servers', icon: Cpu, badge: '4 MCP' },
     { to: '/admin/settings', label: 'Settings', icon: Settings },
   ];
 

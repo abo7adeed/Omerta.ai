@@ -23,6 +23,7 @@ from apps.api.v1.tickets import (
 from apps.api.v1.agentic_rag import router as agentic_rag_router
 from apps.api.v1.transactions import router as transactions_router
 from apps.api.v1.investigations import router as investigations_router
+from apps.api.v1.mcp import router as mcp_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
 
@@ -56,4 +57,5 @@ api_v1_router.include_router(investigations_router)
 api_v1_router.include_router(reports_router)
 api_v1_router.include_router(audit_router)
 api_v1_router.include_router(settings_router)
+api_v1_router.include_router(mcp_router)
 

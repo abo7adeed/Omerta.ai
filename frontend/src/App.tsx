@@ -26,6 +26,7 @@ import { AuditLogsPage } from './pages/AuditLogsPage';
 import { AiAssistantPage } from './pages/AiAssistantPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SupportCasesPage } from './pages/SupportCasesPage';
+import { McpServersPage } from './pages/McpServersPage';
 
 // Customer Banking Pages
 import { CustomerDashboardPage } from './pages/customer/CustomerDashboardPage';
@@ -134,12 +135,14 @@ export const App: React.FC = () => {
                 <Route path="analytics" element={<AnalyticsPage />} />
                 <Route path="audit-logs" element={<AuditLogsPage />} />
                 <Route path="ai-assistant" element={<AiAssistantPage />} />
+                <Route path="mcp-servers" element={<McpServersPage />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
 
 
               {/* Legacy fallback aliases */}
               <Route path="/dashboard" element={<RootRedirector />} />
+              <Route path="/mcp-servers" element={<Navigate to="/admin/mcp-servers" replace />} />
               <Route path="/transactions" element={<Navigate to="/admin/transactions" replace />} />
               <Route path="/transactions/:id" element={<TransactionDetailPage />} />
               <Route path="/risk-monitoring" element={<Navigate to="/admin/risk-monitoring" replace />} />

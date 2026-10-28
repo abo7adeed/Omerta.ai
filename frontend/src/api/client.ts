@@ -682,7 +682,41 @@ export const api = {
     }>(`/investigations/accounts/${encodeURIComponent(accountId)}/block`, {
       method: 'POST',
     }),
+
+  // MCP Servers Registry
+  getMcpServers: () =>
+    apiRequest<{
+      status: string;
+      servers_count: number;
+      total_tools_count: number;
+      servers: any[];
+    }>('/mcp/servers'),
+  testMcpTool: (data: { server_id: string; tool_name: string; arguments: Record<string, any> }) =>
+    apiRequest<any>('/mcp/test-tool', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getMcpAuditLog: (limit: number = 30) =>
+    apiRequest<{
+      count: number;
+      total_recorded: number;
+      invocations: any[];
+    }>(`/mcp/audit-log?limit=${limit}`),
+  simulateMcpInvestigation: (data: { account_id?: string; scenario?: string }) =>
+    apiRequest<{
+      simulation_id: string;
+      account_id: string;
+      total_duration_ms: number;
+      steps_count: number;
+      steps: any[];
+      consensus_verdict: any;
+      langfuse_trace_url: string | null;
+    }>('/mcp/simulate-investigation', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
+
 
 // ==============================================================================
 // Agentic RAG & AI Financial Analyst TypeScript Definitions
