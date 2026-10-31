@@ -343,3 +343,4 @@ class AccountInvestigationReport(BaseModel):
     charts: list[dict[str, Any]] = Field(default_factory=list)
     execution_time_ms: float = 0.0
     pipeline_stages: list[PipelineStageTrace] = Field(default_factory=list)
+    evaluation: dict[str, Any] | None = None

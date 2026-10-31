@@ -164,10 +164,11 @@ def graph_seeded(test_engine: AsyncEngine, graph_test_projection: str) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _pg_seeded_for_graph(test_engine: AsyncEngine, request: pytest.FixtureRequest) -> None:
+def _pg_seeded_for_graph(request: pytest.FixtureRequest) -> None:
     """Reset+seed PostgreSQL for graph tests (marked with @pytest.mark.graph)."""
     if "graph" not in request.keywords:
         return
+    test_engine: AsyncEngine = request.getfixturevalue("test_engine")
 
     async def _reseed() -> None:
         await reset_all(test_engine)

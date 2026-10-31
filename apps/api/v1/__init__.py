@@ -11,6 +11,7 @@ from apps.api.v1.customer import router as customer_router
 from apps.api.v1.customers import router as customers_router
 from apps.api.v1.dashboard import router as dashboard_router
 from apps.api.v1.devices import router as devices_router
+from apps.api.v1.evaluations import router as evaluations_router
 from apps.api.v1.network import router as network_router
 from apps.api.v1.reports import router as reports_router
 from apps.api.v1.risk import router as risk_router
@@ -54,8 +55,8 @@ api_v1_router.include_router(network_router)
 api_v1_router.include_router(risk_router)
 api_v1_router.include_router(cases_router)
 api_v1_router.include_router(investigations_router)
+api_v1_router.include_router(evaluations_router)
 api_v1_router.include_router(reports_router)
 api_v1_router.include_router(audit_router)
 api_v1_router.include_router(settings_router)
 api_v1_router.include_router(mcp_router)
-

@@ -1,3 +1,4 @@
+import { EvaluationQualityPanel } from '../components/investigation/EvaluationQualityPanel';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
@@ -64,7 +65,7 @@ export const InvestigationsPage: React.FC = () => {
   const [accountReport, setAccountReport] = useState<AccountInvestigationReport | null>(null);
   const [investigationRunning, setInvestigationRunning] = useState(false);
   const [investigationError, setInvestigationError] = useState<string | null>(null);
-  const [activeReportTab, setActiveReportTab] = useState<'report' | 'ml_graph' | 'transactions' | 'simulation'>('report');
+  const [activeReportTab, setActiveReportTab] = useState<'report' | 'ml_graph' | 'transactions' | 'simulation' | 'evaluation'>('report');
 
   // Sandbox Withdrawal Simulation State
   const [simAccount, setSimAccount] = useState('ACC-SIM-TEST1');
@@ -651,6 +652,22 @@ export const InvestigationsPage: React.FC = () => {
               >
                 Sandbox Withdrawal Simulator
               </button>
+              <button
+                onClick={() => setActiveReportTab('evaluation')}
+                className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeReportTab === 'evaluation'
+                    ? 'border-[#002D72] text-[#002D72] font-bold'
+                    : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
+                }`}
+              >
+                <Scale className="w-3.5 h-3.5 text-indigo-600" />
+                <span>LLM Judge Evaluation</span>
+                {accountReport.evaluation?.scores?.overall_quality && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                    {accountReport.evaluation.scores.overall_quality}/5
+                  </span>
+                )}
+              </button>
             </div>
 
             {/* Modal Body */}
@@ -1161,6 +1178,27 @@ export const InvestigationsPage: React.FC = () => {
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* TAB 5: LLM-as-a-Judge Evaluation */}
+              {activeReportTab === 'evaluation' && (
+                <EvaluationQualityPanel
+                  investigationId={accountReport.investigation_id}
+                  initialEvaluation={accountReport.evaluation}
+                  reportData={accountReport}
+                  evidenceData={(accountReport.recent_transactions || []).map((t: any) => ({
+                    evidence_id: `EV-${t.transaction_id}`,
+                    category: 'TRANSACTION',
+                    reference: t.transaction_id,
+                    data: t,
+                  }))}
+                  contextData={{
+                    account_id: accountReport.account_id,
+                    transaction_id: accountReport.transaction_id,
+                    amount: accountReport.target_transaction?.amount,
+                    risk_score: accountReport.combined_risk_score,
+                  }}
+                />
               )}
             </div>
 

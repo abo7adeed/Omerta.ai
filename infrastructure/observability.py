@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 import types
 from typing import Any
 
@@ -106,3 +107,55 @@ def flush_langfuse(handler: Any | None = None) -> None:
     except Exception as exc:
         logger.debug("Langfuse flush failed: %s", exc)
 
+
+_PROMPT_CACHE: dict[str, tuple[float, Any]] = {}
+CACHE_TTL_SUCCESS_SEC = 300.0
+CACHE_TTL_FAILURE_SEC = 60.0
+
+
+def get_managed_prompt(
+    name: str,
+    fallback: str,
+    label: str = "production",
+    **variables: Any,
+) -> str:
+    """Retrieve and compile a versioned prompt from Langfuse Prompt Management.
+
+    If Langfuse is disabled, unreachable, or the prompt does not exist,
+    gracefully returns the in-code fallback string with safe variable interpolation.
+    """
+    def _interpolate_fallback(text: str) -> str:
+        if not variables:
+            return text
+        res = text
+        for k, v in variables.items():
+            res = res.replace(f"{{{{{k}}}}}", str(v)).replace(f"{{{k}}}", str(v))
+        return res
+
+    cache_key = f"{name}:{label}"
+    now = time.monotonic()
+    if cache_key in _PROMPT_CACHE:
+        cached_time, cached_obj = _PROMPT_CACHE[cache_key]
+        ttl = CACHE_TTL_SUCCESS_SEC if cached_obj is not None else CACHE_TTL_FAILURE_SEC
+        if now - cached_time < ttl:
+            if cached_obj is None:
+                return _interpolate_fallback(fallback)
+            if hasattr(cached_obj, "compile"):
+                return cached_obj.compile(**variables)
+            return str(getattr(cached_obj, "prompt", _interpolate_fallback(fallback)))
+
+    lf = get_langfuse_client()
+    if not lf:
+        _PROMPT_CACHE[cache_key] = (now, None)
+        return _interpolate_fallback(fallback)
+
+    try:
+        prompt_obj = lf.get_prompt(name, label=label)
+        _PROMPT_CACHE[cache_key] = (now, prompt_obj)
+        if hasattr(prompt_obj, "compile"):
+            return prompt_obj.compile(**variables)
+        return str(getattr(prompt_obj, "prompt", _interpolate_fallback(fallback)))
+    except Exception as exc:
+        _PROMPT_CACHE[cache_key] = (now, None)
+        logger.debug("Langfuse prompt retrieval fallback for '%s': %s", name, exc)
+        return _interpolate_fallback(fallback)

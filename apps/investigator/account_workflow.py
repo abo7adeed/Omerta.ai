@@ -1418,21 +1418,27 @@ async def generate_professional_forensic_report(state: AccountInvestigationState
     has_rules = len(alerts) > 0
     rules_text = "; ".join([f"{a.rule_name} ({a.severity.value})" for a in alerts]) if has_rules else "Zero rule violations observed"
 
-    system_prompt = (
-        "You are a Senior Financial Crime Forensic Analyst and AML Compliance Officer.\n"
-        "Your task is to write a concise, authoritative forensic investigation report of EXACTLY 5 BULLETED LINES.\n\n"
-        "STRICT REQUIREMENTS:\n"
-        "1. DO NOT explain what Omerta.ai is. DO NOT output academic filler, disclaimers, or multi-paragraph essays.\n"
-        "2. Focus 100% on the REAL TRANSACTION DETAILS, explaining why this specific transaction is risky or why it is not risky.\n"
-        "3. Incorporate the EXACT NUMBERS and AGENT SCORES from the multi-agent workflow.\n"
-        "4. Format the output strictly as 5 bullet points starting with:\n"
-        "• **1. Transaction Details:**\n"
-        "• **2. Deterministic Banking Rules & Velocity:**\n"
-        "• **3. LightGBM Machine Learning Model:**\n"
-        "• **4. Network, Device & Graph Topology:**\n"
-        "• **5. Risk Consensus & Action Directive:**\n"
-        "5. Keep each bullet point to 1-2 sharp, factual, professional sentences."
+    from infrastructure.observability import get_managed_prompt
+
+    system_prompt = get_managed_prompt(
+        "omerta-forensic-sar-synthesis",
+        fallback=(
+            "You are a Senior Financial Crime Forensic Analyst and AML Compliance Officer.\n"
+            "Your task is to write a concise, authoritative forensic investigation report of EXACTLY 5 BULLETED LINES.\n\n"
+            "STRICT REQUIREMENTS:\n"
+            "1. DO NOT explain what Omerta.ai is. DO NOT output academic filler, disclaimers, or multi-paragraph essays.\n"
+            "2. Focus 100% on the REAL TRANSACTION DETAILS, explaining why this specific transaction is risky or why it is not risky.\n"
+            "3. Incorporate the EXACT NUMBERS and AGENT SCORES from the multi-agent workflow.\n"
+            "4. Format the output strictly as 5 bullet points starting with:\n"
+            "• **1. Transaction Details:**\n"
+            "• **2. Deterministic Banking Rules & Velocity:**\n"
+            "• **3. LightGBM Machine Learning Model:**\n"
+            "• **4. Network, Device & Graph Topology:**\n"
+            "• **5. Risk Consensus & Action Directive:**\n"
+            "5. Keep each bullet point to 1-2 sharp, factual, professional sentences."
+        ),
     )
+
 
     user_facts = (
         f"Real Forensic Evidence for Synthesis:\n"
@@ -1800,6 +1806,57 @@ async def run_account_investigation(
         execution_time_ms=round(elapsed_ms, 2),
         pipeline_stages=final.get("pipeline_stages", []),
     )
+
+    from infrastructure.config import get_settings
+    if get_settings().omerta_evaluation_enabled:
+        try:
+            from domain.evaluation.evaluator import InvestigationEvaluator
+
+            trace_id = cb.get_trace_id() if cb and hasattr(cb, "get_trace_id") else None
+            trace_url = cb.get_trace_url() if cb and hasattr(cb, "get_trace_url") else None
+
+            # Package verified ledger records and intelligence as structured evidence
+            evidence = []
+            if report.account_facts:
+                acc_data = report.account_facts.model_dump(mode="json") if hasattr(report.account_facts, "model_dump") else report.account_facts
+                evidence.append({
+                    "evidence_id": f"account:{report.account_id}",
+                    "source": "PostgreSQL:accounts",
+                    "type": "account_facts",
+                    "data": acc_data,
+                })
+            for tx in (report.recent_transactions or []):
+                tx_data = tx.model_dump(mode="json") if hasattr(tx, "model_dump") else tx
+                tx_id = getattr(tx, "transaction_id", None) or (tx.get("transaction_id") if isinstance(tx, dict) else "")
+                evidence.append({
+                    "evidence_id": f"tx:{tx_id}",
+                    "source": "PostgreSQL:transactions",
+                    "type": "transaction_fact",
+                    "data": tx_data,
+                })
+            if report.graph_intelligence and getattr(report.graph_intelligence, "available", False):
+                graph_data = report.graph_intelligence.model_dump(mode="json") if hasattr(report.graph_intelligence, "model_dump") else report.graph_intelligence
+                evidence.append({
+                    "evidence_id": f"graph:{report.account_id}",
+                    "source": "Neo4j:topology",
+                    "type": "graph_intelligence",
+                    "data": graph_data,
+                })
+
+            evaluator = InvestigationEvaluator()
+            eval_res = await evaluator.evaluate(
+                investigation_id=report.investigation_id,
+                report=report,
+                evidence=evidence,
+                context={"account_id": report.account_id},
+                trace_id=trace_id,
+            )
+            if not eval_res.trace_url and trace_url:
+                eval_res.trace_url = trace_url
+            report.evaluation = eval_res.model_dump(mode="json")
+        except Exception as exc:
+            logger.warning("Account investigation evaluation hook failed: %s", exc)
+
     return report
 
 
@@ -1899,4 +1956,55 @@ async def run_transaction_investigation(
         execution_time_ms=round(elapsed_ms, 2),
         pipeline_stages=final.get("pipeline_stages", []),
     )
+
+    from infrastructure.config import get_settings
+    if get_settings().omerta_evaluation_enabled:
+        try:
+            from domain.evaluation.evaluator import InvestigationEvaluator
+
+            trace_id = cb.get_trace_id() if cb and hasattr(cb, "get_trace_id") else None
+            trace_url = cb.get_trace_url() if cb and hasattr(cb, "get_trace_url") else None
+
+            # Package verified ledger records and intelligence as structured evidence
+            evidence = []
+            if report.account_facts:
+                acc_data = report.account_facts.model_dump(mode="json") if hasattr(report.account_facts, "model_dump") else report.account_facts
+                evidence.append({
+                    "evidence_id": f"account:{report.account_id}",
+                    "source": "PostgreSQL:accounts",
+                    "type": "account_facts",
+                    "data": acc_data,
+                })
+            for tx in (report.recent_transactions or []):
+                tx_data = tx.model_dump(mode="json") if hasattr(tx, "model_dump") else tx
+                tx_id = getattr(tx, "transaction_id", None) or (tx.get("transaction_id") if isinstance(tx, dict) else "")
+                evidence.append({
+                    "evidence_id": f"tx:{tx_id}",
+                    "source": "PostgreSQL:transactions",
+                    "type": "transaction_fact",
+                    "data": tx_data,
+                })
+            if report.graph_intelligence and getattr(report.graph_intelligence, "available", False):
+                graph_data = report.graph_intelligence.model_dump(mode="json") if hasattr(report.graph_intelligence, "model_dump") else report.graph_intelligence
+                evidence.append({
+                    "evidence_id": f"graph:{report.account_id}",
+                    "source": "Neo4j:topology",
+                    "type": "graph_intelligence",
+                    "data": graph_data,
+                })
+
+            evaluator = InvestigationEvaluator()
+            eval_res = await evaluator.evaluate(
+                investigation_id=report.investigation_id,
+                report=report,
+                evidence=evidence,
+                context={"account_id": report.account_id, "transaction_id": report.transaction_id},
+                trace_id=trace_id,
+            )
+            if not eval_res.trace_url and trace_url:
+                eval_res.trace_url = trace_url
+            report.evaluation = eval_res.model_dump(mode="json")
+        except Exception as exc:
+            logger.warning("Transaction investigation evaluation hook failed: %s", exc)
+
     return report

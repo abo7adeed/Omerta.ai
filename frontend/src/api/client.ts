@@ -715,6 +715,30 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // LLM-as-a-Judge Evaluation Endpoints
+  evaluateInvestigationReport: (data: {
+    investigation_id: string;
+    report: any;
+    evidence?: any[];
+    context?: any;
+    task_description?: string;
+    trace_id?: string;
+    force_run?: boolean;
+  }) =>
+    apiRequest<InvestigationEvaluationResult>('/evaluations/evaluate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  evaluateCaseById: (caseId: string) =>
+    apiRequest<InvestigationEvaluationResult>(`/evaluations/case/${encodeURIComponent(caseId)}`),
+
+  runEvaluationBenchmark: () =>
+    apiRequest<BenchmarkRunReport>('/evaluations/benchmark/run', { method: 'POST' }),
+
+  getBenchmarkScenarios: () =>
+    apiRequest<any[]>('/evaluations/benchmark/scenarios'),
 };
 
 
@@ -1018,6 +1042,7 @@ export interface AccountInvestigationReport {
   charts: ChartArtifactReference[];
   execution_time_ms: number;
   pipeline_stages?: PipelineStageTrace[];
+  evaluation?: InvestigationEvaluationResult | null;
 }
 
 export interface LiveInvestigationSnapshot {
@@ -1072,3 +1097,77 @@ export interface CaseItem {
 }
 
 
+
+
+export interface EvaluationScores {
+  evidence_grounding?: number | null;
+  reasoning_quality?: number | null;
+  investigation_completeness?: number | null;
+  report_quality?: number | null;
+  overall_quality?: number | null;
+}
+
+export interface DeterministicCheckItem {
+  check_name: string;
+  passed: boolean;
+  details: string;
+  discrepancies: string[];
+  unverified_items: string[];
+}
+
+export interface DeterministicValidationResult {
+  passed: boolean;
+  account_ids_valid: boolean;
+  transaction_ids_valid: boolean;
+  amounts_valid: boolean;
+  dates_valid: boolean;
+  relationships_valid: boolean;
+  evidence_references_valid: boolean;
+  schema_valid: boolean;
+  discrepancies: string[];
+  unverified_claims: string[];
+  checks: DeterministicCheckItem[];
+}
+
+export interface InvestigationEvaluationResult {
+  evaluation_version: string;
+  investigation_id: string;
+  trace_id?: string | null;
+  trace_url?: string | null;
+  status: 'completed' | 'failed' | 'skipped';
+  scores: EvaluationScores;
+  dimension_explanations?: Record<string, string>;
+  unsupported_claims: string[];
+  evidence_gaps: string[];
+  strengths: string[];
+  weaknesses: string[];
+  human_review_required: boolean;
+  review_reasons: string[];
+  summary: string;
+  deterministic_validation?: DeterministicValidationResult | null;
+  judge_metadata: Record<string, any>;
+  evaluated_at: string;
+  error_message?: string | null;
+  disclaimer: string;
+}
+
+export interface BenchmarkRunReport {
+  benchmark_version: string;
+  executed_at: string;
+  judge_model: string;
+  judge_provider: string;
+  total_scenarios: number;
+  completed_scenarios: number;
+  failed_scenarios: number;
+  completion_rate_pct: number;
+  average_scores: Record<string, number>;
+  total_deliberate_error_scenarios: number;
+  deliberate_errors_detected: number;
+  error_detection_rate_pct: number;
+  false_passes: number;
+  false_flags: number;
+  average_latency_ms: number;
+  total_latency_ms: number;
+  records: any[];
+  disclaimer: string;
+}

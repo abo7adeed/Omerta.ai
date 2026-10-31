@@ -11,6 +11,13 @@ from infrastructure.llm.fake_provider import FakeLLMProvider
 from infrastructure.llm.openai_provider import OpenAICompatibleProvider
 
 
+@pytest.fixture(autouse=True)
+def _disable_local_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("USE_LOCAL_LLM", "false")
+    settings = get_settings()
+    monkeypatch.setattr(settings, "use_local_llm", False, raising=False)
+
+
 def test_factory_defaults_to_fake(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = get_settings()
     monkeypatch.setattr(settings, "llm_provider", "fake", raising=False)

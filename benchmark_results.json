@@ -1,0 +1,234 @@
+{
+  "benchmark_version": "1.0",
+  "executed_at": "2026-10-31T08:08:45.765472Z",
+  "judge_model": "openai/gpt-oss-120b",
+  "judge_provider": "groq-judge",
+  "total_scenarios": 8,
+  "completed_scenarios": 8,
+  "failed_scenarios": 0,
+  "completion_rate_pct": 100.0,
+  "average_scores": {
+    "evidence_grounding": 3.38,
+    "reasoning_quality": 3.25,
+    "investigation_completeness": 3.38,
+    "report_quality": 3.38,
+    "overall_quality": 3.12
+  },
+  "total_deliberate_error_scenarios": 5,
+  "deliberate_errors_detected": 5,
+  "error_detection_rate_pct": 100.0,
+  "false_passes": 0,
+  "false_flags": 0,
+  "average_latency_ms": 12546.14,
+  "total_latency_ms": 100369.1,
+  "records": [
+    {
+      "scenario_id": "SCENARIO_1_SUSPICIOUS_CORROBORATED",
+      "scenario_name": "Suspicious Mule Transfer with Corroborating Signals",
+      "has_deliberate_error": false,
+      "error_type": null,
+      "status": "completed",
+      "scores": {
+        "evidence_grounding": 5,
+        "reasoning_quality": 4,
+        "investigation_completeness": 5,
+        "report_quality": 4,
+        "overall_quality": 4
+      },
+      "deterministic_passed": true,
+      "human_review_required": true,
+      "discrepancies": [],
+      "unsupported_claims": [],
+      "detected_deliberate_error": false,
+      "is_false_pass": false,
+      "is_false_flag": false,
+      "latency_ms": 17957.54,
+      "summary": "The report is fully grounded in the supplied evidence and presents sound, high‑risk reasoning with a clear recommendation for human review. Minor analytical depth improvements are possible, but the investigation meets a high quality standard."
+    },
+    {
+      "scenario_id": "SCENARIO_2_LEGITIMATE_CLEAN",
+      "scenario_name": "Legitimate Payroll Transfer",
+      "has_deliberate_error": false,
+      "error_type": null,
+      "status": "completed",
+      "scores": {
+        "evidence_grounding": 5,
+        "reasoning_quality": 5,
+        "investigation_completeness": 5,
+        "report_quality": 5,
+        "overall_quality": 5
+      },
+      "deterministic_passed": true,
+      "human_review_required": false,
+      "discrepancies": [],
+      "unsupported_claims": [],
+      "detected_deliberate_error": false,
+      "is_false_pass": false,
+      "is_false_flag": false,
+      "latency_ms": 11330.76,
+      "summary": "The investigation report is fully grounded in the supplied evidence, demonstrates sound reasoning, covers all relevant data points, and is presented in a clear, actionable format. It meets or exceeds the expected quality thresholds and does not require additional human review."
+    },
+    {
+      "scenario_id": "SCENARIO_3_FABRICATED_TXN_ID",
+      "scenario_name": "Report with Fabricated Transaction ID",
+      "has_deliberate_error": true,
+      "error_type": "FABRICATED_TRANSACTION_ID",
+      "status": "completed",
+      "scores": {
+        "evidence_grounding": 1,
+        "reasoning_quality": 2,
+        "investigation_completeness": 2,
+        "report_quality": 3,
+        "overall_quality": 2
+      },
+      "deterministic_passed": false,
+      "human_review_required": true,
+      "discrepancies": [
+        "Fabricated or unknown transaction ID: 'TXN-99999-FAKE'",
+        "Incorrect transaction amount claimed: 9,500.00 (actual verified amount is 5000.00)"
+      ],
+      "unsupported_claims": [
+        "Previous fraudulent transfer TXN-99999-FAKE for $9,500.00 (fabricated transaction ID and amount).",
+        "Fabricated transaction TXN-99999-FAKE demonstrates systematic evasion.",
+        "Structured transfers including TXN-SYNTH-003 and TXN-99999-FAKE for $9,500.00 (incorrect amount and nonexistent transaction)."
+      ],
+      "detected_deliberate_error": true,
+      "is_false_pass": false,
+      "is_false_flag": false,
+      "latency_ms": 10323.28,
+      "summary": "The report contains severe evidence grounding errors by inventing a transaction and misreporting amounts, leading to flawed reasoning and incomplete investigation. While the format is correct, the false claims render the analysis unreliable, necessitating human review before any compliance action."
+    },
+    {
+      "scenario_id": "SCENARIO_4_INCORRECT_AMOUNT",
+      "scenario_name": "Report with Tenfold Incorrect Amount",
+      "has_deliberate_error": true,
+      "error_type": "INCORRECT_AMOUNT",
+      "status": "completed",
+      "scores": {
+        "evidence_grounding": 2,
+        "reasoning_quality": 2,
+        "investigation_completeness": 2,
+        "report_quality": 2,
+        "overall_quality": 2
+      },
+      "deterministic_passed": false,
+      "human_review_required": true,
+      "discrepancies": [
+        "Incorrect transaction amount claimed: 85,000.00 (actual verified amount is 8500.00)",
+        "Incorrect transaction amount claimed: 85,000.00 (actual verified amount is 8500.00)"
+      ],
+      "unsupported_claims": [
+        "Transferred amount of $85,000.00 represents an unprecedented spike.",
+        "Urgent alert: transfer of $85,000.00 executed by ACC-SYNTH-1004, exceeding standard threshold tenfold.",
+        "Risk level HIGH based on the $85,000.00 amount."
+      ],
+      "detected_deliberate_error": true,
+      "is_false_pass": false,
+      "is_false_flag": false,
+      "latency_ms": 9513.05,
+      "summary": "The report correctly identifies the transaction and account but fabricates the amount, leading to a high‑risk assessment unsupported by evidence. Reasoning is minimal, key risk signals are ignored, and the factual error necessitates human analyst intervention."
+    },
+    {
+      "scenario_id": "SCENARIO_5_INCOMPLETE_EVIDENCE",
+      "scenario_name": "Incomplete Evidence Investigation",
+      "has_deliberate_error": true,
+      "error_type": "INCOMPLETE_EVIDENCE",
+      "status": "completed",
+      "scores": {
+        "evidence_grounding": 5,
+        "reasoning_quality": 4,
+        "investigation_completeness": 3,
+        "report_quality": 4,
+        "overall_quality": 3
+      },
+      "deterministic_passed": true,
+      "human_review_required": true,
+      "discrepancies": [],
+      "unsupported_claims": [],
+      "detected_deliberate_error": true,
+      "is_false_pass": false,
+      "is_false_flag": false,
+      "latency_ms": 6409.27,
+      "summary": "The report accurately reflects the verified transaction evidence and correctly notes missing device/IP data, but its investigation depth is limited. While the reasoning is sound and the recommendation clear, additional data collection and analysis are needed, warranting human review."
+    },
+    {
+      "scenario_id": "SCENARIO_6_INCORRECT_RELATIONSHIP",
+      "scenario_name": "Incorrect Corporate Ownership Claim",
+      "has_deliberate_error": true,
+      "error_type": "INCORRECT_RELATIONSHIP",
+      "status": "completed",
+      "scores": {
+        "evidence_grounding": 2,
+        "reasoning_quality": 2,
+        "investigation_completeness": 3,
+        "report_quality": 3,
+        "overall_quality": 3
+      },
+      "deterministic_passed": false,
+      "human_review_required": true,
+      "discrepancies": [
+        "Report asserts formal corporate parent/subsidiary relationship unsupported by graph evidence."
+      ],
+      "unsupported_claims": [
+        "ACC-SYNTH-B is a wholly owned subsidiary based on corporate registration.",
+        "Transfer is legitimate internal consolidation because of the subsidiary relationship."
+      ],
+      "detected_deliberate_error": true,
+      "is_false_pass": false,
+      "is_false_flag": false,
+      "latency_ms": 7144.78,
+      "summary": "The report correctly captures the transaction details but asserts an unverified subsidiary relationship, leading to poor evidence grounding and flawed reasoning. While well‑structured, it omits critical ownership evidence and ignores graph signals, necessitating human review before any compliance decision."
+    },
+    {
+      "scenario_id": "SCENARIO_7_WEAK_REASONING",
+      "scenario_name": "Weak Reasoning: Correlation as Proven Causation",
+      "has_deliberate_error": true,
+      "error_type": "WEAK_REASONING_LEAP",
+      "status": "completed",
+      "scores": {
+        "evidence_grounding": 2,
+        "reasoning_quality": 2,
+        "investigation_completeness": 3,
+        "report_quality": 2,
+        "overall_quality": 2
+      },
+      "deterministic_passed": true,
+      "human_review_required": true,
+      "discrepancies": [],
+      "unsupported_claims": [
+        "Commercial VPN usage proves subject is an international cartel leader.",
+        "Transfer of $300.00 proved to be direct cartel financing because the customer accessed the portal via commercial VPN, proving they are an international cartel leader.",
+        "Typology assignment to FRAUD_RING without supporting evidence."
+      ],
+      "detected_deliberate_error": true,
+      "is_false_pass": false,
+      "is_false_flag": false,
+      "latency_ms": 25579.97,
+      "summary": "The report correctly notes the $300 transaction and VPN usage but makes unsupported, speculative claims of cartel financing and leadership, reflecting poor grounding and flawed reasoning. It lacks comprehensive analysis of missing contextual data and is therefore deficient, requiring human analyst review."
+    },
+    {
+      "scenario_id": "SCENARIO_8_WELL_GROUNDED_CAUTIOUS",
+      "scenario_name": "Exemplary Well-Grounded Cautious Investigation",
+      "has_deliberate_error": false,
+      "error_type": null,
+      "status": "completed",
+      "scores": {
+        "evidence_grounding": 5,
+        "reasoning_quality": 5,
+        "investigation_completeness": 4,
+        "report_quality": 4,
+        "overall_quality": 4
+      },
+      "deterministic_passed": true,
+      "human_review_required": false,
+      "discrepancies": [],
+      "unsupported_claims": [],
+      "detected_deliberate_error": false,
+      "is_false_pass": false,
+      "is_false_flag": false,
+      "latency_ms": 12110.26,
+      "summary": "The report is fully grounded in evidence, reasons soundly about the new device risk, and offers a clear, actionable recommendation. Minor omissions of ancillary data prevent a perfect score, but overall it meets high‑quality AML investigation standards."
+    }
+  ],
+  "disclaimer": "BENCHMARK NOTICE: This benchmark uses small, synthetic, fictional financial crime scenarios to evaluate judge model alignment, deterministic grounding, and error detection. It does NOT establish or guarantee real-world regulatory AML effectiveness."
+}

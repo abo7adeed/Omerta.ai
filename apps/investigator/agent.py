@@ -35,9 +35,12 @@ AGENT_VERSION = "agent-v1"
 MAX_REPAIR_ATTEMPTS = 1
 
 
+from infrastructure.observability import get_managed_prompt
+
+
 def build_system_prompt() -> str:
-    """System prompt: investigator role, hard output rules."""
-    return (
+    """System prompt: investigator role, hard output rules, fetched dynamically from Langfuse if available."""
+    fallback = (
         "You are an AML/fraud investigation analyst. You receive a JSON "
         "investigation snapshot (transaction facts, history, graph signals, "
         "risk signals) collected by a deterministic orchestrator.\n"
@@ -62,6 +65,8 @@ def build_system_prompt() -> str:
         'REQUEST_CUSTOMER_INFO|MONITOR|CLOSE_NO_ACTION", "confidence": 0..1}\n'
         "No prose outside the JSON."
     )
+    return get_managed_prompt("omerta-investigator-system", fallback=fallback)
+
 
 
 def build_user_prompt(state_dict: dict[str, Any]) -> str:
@@ -299,11 +304,16 @@ async def run_agent(
         logger.warning("agent output invalid (%s); repair pass", type(exc).__name__)
         invalid = [str(exc)]
 
-    repair_user = (
-        f"{user}\n\nYour previous reply was invalid: {invalid[0]}\n"
-        "Return corrected JSON following the same rules. Reference ONLY "
-        "evidence_ids from the snapshot."
+    repair_instruction = get_managed_prompt(
+        "omerta-investigator-repair",
+        fallback=(
+            "Your previous reply was invalid: {{error}}\n"
+            "Return corrected JSON following the same rules. Reference ONLY "
+            "evidence_ids from the snapshot."
+        ),
+        error=invalid[0],
     )
+    repair_user = f"{user}\n\n{repair_instruction}"
     response = await provider.complete(system, repair_user)
     try:
         raw = _extract_json(response.content)

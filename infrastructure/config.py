@@ -76,6 +76,17 @@ class Settings(BaseSettings):
     langfuse_host: str = "http://localhost:3000"
     langfuse_enabled: bool = False
 
+    # --- LLM-as-a-Judge Evaluation ---
+    omerta_evaluation_enabled: bool = False
+    omerta_evaluation_provider: str | None = None
+    omerta_evaluation_model: str | None = None
+    omerta_evaluation_api_key: str | None = None
+    omerta_evaluation_api_keys: str | None = None
+    omerta_evaluation_base_url: str | None = None
+    omerta_evaluation_timeout: float = 60.0
+    omerta_evaluation_max_retries: int = 2
+    omerta_evaluation_version: str = "1.0"
+
 
 @lru_cache
 def get_settings() -> Settings:

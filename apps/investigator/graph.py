@@ -2,7 +2,7 @@
 
 START -> initialize_investigation -> load_transaction -> load_account_context
        -> load_graph_context -> load_risk_context -> load_knowledge_context
-       -> assemble_evidence -> END
+       -> analyze_with_agent -> assemble_evidence -> END
 
 The workflow stops early only when the investigation has failed (e.g. the
 transaction does not exist). Orchestration is deterministic; the agent node
@@ -134,7 +134,34 @@ async def _run_on_private_loop(transaction_id: str, alert_id: str | None) -> dic
             )
             config = {"callbacks": [cb]} if cb else None
 
-            return _normalize(await app.ainvoke(initial, config=config))
+            final = _normalize(await app.ainvoke(initial, config=config))
+
+            # Post-investigation evaluation layer (if enabled)
+            if (
+                settings.omerta_evaluation_enabled
+                and final.get("status") == "COMPLETED"
+                and final.get("report")
+            ):
+                from domain.evaluation.evaluator import InvestigationEvaluator
+
+                trace_id = cb.get_trace_id() if cb and hasattr(cb, "get_trace_id") else None
+                trace_url = cb.get_trace_url() if cb and hasattr(cb, "get_trace_url") else None
+                try:
+                    evaluator = InvestigationEvaluator()
+                    eval_res = await evaluator.evaluate(
+                        investigation_id=final.get("investigation_id", ""),
+                        report=final["report"],
+                        evidence=final.get("evidence", []),
+                        context=final,
+                        trace_id=trace_id,
+                    )
+                    if not eval_res.trace_url and trace_url:
+                        eval_res.trace_url = trace_url
+                    final["evaluation"] = eval_res.model_dump(mode="json")
+                except Exception as exc:
+                    logger.warning("Post-investigation evaluation failed to complete: %s", exc)
+
+            return final
     finally:
         await driver.close()
 

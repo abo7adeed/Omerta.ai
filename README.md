@@ -373,6 +373,90 @@ npm run dev
 
 ---
 
+
+---
+
+## ⚖️ LLM-as-a-Judge Evaluation & Langfuse Tracing
+
+Omerta.ai features a production-minded **LLM-as-a-Judge evaluation and deterministic validation layer** integrated with LangGraph and Langfuse. It evaluates the factual quality, reasoning rigor, and regulatory completeness of completed investigations without human compliance replacement.
+
+```
+Omerta Investigation → LangGraph Agents → Result + Verified Evidence
+                                                  ↓
+                                        Deterministic Validation (Factual Checks)
+                                                  ↓
+                                        LLM-as-a-Judge (5 Rubric Dimensions)
+                                                  ↓
+                                        Langfuse Trace Association & Scores
+                                                  ↓
+                                        Optional Compliance Officer Review
+```
+
+### 🎯 5 Core Evaluation Dimensions (1–5 Scale)
+
+1. **Evidence Grounding (1–5)**: Validates that all claims, transaction IDs, account numbers, amounts, dates, and device footprints match verified evidence. Detects hallucinations or fabricated entities.
+2. **Reasoning Quality (1–5)**: Assesses logical progression, prevents leaps in logic, and ensures structural graph signals (e.g., shared devices) are not presented as proven criminal guilt.
+3. **Investigation Completeness (1–5)**: Ensures all available and relevant evidence tiers (ledger, graph, risk, device) were queried. Missing unavailable information is never penalized.
+4. **Report Quality (1–5)**: Evaluates clarity, structured executive synthesis, and compliance analyst utility adhering to Omerta schemas.
+5. **Overall Quality (1–5)**: Holistic synthesis of the 4 pillars determining production-readiness.
+
+> **Advisory Guardrail**: Scores evaluate investigation rigor and never authorize financial actions or determine criminal guilt.
+
+### 🛡️ Deterministic Validation Engine
+
+Independent of LLM judgments, the deterministic validator verifies:
+- **Transaction & Account IDs**: Matches referenced IDs against verified ledger records.
+- **Amounts & Currency**: Detects numerical contradictions (e.g. tenfold discrepancies like $85,000 vs $8,500).
+- **Graph Topology**: Verifies claimed shared devices, IPs, and corporate relationships against Neo4j projections.
+- **Referential Integrity**: Ensures all findings reference valid evidence IDs.
+
+### ⚙️ Configuration (.env)
+
+```bash
+# Enable/Disable LLM evaluation (default: false)
+OMERTA_EVALUATION_ENABLED=false
+
+# Dedicated Judge Model (optional: falls back to platform provider)
+OMERTA_EVALUATION_PROVIDER=groq     # groq | openai | ollama | fake
+OMERTA_EVALUATION_MODEL=openai/gpt-oss-20b
+OMERTA_EVALUATION_API_KEY=gsk_...
+OMERTA_EVALUATION_TIMEOUT=60.0
+OMERTA_EVALUATION_MAX_RETRIES=2
+OMERTA_EVALUATION_VERSION=1.0
+
+# Langfuse Observability & Tracing
+LANGFUSE_ENABLED=true
+LANGFUSE_HOST=http://localhost:3000
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+```
+
+### 🚀 Running the Synthetic Benchmark
+
+A synthetic benchmark covering 8 canonical AML investigation scenarios (normal, suspicious, and deliberate defects) is included:
+
+```bash
+# Run benchmark offline with deterministic fake judge
+uv run python scripts/run_evaluation_benchmark.py --force-fake
+
+# Run benchmark against configured cloud/local LLM judge
+uv run python scripts/run_evaluation_benchmark.py --output benchmark_results.json
+```
+
+### 📊 Inspecting Results in Langfuse
+
+When `LANGFUSE_ENABLED=true` and `OMERTA_EVALUATION_ENABLED=true`, each completed investigation trace automatically records:
+- **Numerical Scores**: `evidence_grounding`, `reasoning_quality`, `investigation_completeness`, `report_quality`, `overall_quality` (1.0 - 5.0)
+- **Categorical Scores**: `deterministic_validation` (`PASSED` | `FAILED`), `human_review_required` (`REQUIRED` | `NOT_REQUIRED`)
+- **Metadata**: Judge model name, provider, latency (ms), and evaluation version.
+
+### 💻 Running Tests
+
+```bash
+# Run all evaluation unit, integration, and API tests
+uv run pytest tests/test_evaluation_system.py -v
+```
+
 ## 🧪 Test Suite & Verification
 
 The test suite validates core double-entry accounting invariants, row-locking race safety, single-session RBAC enforcement, single-use confirmation token security, and multi-agent consensus:
