@@ -27,6 +27,7 @@ import { AiAssistantPage } from './pages/AiAssistantPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SupportCasesPage } from './pages/SupportCasesPage';
 import { McpServersPage } from './pages/McpServersPage';
+import { BenchmarkPage } from './pages/BenchmarkPage';
 
 // Customer Banking Pages
 import { CustomerDashboardPage } from './pages/customer/CustomerDashboardPage';
@@ -136,6 +137,7 @@ export const App: React.FC = () => {
                 <Route path="audit-logs" element={<AuditLogsPage />} />
                 <Route path="ai-assistant" element={<AiAssistantPage />} />
                 <Route path="mcp-servers" element={<McpServersPage />} />
+                <Route path="benchmarks" element={<BenchmarkPage />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
 
@@ -143,6 +145,7 @@ export const App: React.FC = () => {
               {/* Legacy fallback aliases */}
               <Route path="/dashboard" element={<RootRedirector />} />
               <Route path="/mcp-servers" element={<Navigate to="/admin/mcp-servers" replace />} />
+              <Route path="/benchmarks" element={<Navigate to="/admin/benchmarks" replace />} />
               <Route path="/transactions" element={<Navigate to="/admin/transactions" replace />} />
               <Route path="/transactions/:id" element={<TransactionDetailPage />} />
               <Route path="/risk-monitoring" element={<Navigate to="/admin/risk-monitoring" replace />} />

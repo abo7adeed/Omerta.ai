@@ -11,11 +11,13 @@ from typing import Any, Protocol
 
 @dataclass(frozen=True)
 class LLMResponse:
-    """Normalized LLM completion result."""
+    """Normalized LLM completion result with optional usage and provider metadata."""
 
     content: str
     provider: str
     model: str
+    usage: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class LLMProvider(Protocol):

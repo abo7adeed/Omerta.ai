@@ -877,6 +877,72 @@ class TransactionConfirmationToken(Base):
     customer: Mapped["Customer"] = relationship()
 
 
+class BenchmarkRun(TimestampMixin, Base):
+    """Persisted record of an LLM side-by-side benchmark experiment."""
+
+    __tablename__ = "benchmark_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    dataset_version: Mapped[str] = mapped_column(String(32), default="1.0")
+    model_a_config: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    model_b_config: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    judge_config: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="RUNNING", index=True)  # RUNNING | COMPLETED | FAILED
+    total_cases: Mapped[int] = mapped_column(Integer, default=0)
+    completed_cases: Mapped[int] = mapped_column(Integer, default=0)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    aggregate_metrics: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    pricing_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    cases: Mapped[list["BenchmarkCaseResult"]] = relationship(
+        back_populates="run", cascade="all, delete-orphan", order_by="BenchmarkCaseResult.id"
+    )
+
+
+class BenchmarkCaseResult(TimestampMixin, Base):
+    """Side-by-side evaluation comparison for one case across candidate models."""
+
+    __tablename__ = "benchmark_case_results"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("benchmark_runs.run_id", ondelete="CASCADE"), index=True)
+    case_id: Mapped[str] = mapped_column(String(128), index=True)
+    scenario_type: Mapped[str] = mapped_column(String(64), default="INVESTIGATION")
+
+    # Candidate Model A Results
+    model_a_output: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    model_a_validation: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    model_a_evaluation: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    model_a_latency_ms: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
+    model_a_tokens: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    model_a_cost_usd: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
+    model_a_trace_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    model_a_trace_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    model_a_status: Mapped[str] = mapped_column(String(32), default="COMPLETED")
+    model_a_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    model_a_metrics: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    # Candidate Model B Results
+    model_b_output: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    model_b_validation: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    model_b_evaluation: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    model_b_latency_ms: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
+    model_b_tokens: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    model_b_cost_usd: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
+    model_b_trace_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    model_b_trace_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    model_b_status: Mapped[str] = mapped_column(String(32), default="COMPLETED")
+    model_b_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    model_b_metrics: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    differences_summary: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    run: Mapped["BenchmarkRun"] = relationship(back_populates="cases")
+
+
 async def init_db(engine: AsyncEngine) -> None:
     """Create all database tables asynchronously if they don't already exist."""
     async with engine.begin() as conn:

@@ -739,6 +739,31 @@ export const api = {
 
   getBenchmarkScenarios: () =>
     apiRequest<any[]>('/evaluations/benchmark/scenarios'),
+
+  // Side-by-Side Model Benchmarking
+  getBenchmarkModels: () =>
+    apiRequest<ModelAvailabilityInfo[]>('/benchmarks/models'),
+
+  getBenchmarkScenariosList: (version?: string) =>
+    apiRequest<BenchmarkCase[]>(`/benchmarks/scenarios${version ? `?version=${version}` : ''}`),
+
+  executeBenchmarkRun: (payload: CreateBenchmarkRunPayload) =>
+    apiRequest<BenchmarkRunDetail>('/benchmarks/runs', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  getBenchmarkRuns: (limit: number = 20, offset: number = 0) =>
+    apiRequest<BenchmarkRunSummary[]>(`/benchmarks/runs?limit=${limit}&offset=${offset}`),
+
+  getBenchmarkRunDetails: (runId: string) =>
+    apiRequest<BenchmarkRunDetail>(`/benchmarks/runs/${encodeURIComponent(runId)}`),
+
+  getBenchmarkCaseComparison: (runId: string, caseId: string) =>
+    apiRequest<BenchmarkCaseResult>(`/benchmarks/runs/${encodeURIComponent(runId)}/cases/${encodeURIComponent(caseId)}`),
+
+  exportBenchmarkRunUrl: (runId: string, format: 'json' | 'csv' = 'json') =>
+    `/api/v1/benchmarks/runs/${encodeURIComponent(runId)}/export?format=${format}`,
 };
 
 
@@ -1170,4 +1195,222 @@ export interface BenchmarkRunReport {
   total_latency_ms: number;
   records: any[];
   disclaimer: string;
+}
+
+// ==============================================================================
+// Side-by-Side LLM Model Benchmarking Interfaces
+// ==============================================================================
+
+export interface BenchmarkModelConfig {
+  model_id: string;
+  provider: string;
+  display_name?: string | null;
+  temperature?: number;
+  max_tokens?: number;
+  timeout_seconds?: number;
+  max_retries?: number;
+}
+
+export interface ModelAvailabilityInfo {
+  model_id: string;
+  provider: string;
+  display_name: string;
+  is_available: boolean;
+  status_message: string;
+  pricing_info: {
+    model_id: string;
+    pricing_version: string;
+    rates: {
+      prompt_per_m: number;
+      completion_per_m: number;
+    };
+    is_fallback: boolean;
+  };
+}
+
+export interface BenchmarkCase {
+  case_id: string;
+  scenario_type: string;
+  title: string;
+  description: string;
+  task_description: string;
+  investigation_id: string;
+  transaction_id: string;
+  account_id: string;
+  context: Record<string, any>;
+  evidence: Array<{
+    evidence_id: string;
+    category: string;
+    source: string;
+    reference: string;
+    description: string;
+    data: Record<string, any>;
+  }>;
+  ground_truth: Record<string, any>;
+}
+
+export interface BenchmarkCaseResult {
+  id?: number;
+  run_id: string;
+  case_id: string;
+  scenario_type: string;
+  model_a_output: any;
+  model_a_validation: DeterministicValidationResult;
+  model_a_evaluation: InvestigationEvaluationResult;
+  model_a_latency_ms: number;
+  model_a_tokens: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  model_a_cost_usd: number;
+  model_a_trace_id?: string;
+  model_a_trace_url?: string;
+  model_a_status: string;
+  model_a_error?: string | null;
+  model_a_metrics?: Record<string, any>;
+  model_b_output: any;
+  model_b_validation: DeterministicValidationResult;
+  model_b_evaluation: InvestigationEvaluationResult;
+  model_b_latency_ms: number;
+  model_b_tokens: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  model_b_cost_usd: number;
+  model_b_trace_id?: string;
+  model_b_trace_url?: string;
+  model_b_status: string;
+  model_b_error?: string | null;
+  model_b_metrics?: Record<string, any>;
+  differences_summary: {
+    winner: 'MODEL_A' | 'MODEL_B' | 'TIE';
+    score_deltas: {
+      overall_quality: number;
+      evidence_grounding: number;
+      reasoning_quality: number;
+      investigation_completeness: number;
+      report_quality: number;
+    };
+    deterministic_agreement: boolean;
+    human_review_agreement: boolean;
+    latency_delta_ms: number;
+    cost_delta_usd: number;
+    model_a_summary: string;
+    model_b_summary: string;
+  };
+}
+
+export interface BenchmarkAggregateMetrics {
+  total_cases: number;
+  completed_cases: number;
+  model_a: {
+    model_id: string;
+    display_name: string;
+    provider: string;
+    average_scores: Record<string, number>;
+    median_scores: Record<string, number>;
+    schema_pass_rate_pct: number;
+    deterministic_pass_rate_pct: number;
+    human_review_rate_pct: number;
+    mean_latency_ms: number;
+    median_latency_ms?: number;
+    p95_latency_ms?: number;
+    min_latency_ms?: number;
+    max_latency_ms?: number;
+    tokens_per_second?: number;
+    citation_accuracy_pct?: number;
+    evidence_coverage_pct?: number;
+    ground_truth_f1?: number | null;
+    gpu_vram_used_mb?: number | null;
+    peak_gpu_vram_used_mb?: number | null;
+    cost_per_case_usd?: number;
+    projected_cost_per_1000_cases_usd?: number;
+    total_latency_ms: number;
+    total_tokens: {
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    };
+    total_cost_usd: number;
+  };
+  model_b: {
+    model_id: string;
+    display_name: string;
+    provider: string;
+    average_scores: Record<string, number>;
+    median_scores: Record<string, number>;
+    schema_pass_rate_pct: number;
+    deterministic_pass_rate_pct: number;
+    human_review_rate_pct: number;
+    mean_latency_ms: number;
+    median_latency_ms?: number;
+    p95_latency_ms?: number;
+    min_latency_ms?: number;
+    max_latency_ms?: number;
+    tokens_per_second?: number;
+    citation_accuracy_pct?: number;
+    evidence_coverage_pct?: number;
+    ground_truth_f1?: number | null;
+    gpu_vram_used_mb?: number | null;
+    peak_gpu_vram_used_mb?: number | null;
+    cost_per_case_usd?: number;
+    projected_cost_per_1000_cases_usd?: number;
+    total_latency_ms: number;
+    total_tokens: {
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    };
+    total_cost_usd: number;
+  };
+  comparison: {
+    model_a_wins: number;
+    model_b_wins: number;
+    ties: number;
+    overall_score_delta_mean: number;
+    cost_difference_usd: number;
+    cost_savings_pct: number;
+    latency_difference_ms: number;
+    p95_latency_difference_ms?: number;
+    speedup_factor: number;
+  };
+}
+
+export interface BenchmarkRunSummary {
+  run_id: string;
+  dataset_version: string;
+  status: string;
+  total_cases: number;
+  completed_cases: number;
+  started_at: string;
+  completed_at?: string | null;
+  model_a_id: string;
+  model_b_id: string;
+  aggregate_metrics?: BenchmarkAggregateMetrics | null;
+}
+
+export interface BenchmarkRunDetail {
+  run_id: string;
+  dataset_version: string;
+  status: string;
+  model_a_config: BenchmarkModelConfig;
+  model_b_config: BenchmarkModelConfig;
+  judge_config: Record<string, any>;
+  total_cases: number;
+  completed_cases: number;
+  started_at: string;
+  completed_at?: string | null;
+  aggregate_metrics?: BenchmarkAggregateMetrics | null;
+  pricing_metadata?: Record<string, any>;
+  error_message?: string | null;
+  cases: BenchmarkCaseResult[];
+}
+
+export interface CreateBenchmarkRunPayload {
+  model_a: BenchmarkModelConfig;
+  model_b: BenchmarkModelConfig;
+  case_ids?: string[] | null;
+  dataset_version?: string;
 }

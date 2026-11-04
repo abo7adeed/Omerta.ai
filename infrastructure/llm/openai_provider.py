@@ -92,7 +92,9 @@ class OpenAICompatibleProvider:
                     data = response.json()
 
                 content = data["choices"][0]["message"]["content"]
-                return LLMResponse(content=content, provider=self.name, model=self.model)
+                usage = data.get("usage")
+                meta = {"system_fingerprint": data.get("system_fingerprint"), "created": data.get("created")}
+                return LLMResponse(content=content, provider=self.name, model=self.model, usage=usage, metadata=meta)
 
             except httpx.HTTPStatusError as exc:
                 last_status_err = exc
