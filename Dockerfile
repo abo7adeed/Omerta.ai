@@ -4,7 +4,7 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Install uv, then the project (uv.lock guarantees reproducible deps).
-COPY pyproject.toml uv.lock .python-version ./
+COPY pyproject.toml uv.lock .python-version README.md ./
 RUN pip install --no-cache-dir uv && uv sync --frozen --no-dev
 
 # Application code (models/ ships the trained LightGBM artifact).
