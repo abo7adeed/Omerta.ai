@@ -98,6 +98,68 @@ def reset_engine() -> None:
     _engine = None
 
 
+# --- Dedicated Read-Only MCP Database Engine ---
+
+_mcp_engine: AsyncEngine | None = None
+_override_mcp_engine: ContextVar[AsyncEngine | None] = ContextVar("db_mcp_engine_override", default=None)
+
+
+def create_mcp_engine(database_url: str | None = None, *, use_null_pool: bool = False) -> AsyncEngine:
+    """Create a dedicated read-only async engine for MCP (defaults to settings.mcp_database_url)."""
+    from infrastructure.config import get_settings
+
+    url = database_url if database_url is not None else get_settings().mcp_database_url
+    return create_async_engine(
+        url,
+        echo=False,
+        pool_pre_ping=True,
+        poolclass=NullPool if use_null_pool else None,
+    )
+
+
+def get_mcp_engine() -> AsyncEngine:
+    """Return the MCP read-only database engine: context-local override first, else shared."""
+    override = _override_mcp_engine.get()
+    if override is not None:
+        return override
+    global _mcp_engine
+    if _mcp_engine is None:
+        _mcp_engine = create_mcp_engine()
+    return _mcp_engine
+
+
+def use_mcp_engine(engine: AsyncEngine):
+    """Context manager: bind read-only ``engine`` to the current context/task only."""
+
+    @contextmanager
+    def _ctx():
+        token = _override_mcp_engine.set(engine)
+        try:
+            yield
+        finally:
+            _override_mcp_engine.reset(token)
+
+    return _ctx()
+
+
+def set_mcp_engine_url(url: str) -> AsyncEngine:
+    """Point the MCP engine at ``url`` (used by tests)."""
+    global _mcp_engine
+    if _mcp_engine is not None:
+        raise RuntimeError(
+            "MCP Engine already created; set_mcp_engine_url must be called before any "
+            "MCP database connection is opened."
+        )
+    _mcp_engine = create_mcp_engine(url, use_null_pool=True)
+    return _mcp_engine
+
+
+def reset_mcp_engine() -> None:
+    """Drop the cached MCP engine reference (used by tests for cleanup)."""
+    global _mcp_engine
+    _mcp_engine = None
+
+
 @asynccontextmanager
 async def session_scope(engine_: AsyncEngine) -> AsyncIterator[AsyncSession]:
     """Open a transactional session scope; commit on success, rollback on error."""

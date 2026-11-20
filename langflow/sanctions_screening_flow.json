@@ -1,0 +1,869 @@
+{
+  "name": "Omerta.ai \u2014 Sanctions & Watchlist Screening Flow",
+  "description": "Visual screening workflow orchestrating entity normalization, MCP tool invocation, multi-signal scoring, and explainable decision recommendations.",
+  "data": {
+    "nodes": [
+      {
+        "id": "node_input_entity",
+        "type": "genericNode",
+        "position": {
+          "x": 100,
+          "y": 250
+        },
+        "data": {
+          "type": "EntityInputNode",
+          "node": {
+            "display_name": "Investigation Entity Input",
+            "description": "Receives entity descriptors from Omerta case or manual compliance entry.",
+            "template": {
+              "name": {
+                "type": "str",
+                "required": true,
+                "value": "Mohamed El-Sayed Ahmed",
+                "show": true,
+                "name": "name",
+                "display_name": "Entity Name",
+                "advanced": false,
+                "_input_type": "StrInput"
+              },
+              "entity_type": {
+                "type": "str",
+                "required": false,
+                "value": "individual",
+                "options": [
+                  "individual",
+                  "company",
+                  "organization",
+                  "vessel",
+                  "aircraft",
+                  "any"
+                ],
+                "show": true,
+                "name": "entity_type",
+                "display_name": "Entity Type",
+                "advanced": false,
+                "_input_type": "DropdownInput"
+              },
+              "country": {
+                "type": "str",
+                "required": false,
+                "value": "EG",
+                "show": true,
+                "name": "country",
+                "display_name": "Country (ISO-2)",
+                "advanced": false,
+                "_input_type": "StrInput"
+              },
+              "birth_date": {
+                "type": "str",
+                "required": false,
+                "value": "1982-05-14",
+                "show": true,
+                "name": "birth_date",
+                "display_name": "Date of Birth (YYYY-MM-DD)",
+                "advanced": false,
+                "_input_type": "StrInput"
+              },
+              "identification_number": {
+                "type": "str",
+                "required": false,
+                "value": "EG-NAT-28205140102931",
+                "show": true,
+                "name": "identification_number",
+                "display_name": "National ID / Passport",
+                "advanced": false,
+                "_input_type": "StrInput"
+              },
+              "_type": "Component",
+              "code": {
+                "type": "code",
+                "value": "from lfx.custom.custom_component.component import Component\nfrom lfx.io import StrInput, DropdownInput, Output\nfrom lfx.schema import Data\n\nclass EntityInputComponent(Component):\n    display_name = \"Investigation Entity Input\"\n    description = \"Receives entity descriptors from Omerta case or manual compliance entry.\"\n    icon = \"UserCheck\"\n\n    inputs = [\n        StrInput(name=\"name\", display_name=\"Entity Name\", value=\"Mohamed El-Sayed Ahmed\", required=True),\n        DropdownInput(name=\"entity_type\", display_name=\"Entity Type\", options=[\"individual\", \"company\", \"organization\", \"vessel\", \"aircraft\", \"any\"], value=\"individual\"),\n        StrInput(name=\"country\", display_name=\"Country (ISO-2)\", value=\"EG\"),\n        StrInput(name=\"birth_date\", display_name=\"Date of Birth (YYYY-MM-DD)\", value=\"1982-05-14\"),\n        StrInput(name=\"identification_number\", display_name=\"National ID / Passport\", value=\"EG-NAT-28205140102931\"),\n    ]\n\n    outputs = [\n        Output(name=\"output\", display_name=\"Result Data\", method=\"build_output\"),\n    ]\n\n    def build_output(self) -> Data:\n        return Data(data={\n            \"name\": getattr(self, \"name\", \"Mohamed El-Sayed Ahmed\"),\n            \"entity_type\": getattr(self, \"entity_type\", \"individual\"),\n            \"country\": getattr(self, \"country\", \"EG\"),\n            \"birth_date\": getattr(self, \"birth_date\", \"1982-05-14\"),\n            \"identification_number\": getattr(self, \"identification_number\", \"EG-NAT-28205140102931\"),\n        })\n",
+                "show": false,
+                "advanced": true,
+                "name": "code"
+              }
+            },
+            "base_classes": [
+              "Data"
+            ],
+            "beta": false,
+            "documentation": "",
+            "custom_fields": {},
+            "field_order": [
+              "name",
+              "entity_type",
+              "country",
+              "birth_date",
+              "identification_number"
+            ],
+            "outputs": [
+              {
+                "name": "output",
+                "display_name": "Result Data",
+                "types": [
+                  "Data"
+                ],
+                "selected": "Data",
+                "method": "build_output",
+                "cache": true,
+                "allows_loop": false,
+                "value": "__UNDEFINED__"
+              }
+            ],
+            "conditional_paths": [],
+            "edited": false,
+            "frozen": false,
+            "pinned": false,
+            "legacy": false,
+            "lf_version": "1.0.0",
+            "metadata": {},
+            "output_types": [],
+            "icon": "ShieldCheck"
+          },
+          "display_name": "Investigation Entity Input",
+          "description": "Receives entity descriptors from Omerta case or manual compliance entry.",
+          "id": "node_input_entity",
+          "selected_output": "output"
+        },
+        "dragging": false,
+        "selected": false,
+        "measured": {
+          "width": 320,
+          "height": 360
+        },
+        "positionAbsolute": {
+          "x": 100,
+          "y": 250
+        }
+      },
+      {
+        "id": "node_normalize",
+        "type": "genericNode",
+        "position": {
+          "x": 420,
+          "y": 250
+        },
+        "data": {
+          "type": "NormalizationNode",
+          "node": {
+            "display_name": "Arabic/English Normalizer",
+            "description": "Preprocesses script, strips Tashkeel, unifies Hamza/Alif, and expands transliterations.",
+            "template": {
+              "code": {
+                "type": "code",
+                "value": "import re\nimport unicodedata\nfrom lfx.custom.custom_component.component import Component\nfrom lfx.io import DataInput, Output\nfrom lfx.schema import Data\n\ndef normalize_name_text(text: str) -> str:\n    if not text:\n        return \"\"\n    # Strip Tashkeel (Arabic diacritics)\n    tashkeel = re.compile(r\"[\\u0617-\\u061A\\u064B-\\u0652]\")\n    text = re.sub(tashkeel, \"\", text)\n    # Normalize Alef forms\n    text = re.sub(r\"[\u0625\u0623\u0622\u0627]\", \"\u0627\", text)\n    # Normalize Yaa\n    text = re.sub(r\"[\u0649\u064a]\", \"\u064a\", text)\n    # Normalize Taa Marbuta\n    text = re.sub(r\"\u0629\", \"\u0647\", text)\n    text = unicodedata.normalize(\"NFKD\", text)\n    return \" \".join(text.strip().split())\n\nclass NormalizationComponent(Component):\n    display_name = \"Arabic/English Normalizer\"\n    description = \"Preprocesses script, strips Tashkeel, unifies Hamza/Alif, and expands transliterations.\"\n    icon = \"Languages\"\n\n    inputs = [\n        DataInput(name=\"input_data\", display_name=\"Pipeline Input\", required=True),\n    ]\n\n    outputs = [\n        Output(name=\"output\", display_name=\"Result Data\", method=\"process_normalization\"),\n    ]\n\n    def process_normalization(self) -> Data:\n        inp = getattr(self, \"input_data\", None)\n        d = inp.data if hasattr(inp, \"data\") and isinstance(inp.data, dict) else (inp if isinstance(inp, dict) else {})\n        raw_name = d.get(\"name\") or d.get(\"entity_name\") or \"\"\n        norm_name = normalize_name_text(raw_name)\n        country = d.get(\"country\") or \"\"\n        countries = [c.strip().upper() for c in country.split(\",\") if c.strip()] if isinstance(country, str) else d.get(\"countries\", [])\n        return Data(data={\n            \"original_name\": raw_name,\n            \"normalized_name\": norm_name,\n            \"name\": norm_name or raw_name,\n            \"entity_type\": d.get(\"entity_type\", \"individual\"),\n            \"country\": country,\n            \"countries\": countries,\n            \"birth_date\": d.get(\"birth_date\"),\n            \"identification_number\": d.get(\"identification_number\"),\n            \"normalization_applied\": True,\n        })\n",
+                "show": false,
+                "advanced": true,
+                "name": "code"
+              },
+              "_type": "Component",
+              "input_data": {
+                "type": "other",
+                "name": "input_data",
+                "display_name": "Pipeline Input",
+                "show": true,
+                "advanced": false,
+                "input_types": [
+                  "Data"
+                ],
+                "info": "Input data from previous pipeline stage.",
+                "_input_type": "JSONInput"
+              }
+            },
+            "base_classes": [
+              "Data"
+            ],
+            "beta": false,
+            "documentation": "",
+            "custom_fields": {},
+            "field_order": [
+              "input_data",
+              "code"
+            ],
+            "outputs": [
+              {
+                "name": "output",
+                "display_name": "Result Data",
+                "types": [
+                  "Data"
+                ],
+                "selected": "Data",
+                "method": "process_normalization",
+                "cache": true,
+                "allows_loop": false,
+                "value": "__UNDEFINED__"
+              }
+            ],
+            "conditional_paths": [],
+            "edited": false,
+            "frozen": false,
+            "pinned": false,
+            "legacy": false,
+            "lf_version": "1.0.0",
+            "metadata": {},
+            "output_types": [],
+            "icon": "ShieldCheck"
+          },
+          "display_name": "Arabic/English Normalizer",
+          "description": "Preprocesses script, strips Tashkeel, unifies Hamza/Alif, and expands transliterations.",
+          "id": "node_normalize",
+          "selected_output": "output"
+        },
+        "dragging": false,
+        "selected": false,
+        "measured": {
+          "width": 320,
+          "height": 360
+        },
+        "positionAbsolute": {
+          "x": 420,
+          "y": 250
+        }
+      },
+      {
+        "id": "node_mcp_tool",
+        "type": "genericNode",
+        "position": {
+          "x": 740,
+          "y": 250
+        },
+        "data": {
+          "type": "MCPToolNode",
+          "node": {
+            "display_name": "MCP: screen_entity_against_watchlists",
+            "description": "Executes strictly read-only screening via omerta-sanctions-server.",
+            "template": {
+              "server_id": {
+                "type": "str",
+                "value": "sanctions_server",
+                "show": true,
+                "display_name": "MCP Server",
+                "advanced": false,
+                "name": "server_id",
+                "_input_type": "StrInput"
+              },
+              "tool_name": {
+                "type": "str",
+                "value": "screen_entity_against_watchlists",
+                "show": true,
+                "display_name": "Tool Name",
+                "advanced": false,
+                "name": "tool_name",
+                "_input_type": "StrInput"
+              },
+              "specialist_role": {
+                "type": "str",
+                "value": "SanctionsScreeningAgent",
+                "show": true,
+                "display_name": "Specialist Identity",
+                "advanced": false,
+                "name": "specialist_role",
+                "_input_type": "StrInput"
+              },
+              "threshold": {
+                "type": "float",
+                "value": 0.7,
+                "show": true,
+                "display_name": "Confidence Threshold",
+                "advanced": false,
+                "name": "threshold",
+                "_input_type": "FloatInput"
+              },
+              "_type": "Component",
+              "input_data": {
+                "type": "other",
+                "name": "input_data",
+                "display_name": "Pipeline Input",
+                "show": true,
+                "advanced": false,
+                "input_types": [
+                  "Data"
+                ],
+                "info": "Input data from previous pipeline stage.",
+                "_input_type": "JSONInput"
+              },
+              "code": {
+                "type": "code",
+                "value": "from __future__ import annotations\n\nimport json\nimport logging\nimport os\nimport urllib.error\nimport urllib.request\nfrom typing import Any\n\nfrom lfx.custom.custom_component.component import Component\nfrom lfx.io import (\n    DataInput,\n    DropdownInput,\n    FloatInput,\n    Output,\n    SecretStrInput,\n    StrInput,\n)\nfrom lfx.schema import Data\n\nlogger = logging.getLogger(__name__)\n\nDEFAULT_OMERTA_URL = os.getenv(\"OMERTA_API_URL\", \"http://127.0.0.1:8000/api/v1/sanctions/screen\")\n\n\nclass OmertaSanctionsBridgeComponent(Component):\n    \"\"\"Bridge component triggering Omerta sanctions screening MCP tools from Langflow.\"\"\"\n\n    display_name = \"Omerta Sanctions Screening Bridge\"\n    description = (\n        \"Invokes Omerta.ai sanctions screening via authenticated FastAPI gateway and \"\n        \"omerta-sanctions-server MCP tool. Returns multi-signal explainable match scoring.\"\n    )\n    icon = \"ShieldCheck\"\n\n    inputs = [\n        DataInput(\n            name=\"input_data\",\n            display_name=\"Pipeline Input Data\",\n            info=\"Optional input data from upstream normalization or entity node.\",\n            required=False,\n        ),\n        StrInput(\n            name=\"entity_name\",\n            display_name=\"Entity Name\",\n            info=\"Full name or alias of the individual or company to screen.\",\n            value=\"Mohamed El-Sayed Ahmed\",\n            required=False,\n        ),\n        DropdownInput(\n            name=\"entity_type\",\n            display_name=\"Entity Type\",\n            options=[\"individual\", \"company\", \"organization\", \"vessel\", \"aircraft\", \"any\"],\n            value=\"individual\",\n            info=\"Type of entity.\",\n        ),\n        StrInput(\n            name=\"country\",\n            display_name=\"Country (ISO-2)\",\n            value=\"EG\",\n            info=\"ISO 2-letter country code (e.g. EG, US, RU). Comma-separate for multiple.\",\n        ),\n        StrInput(\n            name=\"birth_date\",\n            display_name=\"Date of Birth (YYYY-MM-DD)\",\n            value=\"1982-05-14\",\n            info=\"Date of birth for individuals (e.g. 1982-05-14).\",\n        ),\n        StrInput(\n            name=\"identification_number\",\n            display_name=\"National ID / Passport\",\n            value=\"EG-NAT-28205140102931\",\n            info=\"Government identification number, tax ID, or passport number.\",\n        ),\n        FloatInput(\n            name=\"threshold\",\n            display_name=\"Confidence Threshold\",\n            value=0.70,\n            info=\"Minimum confidence score required to flag a potential sanctions match (0.10 to 1.00).\",\n        ),\n        StrInput(\n            name=\"endpoint_url\",\n            display_name=\"Omerta Screening Endpoint\",\n            value=DEFAULT_OMERTA_URL,\n            info=\"URL of the Omerta FastAPI sanctions screening endpoint.\",\n            advanced=True,\n        ),\n        SecretStrInput(\n            name=\"auth_token\",\n            display_name=\"API Bearer Token (Optional)\",\n            value=\"\",\n            info=\"JWT access token for authenticated environments. Reads OMERTA_BEARER_TOKEN if empty.\",\n            advanced=True,\n        ),\n    ]\n\n    outputs = [\n        Output(\n            name=\"output\",\n            display_name=\"Result Data\",\n            method=\"execute_screening\",\n        ),\n        Output(\n            name=\"screening_result\",\n            display_name=\"Screening Result (Data)\",\n            method=\"execute_screening\",\n        ),\n    ]\n\n    def execute_screening(self) -> Data:\n        \"\"\"Execute the screening operation via the Omerta backend and MCP tool.\"\"\"\n        # 1. Inspect upstream input_data if provided\n        upstream = {}\n        input_data_obj = getattr(self, \"input_data\", None)\n        if input_data_obj is not None:\n            if hasattr(input_data_obj, \"data\") and isinstance(input_data_obj.data, dict):\n                upstream = input_data_obj.data\n            elif isinstance(input_data_obj, dict):\n                upstream = input_data_obj\n\n        # 2. Resolve fields (direct attributes take precedence over upstream defaults)\n        raw_name = getattr(self, \"entity_name\", \"\") or upstream.get(\"name\") or upstream.get(\"original_name\") or upstream.get(\"entity_name\") or \"\"\n        if not raw_name or not str(raw_name).strip():\n            err_payload = {\n                \"match_found\": False,\n                \"best_match_confidence\": 0.0,\n                \"review_required\": False,\n                \"error\": \"INVALID_INPUT\",\n                \"detail\": \"Entity name is required and cannot be empty.\",\n                \"status\": \"ERROR\",\n            }\n            return Data(data=err_payload)\n\n        name = str(raw_name).strip()\n        entity_type = getattr(self, \"entity_type\", \"\") or upstream.get(\"entity_type\") or \"individual\"\n        country_str = getattr(self, \"country\", \"\") or upstream.get(\"country\") or \"\"\n        birth_date = getattr(self, \"birth_date\", None) or upstream.get(\"birth_date\")\n        id_number = getattr(self, \"identification_number\", None) or upstream.get(\"identification_number\")\n        threshold_val = getattr(self, \"threshold\", 0.70)\n        endpoint = getattr(self, \"endpoint_url\", DEFAULT_OMERTA_URL) or DEFAULT_OMERTA_URL\n        token = getattr(self, \"auth_token\", \"\") or os.getenv(\"OMERTA_BEARER_TOKEN\", \"\")\n\n        if isinstance(country_str, list):\n            countries = [c.strip().upper() for c in country_str if c and str(c).strip()]\n        else:\n            countries = [c.strip().upper() for c in str(country_str).split(\",\") if c.strip()]\n\n        try:\n            clamped_threshold = max(0.1, min(1.0, float(threshold_val)))\n        except (ValueError, TypeError):\n            clamped_threshold = 0.70\n\n        payload = {\n            \"name\": name,\n            \"entity_type\": entity_type,\n            \"countries\": countries,\n            \"birth_date\": str(birth_date).strip() if birth_date else None,\n            \"identification_number\": str(id_number).strip() if id_number else None,\n            \"threshold\": clamped_threshold,\n            \"limit\": 5,\n        }\n\n        headers = {\n            \"Content-Type\": \"application/json\",\n            \"Accept\": \"application/json\",\n            \"User-Agent\": \"Langflow-Omerta-Bridge/1.0\",\n        }\n        if token:\n            headers[\"Authorization\"] = f\"Bearer {token}\"\n\n        req_body = json.dumps(payload).encode(\"utf-8\")\n        request = urllib.request.Request(endpoint, data=req_body, headers=headers, method=\"POST\")\n\n        # 3. Dispatch HTTP Request to Omerta Backend\n        try:\n            with urllib.request.urlopen(request, timeout=30.0) as response:\n                resp_code = response.status\n                resp_text = response.read().decode(\"utf-8\")\n                data = json.loads(resp_text)\n\n                # Ensure HITL invariant is preserved\n                if data.get(\"match_found\"):\n                    data[\"review_required\"] = True\n\n                # Add Langflow Bridge execution telemetry\n                data[\"_langflow_bridge\"] = {\n                    \"executed\": True,\n                    \"target_endpoint\": endpoint,\n                    \"status_code\": resp_code,\n                    \"provenance\": data.get(\"execution_metadata\", {}).get(\"source_queried\", \"UNKNOWN\"),\n                }\n                return Data(data=data)\n\n        except urllib.error.HTTPError as exc:\n            err_body = exc.read().decode(\"utf-8\")\n            try:\n                parsed_err = json.loads(err_body)\n            except Exception:\n                parsed_err = {\"detail\": err_body}\n\n            err_data = {\n                \"match_found\": False,\n                \"best_match_confidence\": 0.0,\n                \"review_required\": False,\n                \"error\": f\"HTTP_{exc.code}\",\n                \"detail\": parsed_err.get(\"detail\", str(exc)),\n                \"status\": \"ERROR\",\n                \"_langflow_bridge\": {\n                    \"executed\": False,\n                    \"target_endpoint\": endpoint,\n                    \"status_code\": exc.code,\n                },\n            }\n            return Data(data=err_data)\n\n        except (urllib.error.URLError, ConnectionRefusedError, OSError) as exc:\n            err_data = {\n                \"match_found\": False,\n                \"best_match_confidence\": 0.0,\n                \"review_required\": False,\n                \"error\": \"BACKEND_UNAVAILABLE\",\n                \"detail\": f\"Failed to connect to Omerta FastAPI at {endpoint}: {exc.reason if hasattr(exc, 'reason') else exc}\",\n                \"status\": \"ERROR\",\n                \"_langflow_bridge\": {\n                    \"executed\": False,\n                    \"target_endpoint\": endpoint,\n                    \"error_type\": \"ConnectionFailure\",\n                },\n            }\n            return Data(data=err_data)\n\n        except TimeoutError as exc:\n            err_data = {\n                \"match_found\": False,\n                \"best_match_confidence\": 0.0,\n                \"review_required\": False,\n                \"error\": \"TIMEOUT\",\n                \"detail\": f\"Request to Omerta FastAPI at {endpoint} timed out after 15 seconds.\",\n                \"status\": \"ERROR\",\n                \"_langflow_bridge\": {\n                    \"executed\": False,\n                    \"target_endpoint\": endpoint,\n                    \"error_type\": \"Timeout\",\n                },\n            }\n            return Data(data=err_data)\n\n        except Exception as exc:\n            err_data = {\n                \"match_found\": False,\n                \"best_match_confidence\": 0.0,\n                \"review_required\": False,\n                \"error\": \"UNEXPECTED_ERROR\",\n                \"detail\": str(exc),\n                \"status\": \"ERROR\",\n            }\n            return Data(data=err_data)\n\n",
+                "show": false,
+                "advanced": true,
+                "name": "code"
+              },
+              "endpoint_url": {
+                "type": "str",
+                "value": "http://127.0.0.1:8000/api/v1/sanctions/screen",
+                "show": true,
+                "display_name": "Omerta Screening Endpoint",
+                "advanced": true,
+                "name": "endpoint_url",
+                "_input_type": "StrInput"
+              },
+              "entity_name": {
+                "type": "str",
+                "value": "Mohamed El-Sayed Ahmed",
+                "show": true,
+                "display_name": "Entity Name",
+                "advanced": false,
+                "name": "entity_name",
+                "_input_type": "StrInput"
+              },
+              "entity_type": {
+                "type": "str",
+                "value": "individual",
+                "options": [
+                  "individual",
+                  "company",
+                  "organization",
+                  "vessel",
+                  "aircraft",
+                  "any"
+                ],
+                "show": true,
+                "display_name": "Entity Type",
+                "advanced": false,
+                "name": "entity_type",
+                "_input_type": "DropdownInput"
+              },
+              "country": {
+                "type": "str",
+                "value": "EG",
+                "show": true,
+                "display_name": "Country (ISO-2)",
+                "advanced": false,
+                "name": "country",
+                "_input_type": "StrInput"
+              },
+              "birth_date": {
+                "type": "str",
+                "value": "1982-05-14",
+                "show": true,
+                "display_name": "Date of Birth (YYYY-MM-DD)",
+                "advanced": false,
+                "name": "birth_date",
+                "_input_type": "StrInput"
+              },
+              "identification_number": {
+                "type": "str",
+                "value": "EG-NAT-28205140102931",
+                "show": true,
+                "display_name": "National ID / Passport",
+                "advanced": false,
+                "name": "identification_number",
+                "_input_type": "StrInput"
+              },
+              "auth_token": {
+                "type": "str",
+                "value": "",
+                "show": true,
+                "display_name": "API Bearer Token (Optional)",
+                "advanced": true,
+                "name": "auth_token",
+                "_input_type": "StrInput"
+              }
+            },
+            "base_classes": [
+              "Data"
+            ],
+            "beta": false,
+            "documentation": "",
+            "custom_fields": {},
+            "field_order": [
+              "input_data",
+              "server_id",
+              "tool_name",
+              "specialist_role",
+              "threshold"
+            ],
+            "outputs": [
+              {
+                "name": "output",
+                "display_name": "Result Data",
+                "types": [
+                  "Data"
+                ],
+                "selected": "Data",
+                "method": "execute_screening",
+                "cache": true,
+                "allows_loop": false,
+                "value": "__UNDEFINED__"
+              }
+            ],
+            "conditional_paths": [],
+            "edited": false,
+            "frozen": false,
+            "pinned": false,
+            "legacy": false,
+            "lf_version": "1.0.0",
+            "metadata": {},
+            "output_types": [],
+            "icon": "ShieldCheck"
+          },
+          "display_name": "MCP: screen_entity_against_watchlists",
+          "description": "Executes strictly read-only screening via omerta-sanctions-server.",
+          "id": "node_mcp_tool",
+          "selected_output": "output"
+        },
+        "dragging": false,
+        "selected": false,
+        "measured": {
+          "width": 320,
+          "height": 360
+        },
+        "positionAbsolute": {
+          "x": 740,
+          "y": 250
+        }
+      },
+      {
+        "id": "node_scoring",
+        "type": "genericNode",
+        "position": {
+          "x": 1060,
+          "y": 250
+        },
+        "data": {
+          "type": "ScoringNode",
+          "node": {
+            "display_name": "Multi-Signal Scoring & Ranker",
+            "description": "Evaluates candidate signals (name, DOB, country, ID) against weighted criteria.",
+            "template": {
+              "name_weight": {
+                "type": "float",
+                "value": 0.5,
+                "display_name": "Name Weight",
+                "show": true,
+                "advanced": false,
+                "name": "name_weight",
+                "_input_type": "FloatInput"
+              },
+              "dob_weight": {
+                "type": "float",
+                "value": 0.25,
+                "display_name": "DOB Weight",
+                "show": true,
+                "advanced": false,
+                "name": "dob_weight",
+                "_input_type": "FloatInput"
+              },
+              "country_weight": {
+                "type": "float",
+                "value": 0.15,
+                "display_name": "Country Weight",
+                "show": true,
+                "advanced": false,
+                "name": "country_weight",
+                "_input_type": "FloatInput"
+              },
+              "id_weight": {
+                "type": "float",
+                "value": 0.1,
+                "display_name": "ID Weight",
+                "show": true,
+                "advanced": false,
+                "name": "id_weight",
+                "_input_type": "FloatInput"
+              },
+              "_type": "Component",
+              "input_data": {
+                "type": "other",
+                "name": "input_data",
+                "display_name": "Pipeline Input",
+                "show": true,
+                "advanced": false,
+                "input_types": [
+                  "Data"
+                ],
+                "info": "Input data from previous pipeline stage.",
+                "_input_type": "JSONInput"
+              },
+              "code": {
+                "type": "code",
+                "value": "from lfx.custom.custom_component.component import Component\nfrom lfx.io import DataInput, FloatInput, Output\nfrom lfx.schema import Data\n\nclass MultiSignalScoringComponent(Component):\n    display_name = \"Multi-Signal Scoring & Ranker\"\n    description = \"Evaluates candidate signals (name, DOB, country, ID) against weighted criteria.\"\n    icon = \"Calculator\"\n\n    inputs = [\n        DataInput(name=\"input_data\", display_name=\"Pipeline Input\", required=True),\n        FloatInput(name=\"name_weight\", display_name=\"Name Weight\", value=0.50),\n        FloatInput(name=\"dob_weight\", display_name=\"DOB Weight\", value=0.25),\n        FloatInput(name=\"country_weight\", display_name=\"Country Weight\", value=0.15),\n        FloatInput(name=\"id_weight\", display_name=\"ID Weight\", value=0.10),\n    ]\n\n    outputs = [\n        Output(name=\"output\", display_name=\"Result Data\", method=\"process_scoring\"),\n    ]\n\n    def process_scoring(self) -> Data:\n        inp = getattr(self, \"input_data\", None)\n        d = dict(inp.data) if hasattr(inp, \"data\") and isinstance(inp.data, dict) else (dict(inp) if isinstance(inp, dict) else {})\n        d[\"scoring_weights\"] = {\n            \"name_weight\": getattr(self, \"name_weight\", 0.50),\n            \"dob_weight\": getattr(self, \"dob_weight\", 0.25),\n            \"country_weight\": getattr(self, \"country_weight\", 0.15),\n            \"id_weight\": getattr(self, \"id_weight\", 0.10),\n        }\n        return Data(data=d)\n",
+                "show": false,
+                "advanced": true,
+                "name": "code"
+              }
+            },
+            "base_classes": [
+              "Data"
+            ],
+            "beta": false,
+            "documentation": "",
+            "custom_fields": {},
+            "field_order": [
+              "input_data",
+              "name_weight",
+              "dob_weight",
+              "country_weight",
+              "id_weight"
+            ],
+            "outputs": [
+              {
+                "name": "output",
+                "display_name": "Result Data",
+                "types": [
+                  "Data"
+                ],
+                "selected": "Data",
+                "method": "process_scoring",
+                "cache": true,
+                "allows_loop": false,
+                "value": "__UNDEFINED__"
+              }
+            ],
+            "conditional_paths": [],
+            "edited": false,
+            "frozen": false,
+            "pinned": false,
+            "legacy": false,
+            "lf_version": "1.0.0",
+            "metadata": {},
+            "output_types": [],
+            "icon": "ShieldCheck"
+          },
+          "display_name": "Multi-Signal Scoring & Ranker",
+          "description": "Evaluates candidate signals (name, DOB, country, ID) against weighted criteria.",
+          "id": "node_scoring",
+          "selected_output": "output"
+        },
+        "dragging": false,
+        "selected": false,
+        "measured": {
+          "width": 320,
+          "height": 360
+        },
+        "positionAbsolute": {
+          "x": 1060,
+          "y": 250
+        }
+      },
+      {
+        "id": "node_explainability",
+        "type": "genericNode",
+        "position": {
+          "x": 1380,
+          "y": 250
+        },
+        "data": {
+          "type": "ExplainabilityNode",
+          "node": {
+            "display_name": "Explainability & HITL Advisor",
+            "description": "Formulates transparent audit reasoning, flags review obligations, and prevents auto-freezing.",
+            "template": {
+              "enforce_hitl": {
+                "type": "bool",
+                "value": true,
+                "display_name": "Enforce Human Review",
+                "show": true,
+                "advanced": false,
+                "name": "enforce_hitl",
+                "_input_type": "BoolInput"
+              },
+              "_type": "Component",
+              "input_data": {
+                "type": "other",
+                "name": "input_data",
+                "display_name": "Pipeline Input",
+                "show": true,
+                "advanced": false,
+                "input_types": [
+                  "Data"
+                ],
+                "info": "Input data from previous pipeline stage.",
+                "_input_type": "JSONInput"
+              },
+              "code": {
+                "type": "code",
+                "value": "from lfx.custom.custom_component.component import Component\nfrom lfx.io import BoolInput, DataInput, Output\nfrom lfx.schema import Data\n\nclass ExplainabilityHITLComponent(Component):\n    display_name = \"Explainability & HITL Advisor\"\n    description = \"Formulates transparent audit reasoning, flags review obligations, and prevents auto-freezing.\"\n    icon = \"AlertTriangle\"\n\n    inputs = [\n        DataInput(name=\"input_data\", display_name=\"Pipeline Input\", required=True),\n        BoolInput(name=\"enforce_hitl\", display_name=\"Enforce Human Review\", value=True),\n    ]\n\n    outputs = [\n        Output(name=\"output\", display_name=\"Result Data\", method=\"process_advisory\"),\n    ]\n\n    def process_advisory(self) -> Data:\n        inp = getattr(self, \"input_data\", None)\n        d = dict(inp.data) if hasattr(inp, \"data\") and isinstance(inp.data, dict) else (dict(inp) if isinstance(inp, dict) else {})\n        enforce = getattr(self, \"enforce_hitl\", True)\n        if d.get(\"match_found\"):\n            d[\"review_required\"] = True\n            d[\"hitl_recommendation\"] = \"MANDATORY_HUMAN_REVIEW: Potential sanctions match detected. Auto-freezing is strictly prohibited. Compliance analyst disposition required.\"\n        else:\n            d[\"review_required\"] = False if not enforce else d.get(\"review_required\", False)\n            d[\"hitl_recommendation\"] = \"CLEAR: No watchlist matches detected exceeding confidence threshold.\"\n        return Data(data=d)\n",
+                "show": false,
+                "advanced": true,
+                "name": "code"
+              }
+            },
+            "base_classes": [
+              "Data"
+            ],
+            "beta": false,
+            "documentation": "",
+            "custom_fields": {},
+            "field_order": [
+              "input_data",
+              "enforce_hitl"
+            ],
+            "outputs": [
+              {
+                "name": "output",
+                "display_name": "Result Data",
+                "types": [
+                  "Data"
+                ],
+                "selected": "Data",
+                "method": "process_advisory",
+                "cache": true,
+                "allows_loop": false,
+                "value": "__UNDEFINED__"
+              }
+            ],
+            "conditional_paths": [],
+            "edited": false,
+            "frozen": false,
+            "pinned": false,
+            "legacy": false,
+            "lf_version": "1.0.0",
+            "metadata": {},
+            "output_types": [],
+            "icon": "ShieldCheck"
+          },
+          "display_name": "Explainability & HITL Advisor",
+          "description": "Formulates transparent audit reasoning, flags review obligations, and prevents auto-freezing.",
+          "id": "node_explainability",
+          "selected_output": "output"
+        },
+        "dragging": false,
+        "selected": false,
+        "measured": {
+          "width": 320,
+          "height": 360
+        },
+        "positionAbsolute": {
+          "x": 1380,
+          "y": 250
+        }
+      },
+      {
+        "id": "node_output",
+        "type": "genericNode",
+        "position": {
+          "x": 1700,
+          "y": 250
+        },
+        "data": {
+          "type": "StructuredOutputNode",
+          "node": {
+            "display_name": "Screening Audit Report",
+            "description": "Final structured JSON payload with decision recommendation and audit trail.",
+            "template": {
+              "format": {
+                "type": "str",
+                "value": "application/json",
+                "show": true,
+                "advanced": false,
+                "name": "format",
+                "_input_type": "StrInput"
+              },
+              "_type": "Component",
+              "input_data": {
+                "type": "other",
+                "name": "input_data",
+                "display_name": "Pipeline Input",
+                "show": true,
+                "advanced": false,
+                "input_types": [
+                  "Data"
+                ],
+                "info": "Input data from previous pipeline stage.",
+                "_input_type": "JSONInput"
+              },
+              "code": {
+                "type": "code",
+                "value": "from lfx.custom.custom_component.component import Component\nfrom lfx.io import DataInput, DropdownInput, Output\nfrom lfx.schema import Data\n\nclass ScreeningAuditReportComponent(Component):\n    display_name = \"Screening Audit Report\"\n    description = \"Final structured JSON payload with decision recommendation and audit trail.\"\n    icon = \"FileText\"\n\n    inputs = [\n        DataInput(name=\"input_data\", display_name=\"Pipeline Input\", required=True),\n        DropdownInput(name=\"format\", display_name=\"Format\", options=[\"application/json\", \"text/plain\"], value=\"application/json\"),\n    ]\n\n    outputs = [\n        Output(name=\"output\", display_name=\"Result Data\", method=\"generate_report\"),\n    ]\n\n    def generate_report(self) -> Data:\n        inp = getattr(self, \"input_data\", None)\n        d = dict(inp.data) if hasattr(inp, \"data\") and isinstance(inp.data, dict) else (dict(inp) if isinstance(inp, dict) else {})\n        d[\"audit_report_generated\"] = True\n        return Data(data=d)\n",
+                "show": false,
+                "advanced": true,
+                "name": "code"
+              }
+            },
+            "base_classes": [
+              "Data"
+            ],
+            "beta": false,
+            "documentation": "",
+            "custom_fields": {},
+            "field_order": [
+              "input_data",
+              "format"
+            ],
+            "outputs": [
+              {
+                "name": "output",
+                "display_name": "Result Data",
+                "types": [
+                  "Data"
+                ],
+                "selected": "Data",
+                "method": "generate_report",
+                "cache": true,
+                "allows_loop": false,
+                "value": "__UNDEFINED__"
+              }
+            ],
+            "conditional_paths": [],
+            "edited": false,
+            "frozen": false,
+            "pinned": false,
+            "legacy": false,
+            "lf_version": "1.0.0",
+            "metadata": {},
+            "output_types": [],
+            "icon": "ShieldCheck"
+          },
+          "display_name": "Screening Audit Report",
+          "description": "Final structured JSON payload with decision recommendation and audit trail.",
+          "id": "node_output",
+          "selected_output": null
+        },
+        "dragging": false,
+        "selected": false,
+        "measured": {
+          "width": 320,
+          "height": 360
+        },
+        "positionAbsolute": {
+          "x": 1700,
+          "y": 250
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "reactflow__edge-node_input_entity{\u0153id\u0153:\u0153node_input_entity\u0153,\u0153name\u0153:\u0153output\u0153,\u0153output_types\u0153:[\u0153Data\u0153],\u0153dataType\u0153:\u0153EntityInputNode\u0153}-node_normalize{\u0153type\u0153:\u0153Data\u0153,\u0153fieldName\u0153:\u0153input_data\u0153,\u0153id\u0153:\u0153node_normalize\u0153,\u0153inputTypes\u0153:[\u0153Data\u0153]}",
+        "source": "node_input_entity",
+        "target": "node_normalize",
+        "sourceHandle": "{\u0153id\u0153:\u0153node_input_entity\u0153,\u0153name\u0153:\u0153output\u0153,\u0153output_types\u0153:[\u0153Data\u0153],\u0153dataType\u0153:\u0153EntityInputNode\u0153}",
+        "targetHandle": "{\u0153type\u0153:\u0153other\u0153,\u0153fieldName\u0153:\u0153input_data\u0153,\u0153id\u0153:\u0153node_normalize\u0153,\u0153inputTypes\u0153:[\u0153Data\u0153]}",
+        "data": {
+          "sourceHandle": {
+            "id": "node_input_entity",
+            "name": "output",
+            "output_types": [
+              "Data"
+            ],
+            "dataType": "EntityInputNode"
+          },
+          "targetHandle": {
+            "type": "other",
+            "fieldName": "input_data",
+            "id": "node_normalize",
+            "inputTypes": [
+              "Data"
+            ]
+          }
+        },
+        "animated": true,
+        "selected": false
+      },
+      {
+        "id": "reactflow__edge-node_normalize{\u0153id\u0153:\u0153node_normalize\u0153,\u0153name\u0153:\u0153output\u0153,\u0153output_types\u0153:[\u0153Data\u0153],\u0153dataType\u0153:\u0153NormalizationNode\u0153}-node_mcp_tool{\u0153type\u0153:\u0153Data\u0153,\u0153fieldName\u0153:\u0153input_data\u0153,\u0153id\u0153:\u0153node_mcp_tool\u0153,\u0153inputTypes\u0153:[\u0153Data\u0153]}",
+        "source": "node_normalize",
+        "target": "node_mcp_tool",
+        "sourceHandle": "{\u0153id\u0153:\u0153node_normalize\u0153,\u0153name\u0153:\u0153output\u0153,\u0153output_types\u0153:[\u0153Data\u0153],\u0153dataType\u0153:\u0153NormalizationNode\u0153}",
+        "targetHandle": "{\u0153type\u0153:\u0153other\u0153,\u0153fieldName\u0153:\u0153input_data\u0153,\u0153id\u0153:\u0153node_mcp_tool\u0153,\u0153inputTypes\u0153:[\u0153Data\u0153]}",
+        "data": {
+          "sourceHandle": {
+            "id": "node_normalize",
+            "name": "output",
+            "output_types": [
+              "Data"
+            ],
+            "dataType": "NormalizationNode"
+          },
+          "targetHandle": {
+            "type": "other",
+            "fieldName": "input_data",
+            "id": "node_mcp_tool",
+            "inputTypes": [
+              "Data"
+            ]
+          }
+        },
+        "animated": true,
+        "selected": false
+      },
+      {
+        "id": "reactflow__edge-node_mcp_tool{\u0153id\u0153:\u0153node_mcp_tool\u0153,\u0153name\u0153:\u0153output\u0153,\u0153output_types\u0153:[\u0153Data\u0153],\u0153dataType\u0153:\u0153MCPToolNode\u0153}-node_scoring{\u0153type\u0153:\u0153Data\u0153,\u0153fieldName\u0153:\u0153input_data\u0153,\u0153id\u0153:\u0153node_scoring\u0153,\u0153inputTypes\u0153:[\u0153Data\u0153]}",
+        "source": "node_mcp_tool",
+        "target": "node_scoring",
+        "sourceHandle": "{\u0153id\u0153:\u0153node_mcp_tool\u0153,\u0153name\u0153:\u0153output\u0153,\u0153output_types\u0153:[\u0153Data\u0153],\u0153dataType\u0153:\u0153MCPToolNode\u0153}",
+        "targetHandle": "{\u0153type\u0153:\u0153other\u0153,\u0153fieldName\u0153:\u0153input_data\u0153,\u0153id\u0153:\u0153node_scoring\u0153,\u0153inputTypes\u0153:[\u0153Data\u0153]}",
+        "data": {
+          "sourceHandle": {
+            "id": "node_mcp_tool",
+            "name": "output",
+            "output_types": [
+              "Data"
+            ],
+            "dataType": "MCPToolNode"
+          },
+          "targetHandle": {
+            "type": "other",
+            "fieldName": "input_data",
+            "id": "node_scoring",
+            "inputTypes": [
+              "Data"
+            ]
+          }
+        },
+        "animated": true,
+        "selected": false
+      },
+      {
+        "id": "reactflow__edge-node_scoring{\u0153id\u0153:\u0153node_scoring\u0153,\u0153name\u0153:\u0153output\u0153,\u0153output_types\u0153:[\u0153Data\u0153],\u0153dataType\u0153:\u0153ScoringNode\u0153}-node_explainability{\u0153type\u0153:\u0153Data\u0153,\u0153fieldName\u0153:\u0153input_data\u0153,\u0153id\u0153:\u0153node_explainability\u0153,\u0153inputTypes\u0153:[\u0153Data\u0153]}",
+        "source": "node_scoring",
+        "target": "node_explainability",
+        "sourceHandle": "{\u0153id\u0153:\u0153node_scoring\u0153,\u0153name\u0153:\u0153output\u0153,\u0153output_types\u0153:[\u0153Data\u0153],\u0153dataType\u0153:\u0153ScoringNode\u0153}",
+        "targetHandle": "{\u0153type\u0153:\u0153other\u0153,\u0153fieldName\u0153:\u0153input_data\u0153,\u0153id\u0153:\u0153node_explainability\u0153,\u0153inputTypes\u0153:[\u0153Data\u0153]}",
+        "data": {
+          "sourceHandle": {
+            "id": "node_scoring",
+            "name": "output",
+            "output_types": [
+              "Data"
+            ],
+            "dataType": "ScoringNode"
+          },
+          "targetHandle": {
+            "type": "other",
+            "fieldName": "input_data",
+            "id": "node_explainability",
+            "inputTypes": [
+              "Data"
+            ]
+          }
+        },
+        "animated": true,
+        "selected": false
+      },
+      {
+        "id": "reactflow__edge-node_explainability{\u0153id\u0153:\u0153node_explainability\u0153,\u0153name\u0153:\u0153output\u0153,\u0153output_types\u0153:[\u0153Data\u0153],\u0153dataType\u0153:\u0153ExplainabilityNode\u0153}-node_output{\u0153type\u0153:\u0153Data\u0153,\u0153fieldName\u0153:\u0153input_data\u0153,\u0153id\u0153:\u0153node_output\u0153,\u0153inputTypes\u0153:[\u0153Data\u0153]}",
+        "source": "node_explainability",
+        "target": "node_output",
+        "sourceHandle": "{\u0153id\u0153:\u0153node_explainability\u0153,\u0153name\u0153:\u0153output\u0153,\u0153output_types\u0153:[\u0153Data\u0153],\u0153dataType\u0153:\u0153ExplainabilityNode\u0153}",
+        "targetHandle": "{\u0153type\u0153:\u0153other\u0153,\u0153fieldName\u0153:\u0153input_data\u0153,\u0153id\u0153:\u0153node_output\u0153,\u0153inputTypes\u0153:[\u0153Data\u0153]}",
+        "data": {
+          "sourceHandle": {
+            "id": "node_explainability",
+            "name": "output",
+            "output_types": [
+              "Data"
+            ],
+            "dataType": "ExplainabilityNode"
+          },
+          "targetHandle": {
+            "type": "other",
+            "fieldName": "input_data",
+            "id": "node_output",
+            "inputTypes": [
+              "Data"
+            ]
+          }
+        },
+        "animated": true,
+        "selected": false
+      }
+    ],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 1.0
+    }
+  }
+}

@@ -764,6 +764,28 @@ export const api = {
 
   exportBenchmarkRunUrl: (runId: string, format: 'json' | 'csv' = 'json') =>
     `/api/v1/benchmarks/runs/${encodeURIComponent(runId)}/export?format=${format}`,
+
+  // Sanctions & Watchlist Screening
+  screenEntity: (data: {
+    name: string;
+    entity_type?: string;
+    countries?: string[];
+    birth_date?: string;
+    identification_number?: string;
+    threshold?: number;
+    limit?: number;
+  }) =>
+    apiRequest<any>('/sanctions/screen', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  screenInvestigationCase: (caseId: string) =>
+    apiRequest<any>(`/sanctions/investigations/${encodeURIComponent(caseId)}/sanctions-screen`, {
+      method: 'POST',
+    }),
+
+  getSanctionsHealth: () => apiRequest<any>('/sanctions/health'),
 };
 
 

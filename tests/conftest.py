@@ -63,14 +63,21 @@ def run_with_graph[T](coro_fn: Callable[[], Awaitable[T]]) -> T:
 
 
 def _ensure_test_database_exists() -> None:
-    """Create omerta_test on the Dockerized PostgreSQL if it does not exist."""
+    """Create omerta_test on PostgreSQL if it does not exist."""
+    from urllib.parse import urlparse
+
+    parsed = urlparse(TEST_DB_URL.replace("postgresql+asyncpg://", "postgresql://"))
+    db_host = parsed.hostname or "127.0.0.1"
+    db_port = parsed.port or 5432
+    db_user = parsed.username or "omerta"
+    db_pass = parsed.password or "omerta_dev_password"
 
     async def _create() -> None:
         conn = await asyncpg.connect(
-            host="127.0.0.1",
-            port=15432,
-            user="omerta",
-            password="omerta_dev_password",
+            host=db_host,
+            port=db_port,
+            user=db_user,
+            password=db_pass,
             database="postgres",
         )
         try:

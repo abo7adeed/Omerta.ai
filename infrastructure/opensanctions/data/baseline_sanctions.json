@@ -1,0 +1,218 @@
+[
+  {
+    "id": "os-person-001",
+    "schema": "Person",
+    "caption": "Mohamed El-Sayed Ahmed",
+    "properties": {
+      "name": ["Mohamed El-Sayed Ahmed", "محمد السيد أحمد"],
+      "alias": [
+        "Muhammad Al-Sayed Ahmad",
+        "Mohammed El Sayed",
+        "Mohamed Ahmed El-Sayed",
+        "ابو عمر المصري"
+      ],
+      "birthDate": ["1982-05-14"],
+      "nationality": ["eg"],
+      "country": ["eg"],
+      "idNumber": ["EG-NAT-28205140102931"],
+      "topics": ["sanction"],
+      "sanctions": [
+        "OFAC SDN - [SDGT] Specially Designated Global Terrorist",
+        "UN Security Council ISIL (Da'esh) and Al-Qaida Sanctions List"
+      ],
+      "notes": ["Designated for providing financial support and logistics to illicit networks."]
+    },
+    "datasets": ["us_ofac_sdn", "un_sc_sanctions"],
+    "source_urls": [
+      "https://www.opensanctions.org/entities/os-person-001/",
+      "https://sanctionssearch.ofac.treas.gov/Details.aspx?id=102931"
+    ]
+  },
+  {
+    "id": "os-person-002",
+    "schema": "Person",
+    "caption": "Viktor Anatolyevich Bout",
+    "properties": {
+      "name": ["Viktor Anatolyevich Bout", "Виктор Анатольевич Бут"],
+      "alias": [
+        "Victor Bout",
+        "Vadim Markovich Aminov",
+        "Viktor Bulakin",
+        "Boris"
+      ],
+      "birthDate": ["1967-01-13"],
+      "nationality": ["ru", "tj"],
+      "country": ["ru"],
+      "idNumber": ["RU-PASS-450912389"],
+      "topics": ["sanction"],
+      "sanctions": [
+        "OFAC SDN - [TCO] Transnational Criminal Organizations",
+        "UN Security Council Resolution 1521 (Liberia)",
+        "EU Financial Sanctions - Consolidated List"
+      ],
+      "notes": ["International arms trafficking and money laundering facilitator."]
+    },
+    "datasets": ["us_ofac_sdn", "eu_fsf", "un_sc_sanctions"],
+    "source_urls": [
+      "https://www.opensanctions.org/entities/os-person-002/",
+      "https://sanctionssearch.ofac.treas.gov/Details.aspx?id=6843"
+    ]
+  },
+  {
+    "id": "os-person-003",
+    "schema": "Person",
+    "caption": "Ilan Shor",
+    "properties": {
+      "name": ["Ilan Shor", "Илан Шор"],
+      "alias": ["Ilan Mironovich Shor", "Ilan Shor-Miron"],
+      "birthDate": ["1987-03-06"],
+      "nationality": ["md", "il"],
+      "country": ["md"],
+      "idNumber": ["MD-IDNP-2001001034921"],
+      "topics": ["sanction", "role.pep"],
+      "sanctions": [
+        "OFAC SDN - [GLOMAG] Global Magnitsky Sanctions",
+        "EU Restrictive Measures in view of actions destabilizing Moldova",
+        "UK Sanctions List - Russia Regulations"
+      ],
+      "notes": ["Implicated in large-scale banking fraud ('The Billion Dollar Bank Theft') and political destabilization."]
+    },
+    "datasets": ["us_ofac_sdn", "eu_fsf", "gb_hmt_sanctions"],
+    "source_urls": [
+      "https://www.opensanctions.org/entities/os-person-003/",
+      "https://sanctionssearch.ofac.treas.gov/Details.aspx?id=38491"
+    ]
+  },
+  {
+    "id": "os-person-004",
+    "schema": "Person",
+    "caption": "Tariq Aziz Al-Hashemi",
+    "properties": {
+      "name": ["Tariq Aziz Al-Hashemi", "طارق عزيز الهاشمي"],
+      "alias": [
+        "Tarek Al-Hashemy",
+        "Tareq Hashemi",
+        "Tariq Al-Hashimi"
+      ],
+      "birthDate": ["1975-11-20"],
+      "nationality": ["iq"],
+      "country": ["iq", "tr"],
+      "idNumber": ["IQ-NAT-1975112001"],
+      "topics": ["sanction"],
+      "sanctions": [
+        "UN Consolidated Sanctions List - Iraq",
+        "INTERPOL Red Notice No. 2012/28391"
+      ],
+      "notes": ["Subject to international red notice and sanctions for illegal financial transfers."]
+    },
+    "datasets": ["un_sc_sanctions", "interpol_red_notices"],
+    "source_urls": [
+      "https://www.opensanctions.org/entities/os-person-004/"
+    ]
+  },
+  {
+    "id": "os-person-005",
+    "schema": "Person",
+    "caption": "Osama Mahmoud Hassan",
+    "properties": {
+      "name": ["Osama Mahmoud Hassan", "أسامة محمود حسن"],
+      "alias": [
+        "Usama Hassan",
+        "Osama M. Hassan",
+        "Abu Hamza Al-Masri"
+      ],
+      "birthDate": ["1979-09-02"],
+      "nationality": ["eg", "sy"],
+      "country": ["eg"],
+      "idNumber": ["EG-ID-27909021234567"],
+      "topics": ["sanction"],
+      "sanctions": [
+        "OFAC SDN - [SDGT] Counter Terrorism",
+        "EU Financial Sanctions List"
+      ],
+      "notes": ["Financing and operational coordination for designated terrorist entity."]
+    },
+    "datasets": ["us_ofac_sdn", "eu_fsf"],
+    "source_urls": [
+      "https://www.opensanctions.org/entities/os-person-005/"
+    ]
+  },
+  {
+    "id": "os-org-001",
+    "schema": "Organization",
+    "caption": "Al-Barakaat Financial Network",
+    "properties": {
+      "name": ["Al-Barakaat Financial Network", "شبكة البركات المالية"],
+      "alias": [
+        "Barakaat Group",
+        "Al-Barakat Remittance Center",
+        "Barakat Bank of Somalia"
+      ],
+      "country": ["so", "ae"],
+      "idNumber": ["SO-REG-199401928"],
+      "topics": ["sanction"],
+      "sanctions": [
+        "UN Security Council Resolution 1267/1989 Committee",
+        "OFAC SDN - [SDGT] Specially Designated Global Terrorist",
+        "UK Financial Sanctions Targets"
+      ],
+      "notes": ["Informal value transfer system (Hawala network) utilized for terrorist fund routing."]
+    },
+    "datasets": ["un_sc_sanctions", "us_ofac_sdn", "gb_hmt_sanctions"],
+    "source_urls": [
+      "https://www.opensanctions.org/entities/os-org-001/"
+    ]
+  },
+  {
+    "id": "os-org-002",
+    "schema": "Company",
+    "caption": "PMC Wagner",
+    "properties": {
+      "name": ["PMC Wagner", "ЧВК Вагнер"],
+      "alias": [
+        "Wagner Group",
+        "ChVK Vagner",
+        "Private Military Company Wagner",
+        "Concord Management and Consulting"
+      ],
+      "country": ["ru", "cf", "sy"],
+      "idNumber": ["RU-OGRN-1187847329182"],
+      "topics": ["sanction"],
+      "sanctions": [
+        "OFAC SDN - [TCO] / [RUSSIA-EO14024]",
+        "EU Restrictive Measures concerning actions undermining Ukrainian integrity",
+        "UK Sanctions List - Designated Entity"
+      ],
+      "notes": ["Private military contractor designated for destabilizing activities, human rights abuses, and sanctions evasion."]
+    },
+    "datasets": ["us_ofac_sdn", "eu_fsf", "gb_hmt_sanctions"],
+    "source_urls": [
+      "https://www.opensanctions.org/entities/os-org-002/"
+    ]
+  },
+  {
+    "id": "os-org-003",
+    "schema": "Company",
+    "caption": "Oceanic Frontline Shipping Ltd",
+    "properties": {
+      "name": ["Oceanic Frontline Shipping Ltd"],
+      "alias": [
+        "Oceanic Frontline Maritime",
+        "Frontline Shipping Lines"
+      ],
+      "country": ["cy", "pa"],
+      "idNumber": ["IMO-9281744", "CY-HE-89218"],
+      "topics": ["sanction"],
+      "sanctions": [
+        "OFAC SDN - [IRAN-EO13846] Petroleum Sanctions",
+        "EU Maritime Sanctions"
+      ],
+      "notes": ["Vessel management and dark fleet petroleum transport violating international sanctions."]
+    },
+    "datasets": ["us_ofac_sdn", "eu_fsf"],
+    "source_urls": [
+      "https://www.opensanctions.org/entities/os-org-003/"
+    ]
+  }
+]
+

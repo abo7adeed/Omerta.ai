@@ -1,4 +1,5 @@
 import { EvaluationQualityPanel } from '../components/investigation/EvaluationQualityPanel';
+import { SanctionsScreeningPanel } from '../components/investigation/SanctionsScreeningPanel';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
@@ -53,6 +54,7 @@ export const InvestigationsPage: React.FC = () => {
   // Case Dossier Modal state
   const [selectedCase, setSelectedCase] = useState<any | null>(null);
   const [dossierLoading, setDossierLoading] = useState(false);
+  const [dossierTab, setDossierTab] = useState<'details' | 'sanctions'>('details');
 
   // Direct Transaction Investigation input
   const [directTxnInput, setDirectTxnInput] = useState('');
@@ -65,7 +67,7 @@ export const InvestigationsPage: React.FC = () => {
   const [accountReport, setAccountReport] = useState<AccountInvestigationReport | null>(null);
   const [investigationRunning, setInvestigationRunning] = useState(false);
   const [investigationError, setInvestigationError] = useState<string | null>(null);
-  const [activeReportTab, setActiveReportTab] = useState<'report' | 'ml_graph' | 'transactions' | 'simulation' | 'evaluation'>('report');
+  const [activeReportTab, setActiveReportTab] = useState<'report' | 'ml_graph' | 'transactions' | 'simulation' | 'evaluation' | 'sanctions'>('report');
 
   // Sandbox Withdrawal Simulation State
   const [simAccount, setSimAccount] = useState('ACC-SIM-TEST1');
@@ -528,39 +530,72 @@ export const InvestigationsPage: React.FC = () => {
           maxWidth="2xl"
         >
           <div className="space-y-4 text-xs">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-[#F4F1EC] p-3.5 rounded-[12px] border border-[#E0DDD6]">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-[#64748B]">Case Severity</span>
-                <div className="mt-0.5">
-                  <RiskBadge level={selectedCase.severity || 'HIGH'} />
-                </div>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-[#64748B]">Case Status</span>
-                <div className="mt-0.5">
-                  <StatusBadge status={selectedCase.status || 'UNDER_INVESTIGATION'} />
-                </div>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-[#64748B]">Created</span>
-                <p className="font-mono text-[#002D72] mt-0.5">
-                  {selectedCase.created_at ? new Date(selectedCase.created_at).toLocaleDateString() : 'N/A'}
-                </p>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-[#64748B]">Priority</span>
-                <p className="font-bold text-[#B45309] mt-0.5">{selectedCase.priority || 'HIGH'}</p>
-              </div>
+            {/* Dossier Tabs */}
+            <div className="flex items-center gap-2 border-b border-[#E0DDD6] pb-2 font-medium">
+              <button
+                type="button"
+                onClick={() => setDossierTab('details')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  dossierTab === 'details'
+                    ? 'bg-[#002D72] text-white font-bold'
+                    : 'text-[#64748B] hover:text-[#0F172A]'
+                }`}
+              >
+                Case Overview
+              </button>
+              <button
+                type="button"
+                onClick={() => setDossierTab('sanctions')}
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                  dossierTab === 'sanctions'
+                    ? 'bg-[#002D72] text-white font-bold'
+                    : 'text-[#64748B] hover:text-[#0F172A]'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Sanctions &amp; Watchlist Screening</span>
+              </button>
             </div>
 
-            <div className="p-4 bg-white rounded-[12px] border border-[#E0DDD6] space-y-2">
-              <h5 className="font-bold text-[#002D72] uppercase text-[11px] tracking-wider">
-                Investigative Findings &amp; Evidence
-              </h5>
-              <p className="text-xs text-[#0F172A] leading-relaxed">
-                {selectedCase.description || 'Target entity demonstrated anomalous money routing across newly linked accounts.'}
-              </p>
-            </div>
+            {dossierTab === 'details' ? (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-[#F4F1EC] p-3.5 rounded-[12px] border border-[#E0DDD6]">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[#64748B]">Case Severity</span>
+                    <div className="mt-0.5">
+                      <RiskBadge level={selectedCase.severity || 'HIGH'} />
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[#64748B]">Case Status</span>
+                    <div className="mt-0.5">
+                      <StatusBadge status={selectedCase.status || 'UNDER_INVESTIGATION'} />
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[#64748B]">Created</span>
+                    <p className="font-mono text-[#002D72] mt-0.5">
+                      {selectedCase.created_at ? new Date(selectedCase.created_at).toLocaleDateString() : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[#64748B]">Priority</span>
+                    <p className="font-bold text-[#B45309] mt-0.5">{selectedCase.priority || 'HIGH'}</p>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white rounded-[12px] border border-[#E0DDD6] space-y-2">
+                  <h5 className="font-bold text-[#002D72] uppercase text-[11px] tracking-wider">
+                    Investigative Findings &amp; Evidence
+                  </h5>
+                  <p className="text-xs text-[#0F172A] leading-relaxed">
+                    {selectedCase.description || 'Target entity demonstrated anomalous money routing across newly linked accounts.'}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <SanctionsScreeningPanel caseId={selectedCase.external_id || selectedCase.id} />
+            )}
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <Button
@@ -667,6 +702,17 @@ export const InvestigationsPage: React.FC = () => {
                     {accountReport.evaluation.scores.overall_quality}/5
                   </span>
                 )}
+              </button>
+              <button
+                onClick={() => setActiveReportTab('sanctions')}
+                className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeReportTab === 'sanctions'
+                    ? 'border-[#002D72] text-[#002D72] font-bold'
+                    : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-[#002D72]" />
+                <span>Sanctions &amp; Watchlists</span>
               </button>
             </div>
 
@@ -1198,6 +1244,15 @@ export const InvestigationsPage: React.FC = () => {
                     amount: accountReport.target_transaction?.amount,
                     risk_score: accountReport.combined_risk_score,
                   }}
+                />
+              )}
+
+              {/* TAB 6: Sanctions & Watchlists Screening */}
+              {activeReportTab === 'sanctions' && (
+                <SanctionsScreeningPanel
+                  caseId={accountReport.investigation_id}
+                  defaultName={accountReport.account_facts?.customer_name || 'Mohamed El-Sayed Ahmed'}
+                  defaultCountry={(accountReport.account_facts as any)?.customer_country || 'EG'}
                 />
               )}
             </div>

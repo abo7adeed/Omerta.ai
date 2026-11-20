@@ -29,6 +29,8 @@ import {
   FileCheck2,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { McpToolVisualInspector } from '../components/investigation/McpToolVisualInspector';
+import { LangflowPipelineVisualizer } from '../components/investigation/LangflowPipelineVisualizer';
 
 interface ToolSchema {
   name: string;
@@ -69,7 +71,7 @@ interface AuditInvocation {
 
 export const McpServersPage: React.FC = () => {
   // Navigation Tabs
-  const [activeTab, setActiveTab] = useState<'registry' | 'simulation' | 'audit'>('registry');
+  const [activeTab, setActiveTab] = useState<'registry' | 'simulation' | 'workflow' | 'audit'>('registry');
 
   // Servers State
   const [servers, setServers] = useState<McpServer[]>([]);
@@ -147,6 +149,19 @@ export const McpServersPage: React.FC = () => {
     setActiveTestTool(tool);
     setTestResult(null);
 
+    if (tool.name === 'screen_entity_against_watchlists') {
+      const sanctionsTemplate = {
+        name: 'Mohamed El-Sayed Ahmed',
+        entity_type: 'individual',
+        countries: ['EG'],
+        birth_date: '1982-05-14',
+        threshold: 0.70,
+        limit: 5,
+      };
+      setTestArguments(JSON.stringify(sanctionsTemplate, null, 2));
+      return;
+    }
+
     const template: Record<string, any> = {};
     if (tool.input_schema?.properties) {
       Object.entries(tool.input_schema.properties).forEach(([k, prop]) => {
@@ -221,12 +236,21 @@ export const McpServersPage: React.FC = () => {
         return <ShieldAlert className="w-6 h-6 text-amber-500" />;
       case 'ScrollText':
         return <ScrollText className="w-6 h-6 text-purple-500" />;
+      case 'ShieldCheck':
+        return <ShieldCheck className="w-6 h-6 text-sky-500" />;
       default:
         return <Database className="w-6 h-6 text-indigo-500" />;
     }
   };
 
-  const categories = ['ALL', 'Ledger & Entities', 'Graph Topology (Neo4j)', 'Risk & Machine Learning', 'Regulatory & AML Corpus'];
+  const categories = [
+    'ALL',
+    'Ledger & Entities',
+    'Graph Topology (Neo4j)',
+    'Risk & Machine Learning',
+    'Regulatory & AML Corpus',
+    'Watchlist & Sanctions',
+  ];
 
   const filteredServers = servers.filter((s) => {
     const matchesCat = selectedCategory === 'ALL' || s.category === selectedCategory;
@@ -335,6 +359,16 @@ export const McpServersPage: React.FC = () => {
         >
           <GitPullRequest className="w-4 h-4" /> Agent Flow & Live Simulation
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        </button>
+        <button
+          onClick={() => setActiveTab('workflow')}
+          className={`px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-2 ${
+            activeTab === 'workflow'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Radio className="w-4 h-4 text-sky-400" /> Langflow Visual Workflow
         </button>
         <button
           onClick={() => {
@@ -811,7 +845,19 @@ export const McpServersPage: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 3: LIVE AUDIT LOG & OBSERVABILITY                                     */}
+      {/* TAB 3: LANGFLOW VISUAL WORKFLOW                                           */}
+      {/* ========================================================================= */}
+      {activeTab === 'workflow' && (
+        <LangflowPipelineVisualizer
+          onTestTool={() => {
+            const s = servers.find((srv) => srv.id === 'sanctions_server');
+            if (s && s.tools[0]) openToolTester(s, s.tools[0]);
+          }}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 4: LIVE AUDIT LOG & OBSERVABILITY                                     */}
       {/* ========================================================================= */}
       {activeTab === 'audit' && (
         <div className="space-y-6">
@@ -985,23 +1031,10 @@ export const McpServersPage: React.FC = () => {
 
               {/* Execution Result Box */}
               {testResult && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-slate-500 uppercase tracking-wider">
-                      Execution Output
-                    </span>
-                    <span
-                      className={`font-semibold ${
-                        testResult.success ? 'text-emerald-500' : 'text-red-500'
-                      }`}
-                    >
-                      {testResult.success ? `SUCCESS (${testResult.duration_ms} ms)` : 'ERROR'}
-                    </span>
-                  </div>
-                  <pre className="p-4 rounded-xl bg-slate-950 text-blue-300 font-mono text-xs overflow-x-auto max-h-60 border border-slate-800">
-                    {JSON.stringify(testResult, null, 2)}
-                  </pre>
-                </div>
+                <McpToolVisualInspector
+                  toolName={activeTestTool.name}
+                  testResult={testResult}
+                />
               )}
             </div>
 

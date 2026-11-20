@@ -29,6 +29,14 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://omerta:omerta_dev_password@localhost:15432/omerta_test"
     )
 
+    # --- PostgreSQL MCP Read-Only Role Isolation ---
+    mcp_database_url: str = (
+        "postgresql+asyncpg://omerta_mcp_reader:omerta_mcp_password@localhost:5433/omerta"
+    )
+    mcp_test_database_url: str = (
+        "postgresql+asyncpg://omerta_mcp_reader:omerta_mcp_password@localhost:5433/omerta_test"
+    )
+
     # --- Neo4j (derived graph projection; PostgreSQL stays source of truth) ---
     neo4j_uri: str = "bolt://localhost:17687"
     neo4j_username: str = "neo4j"
@@ -69,6 +77,12 @@ class Settings(BaseSettings):
     # Rate limiting (requests per minute per key/IP; 0 disables).
     rate_limit_per_minute: int = 0
     rate_limit_burst: int | None = None
+
+    # --- OpenSanctions Integration ---
+    opensanctions_api_key: str | None = None
+    opensanctions_base_url: str = "https://api.opensanctions.org"
+    opensanctions_timeout_seconds: float = 8.0
+    opensanctions_cache_ttl_seconds: int = 3600
 
     # --- Observability (Langfuse) ---
     langfuse_public_key: str | None = None

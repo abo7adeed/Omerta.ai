@@ -15,6 +15,7 @@ from mcp_servers.transaction_server.server import server as txn_mcp_server
 from mcp_servers.graph_server.server import server as graph_mcp_server
 from mcp_servers.risk_server.server import server as risk_mcp_server
 from mcp_servers.knowledge_server.server import server as knowledge_mcp_server
+from mcp_servers.sanctions_server.server import server as sanctions_mcp_server
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,19 @@ SERVERS_REGISTRY = {
         "command": "python -m mcp_servers.knowledge_server.server",
         "server_instance": knowledge_mcp_server,
         "icon": "ScrollText",
+    },
+    "sanctions_server": {
+        "id": "sanctions_server",
+        "name": sanctions_mcp_server.name,
+        "title": sanctions_mcp_server.title,
+        "description": sanctions_mcp_server.description,
+        "category": "Watchlist & Sanctions",
+        "transport": "stdio",
+        "protocol": "Model Context Protocol (JSON-RPC 2.0)",
+        "read_only": True,
+        "command": "python -m mcp_servers.sanctions_server.server",
+        "server_instance": sanctions_mcp_server,
+        "icon": "ShieldCheck",
     },
 }
 
@@ -164,8 +178,20 @@ async def test_mcp_tool(body: ToolTestRequest) -> dict[str, Any]:
     call_id = f"mcp-call-{uuid.uuid4().hex[:8]}"
     timestamp = datetime.now(timezone.utc).isoformat()
 
+    # For interactive Admin UI tests, auto-inject valid specialist authentication if not specified
+    call_args = dict(body.arguments or {})
+    from mcp_servers.common.specialist_rbac import generate_specialist_token
+    if body.server_id == "sanctions_server" or body.tool_name == "screen_entity_against_watchlists":
+        if not call_args.get("specialist"):
+            call_args["specialist"] = "SanctionsScreeningAgent"
+        if not call_args.get("auth_token"):
+            call_args["auth_token"] = generate_specialist_token(call_args["specialist"])
+    elif not call_args.get("specialist"):
+        call_args["specialist"] = "Orchestrator"
+        call_args["auth_token"] = generate_specialist_token("Orchestrator")
+
     try:
-        call_result = await server_obj.call_tool(body.tool_name, body.arguments)
+        call_result = await server_obj.call_tool(body.tool_name, call_args)
         duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
         
         # Normalize result into structured response
